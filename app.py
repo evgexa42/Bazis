@@ -12,6 +12,7 @@ FOLDER_PATH = r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА"  # Путь к �
 TELEGRAM_TOKEN = "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U"
 CHAT_ID = "703087159"
 CLIENTS_FILE = "clients.json"
+FACADES_FILE = "facades_list.txt"
 
 # === Flask и Telegram ===
 app = Flask(__name__)
@@ -216,6 +217,10 @@ def get_folders():
 def index():
     return render_template("index.html")
 
+@app.route("/facades")
+def facades_page():
+    return render_template("facades.html")
+
 @app.route("/data")
 def data():
     folders = get_folders()
@@ -325,6 +330,68 @@ def search_page():
                         })
 
     return render_template("search.html", query=query, results=results, SEARCH_FOLDERS=SEARCH_FOLDERS)
+
+@app.route("/facades/generate", methods=["POST"])
+def generate_facades():
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("items", [])
+
+    lines = []
+    errors = []
+
+    for idx, item in enumerate(items, start=1):
+        width = str(item.get("width", "")).strip()
+        height = str(item.get("height", "")).strip()
+        count = str(item.get("count", "")).strip()
+        side = str(item.get("side", "")).strip().lower()
+        hinges = str(item.get("hinges", "")).strip()
+
+        if not width or not height or not count:
+            errors.append(f"Строка {idx}: заполните ширину, высоту и количество.")
+            continue
+
+        try:
+            width_int = int(width)
+            height_int = int(height)
+            count_int = int(count)
+        except ValueError:
+            errors.append(f"Строка {idx}: ширина, высота и количество должны быть числами.")
+            continue
+
+        if width_int <= 0 or height_int <= 0 or count_int <= 0:
+            errors.append(f"Строка {idx}: значения должны быть больше нуля.")
+            continue
+
+        if side not in ("left", "right", "левая", "правая", "l", "r"):
+            errors.append(f"Строка {idx}: выберите сторону (левая/правая).")
+            continue
+
+        try:
+            hinges_int = int(hinges)
+        except ValueError:
+            errors.append(f"Строка {idx}: количество петель должно быть числом.")
+            continue
+
+        if hinges_int < 2 or hinges_int > 6:
+            errors.append(f"Строка {idx}: количество петель должно быть от 2 до 6.")
+            continue
+
+        side_code = "L" if side.startswith("l") or side.startswith("л") else "R"
+        lines.append(f"{width_int} {height_int} {count_int} {side_code} {hinges_int}")
+
+    if errors:
+        return jsonify({"status": "error", "errors": errors}), 400
+
+    if not lines:
+        return jsonify({"status": "error", "errors": ["Добавьте хотя бы один фасад перед генерацией."]}), 400
+
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), FACADES_FILE)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write("# width height count side hinges\n")
+        for line in lines:
+            f.write(line + "\n")
+
+    return jsonify({"status": "ok", "file": FACADES_FILE})
 
 # === Открытие папки ===
 @app.route("/open_folder", methods=["POST"])
