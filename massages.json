@@ -1,0 +1,62 @@
+[
+  {
+    "folder": "1234-10 ERHAN SERGIU [ANULAT]",
+    "order_key": "1234-10",
+    "chat_id": "703087159",
+    "message_id": 505
+  },
+  {
+    "folder": "555-10 ппав",
+    "order_key": "555-10",
+    "chat_id": "703087159",
+    "message_id": 561
+  },
+  {
+    "folder": "35-11 Varzari Ion",
+    "order_key": "35-11",
+    "chat_id": "703087159",
+    "message_id": 581
+  },
+  {
+    "folder": "90-11 SUS SRL",
+    "order_key": "90-11",
+    "chat_id": "703087159",
+    "message_id": 602
+  },
+  {
+    "folder": "Tumbe copii.b3d",
+    "order_key": "tumbe",
+    "chat_id": "703087159",
+    "message_id": 676
+  },
+  {
+    "folder": "53-10 FF",
+    "order_key": "53-10",
+    "chat_id": "703087159",
+    "message_id": 678
+  },
+  {
+    "folder": "204-11 CLIENT B",
+    "order_key": "204-11",
+    "chat_id": "703087159",
+    "message_id": 682
+  },
+  {
+    "folder": "234-11 KIKO PRIM",
+    "order_key": "234-11",
+    "chat_id": "703087159",
+    "message_id": 693
+  },
+  {
+    "folder": "234-11 KIKO PRIM [НЕ ДЕЛАТЬ]",
+    "order_key": "234-11",
+    "chat_id": "703087159",
+    "message_id": 694
+  },
+  {
+    "folder": "193-11 ERHAN SERGIU",
+    "order_key": "193-11",
+    "chat_id": "703087159",
+    "message_id": 696
+  }
+]
