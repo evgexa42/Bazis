@@ -1,0 +1,351 @@
+import os
+import time
+import json
+import datetime
+from datetime import datetime
+from flask import Flask, render_template, jsonify, request, redirect, url_for
+from telegram import Bot
+import threading
+
+# === Настройки ===
+FOLDER_PATH = r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА"  # Путь к папке заказов
+TELEGRAM_TOKEN = "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U"
+CHAT_ID = "703087159"
+CLIENTS_FILE = "clients.json"
+
+# === Flask и Telegram ===
+app = Flask(__name__)
+bot = Bot(token=TELEGRAM_TOKEN)
+
+# === Вспомогательные функции для Jinja2 ===
+def replace_slashes(text):
+    """Заменяет обратные слеши на прямые для корректных URL-адресов file://."""
+    return text.replace("\\", "/")
+
+# Регистрация пользовательского фильтра 'replace_slashes'
+app.jinja_env.filters['replace_slashes'] = replace_slashes 
+
+# === Загрузка базы клиентов ===
+def load_clients():
+    if os.path.exists(CLIENTS_FILE):
+        with open(CLIENTS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_clients(data):
+    with open(CLIENTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+clients = load_clients()
+
+
+# === Определение менеджера по имени клиента ===
+def get_manager_from_name(folder_name):
+    for client, manager in clients.items():
+        if client.lower() in folder_name.lower():
+            return manager
+    return "Неизвестно"
+
+
+# === Telegram уведомления ===
+known_folders = set()
+
+# --- messages.json persistent storage ---
+MESSAGES_FILE = "messages.json"
+
+def load_messages():
+    if os.path.exists(MESSAGES_FILE):
+        try:
+            with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[load_messages] Ошибка чтения {MESSAGES_FILE}: {e}")
+    return []  # список записей: {"folder": str, "order_key": str, "chat_id": ..., "message_id": ...}
+
+def save_messages(msgs):
+    try:
+        with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
+            json.dump(msgs, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[save_messages] Ошибка записи {MESSAGES_FILE}: {e}")
+
+# в памяти
+messages = load_messages()
+
+def order_key_from_name(name):
+    """Берём ключ заказа — первый токен до пробела, в lower()."""
+    if not name:
+        return ""
+    return name.split()[0].lower()
+
+def send_telegram_message(msg, folder_name):
+    """Отправить сообщение и сохранить запись для возможного удаления позже."""
+    global messages
+    try:
+        sent = bot.send_message(chat_id=CHAT_ID, text=msg)
+        entry = {
+            "folder": folder_name,
+            "order_key": order_key_from_name(folder_name),
+            "chat_id": CHAT_ID,
+            "message_id": sent.message_id
+        }
+        messages.append(entry)
+        save_messages(messages)
+        print(f"[TG] Сообщение отправлено и сохранено для {folder_name} -> id {sent.message_id}")
+    except Exception as e:
+        print(f"[Telegram Error] {e}")
+
+def delete_telegram_message(folder_name):
+    """Удалить все сообщения из messages.json, соответствующие order_key или точному имени папки."""
+    global messages
+    key = order_key_from_name(folder_name)
+    to_remove = []
+    for entry in list(messages):
+        if entry.get("folder") == folder_name or entry.get("order_key") == key:
+            try:
+                bot.delete_message(chat_id=entry["chat_id"], message_id=entry["message_id"])
+                print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
+            except Exception as e:
+                # Логируем, но продолжаем (возможно сообщение уже удалено)
+                print(f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
+            to_remove.append(entry)
+    if to_remove:
+        messages = [m for m in messages if m not in to_remove]
+        save_messages(messages)
+
+@app.route("/update_client", methods=["POST"])
+def update_client():
+    data = request.get_json()
+    old_name = data.get("old_name")
+    new_name = data.get("new_name")
+    new_manager = data.get("new_manager")
+
+    if old_name in clients:
+        clients.pop(old_name)
+        clients[new_name] = new_manager
+        save_clients(clients)
+
+    return jsonify({"status": "ok"})
+
+
+@app.route("/delete_client", methods=["POST"])
+def delete_client():
+    data = request.get_json()
+    name = data.get("name")
+
+    if name in clients:
+        clients.pop(name)
+        save_clients(clients)
+
+    return jsonify({"status": "ok"})
+
+def monitor_folder():
+    global known_folders
+    while True:
+        try:
+            current_folders = set(os.listdir(FOLDER_PATH))
+            new_folders = current_folders - known_folders
+
+            for folder in new_folders:
+                # Игнорирование служебных папок и временных файлов
+                if folder.startswith(".") or folder in ["Архив", "2025"]:
+                    continue
+                
+                # Фильтрация по наличию цифр и пробела (предположительно, это признак заказа)
+                if any(char.isdigit() for char in folder) and " " in folder:
+                    # Игнорирование обновлений, если просто добавили [J] или [I] (это будет учтено в следующем цикле, 
+                    # если только не изменится имя папки, но не будет генерировать лишнее уведомление)
+                    if "[J]" in folder or "[I]" in folder:
+                        continue
+                        
+                    manager = get_manager_from_name(folder)
+                    # отправляем и сохраняем запись о сообщении
+                    send_telegram_message(f"📁 Новый заказ: {folder}\n👤 Менеджер: {manager}", folder)
+
+            # Проверяем готовность заказов — если стали готовыми, удаляем соответствующие сообщения
+            for folder in current_folders:
+                if "[J]" in folder or "[I]" in folder:
+                    delete_telegram_message(folder)
+
+            # Важно: обновляем список известных папок только после успешной обработки
+            known_folders = current_folders
+        except Exception as e:
+            print(f"[Monitor error] {e}")
+        time.sleep(5) # Проверка каждые 5 секунд
+
+
+# Старый запуск потока удален отсюда. Он перенесен в блок if name == "main":.
+
+
+# === Получение списка заказов ===
+def get_folders():
+    folder_data = []
+    for folder_name in os.listdir(FOLDER_PATH):
+        folder_path = os.path.join(FOLDER_PATH, folder_name)
+        if not os.path.isdir(folder_path) or folder_name in ["Архив", "2025"]:
+            continue
+
+        modified_time = os.path.getmtime(folder_path)
+        modified_date = datetime.fromtimestamp(modified_time)
+        days_ago = (datetime.now() - modified_date).days
+        status = "Готов" if "[J]" in folder_name or "[I]" in folder_name else "Новый"
+        manager = get_manager_from_name(folder_name)
+
+        # Определяем технолога
+        technologist = None
+        if "[J]" in folder_name:
+            technologist = "Женя"
+        elif "[I]" in folder_name:
+            technologist = "Игорь"
+
+        folder_data.append({
+            "name": folder_name,
+            "status": status,
+            "manager": manager,
+            "technologist": technologist or "Неизвестно",
+            "modified": modified_date.strftime("%d.%m.%Y %H:%M"),
+            "days": days_ago
+        })
+
+    folder_data.sort(key=lambda x: x["modified"], reverse=True)
+    return folder_data
+
+
+# === Маршруты Flask ===
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/data")
+def data():
+    folders = get_folders()
+
+    total_orders = len(folders)
+    # Подсчёт по менеджерам
+    manager_stats = {"Игорь": 0, "Кристина": 0, "Валерия": 0, "Неизвестно": 0}
+    for f in folders:
+        if f["manager"] in manager_stats:
+            manager_stats[f["manager"]] += 1
+        else:
+            manager_stats["Неизвестно"] += 1
+
+    # Подсчёт по технологам
+    tech_stats = {"Женя": 0, "Игорь": 0, "Неизвестно": 0}
+    for f in folders:
+        if f["technologist"] in tech_stats:
+            tech_stats[f["technologist"]] += 1
+        else:
+            tech_stats["Неизвестно"] += 1
+
+    # --- Фильтр по менеджерам ---
+    manager_filter = request.args.get("manager", "Все")
+    if manager_filter != "Все":
+        folders = [f for f in folders if f["manager"] == manager_filter]
+
+
+    return jsonify({
+        "folders": folders,
+        "total": total_orders,
+        "managers": manager_stats,
+        "technologists": tech_stats
+    })
+
+
+# === Управление клиентами ===
+@app.route("/clients")
+def clients_page():
+    # Перезагрузка клиентов перед отображением, чтобы учесть изменения
+    # global clients
+    # clients = load_clients() 
+    return render_template("clients.html", clients=clients)
+
+@app.route("/add_client", methods=["POST"])
+def add_client():
+    client_name = request.form.get("client").strip()
+    manager = request.form.get("manager")
+
+    if client_name:
+        clients[client_name] = manager
+        save_clients(clients)
+    return redirect(url_for("clients_page"))
+
+# === Поиск заказов по сетевым папкам ===
+SEARCH_FOLDERS = {
+    "Присадка ARHIMOB": r"\\SERVER\homag\ПРИСАДКА ARHIMOB\2025",
+    "DESENE CPU": r"\\SERVER\homag\DESENE CPU\2025",
+    "Присадка Клиента": r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА\2025"
+}
+
+# === Словарь месяцев на румынском ===
+MONTHS_RO = {
+    1: "01. Ianuarie", 2: "02. Februarie", 3: "03. Martie", 4: "04. Aprilie",
+    5: "05. Mai", 6: "06. Iunie", 7: "07. Iulie", 8: "08. August",
+    9: "09. Septembrie", 10: "10. Octombrie", 11: "11. Noiembrie", 12: "12. Decembrie"
+}
+
+def get_recent_months():
+    """Возвращает список последних двух месяцев в формате '10. Octombrie 2025'"""
+    now = datetime.now()
+    year = now.year
+    months = []
+
+    for i in range(2):
+        month_num = now.month - i
+        if month_num <= 0:
+            month_num += 12
+            year -= 1
+        months.append(f"{MONTHS_RO[month_num]} {year}")
+
+    return months
+
+
+@app.route("/search", methods=["GET", "POST"])
+def search_page():
+    query = request.form.get("query", "").strip()
+    results = {key: [] for key in SEARCH_FOLDERS.keys()}
+    search_months = get_recent_months()
+
+    if query:
+        for key, base_folder in SEARCH_FOLDERS.items():
+            if not os.path.exists(base_folder):
+                continue
+
+            for month_folder in search_months:
+                month_path = os.path.join(base_folder, month_folder)
+                if not os.path.isdir(month_path):
+                    continue
+
+                for folder_name in os.listdir(month_path):
+                    if query.lower() in folder_name.lower():
+                        manager = get_manager_from_name(folder_name)
+                        results[key].append({
+                            "name": folder_name,
+                            "manager": manager,
+                            "path": os.path.join(month_path, folder_name)
+                        })
+
+    return render_template("search.html", query=query, results=results, SEARCH_FOLDERS=SEARCH_FOLDERS)
+
+# === Открытие папки ===
+@app.route("/open_folder", methods=["POST"])
+def open_folder():
+    folder_path = request.form.get("path")
+    if folder_path and os.path.exists(folder_path):
+        try:
+            os.startfile(folder_path)  # откроет в проводнике Windows
+        except Exception as e:
+            print(f"Ошибка открытия: {e}")
+    return ("", 204)
+
+# === Запуск ===
+if __name__ == "__main__":
+    # Исправление бага с дублированием:
+    # Запускаем поток мониторинга только в основном процессе,
+    # который запускается Flask'ом (когда WERKZEUG_RUN_MAIN == 'true').
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        print("Starting folder monitor thread...")
+        # Убедитесь, что 'known_folders' инициализируется при старте, чтобы не отправлять сообщения о старых папках
+        known_folders = set(os.listdir(FOLDER_PATH))
+        threading.Thread(target=monitor_folder, daemon=True).start()
+    print("Сервер запущен: http://192.168.100.114:5000")
+    app.run(host="192.168.100.114", port=5000, debug=True)

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мониторинг заказов</title>
+<style>
+    body { 
+        font-family: 'Inter', Arial, sans-serif; 
+        padding: 20px; 
+        background: #f4f7f9; 
+        color: #333;
+        max-width: 1800px;
+        margin: 0 auto;
+        border-radius: 12px;
+    }
+    h1 { 
+        margin-bottom: 20px; 
+        color: #1e40af; 
+        border-bottom: 2px solid #eff6ff; 
+        padding-bottom: 10px;
+        text-align: center;
+    }
+    .top-menu { 
+        margin-bottom: 20px; 
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+    .top-menu a { 
+        text-decoration: none; 
+        background: #0078d7; 
+        color: white; 
+        padding: 8px 15px; 
+        border-radius: 6px; 
+        transition: background 0.3s;
+        font-weight: 500;
+    }
+    .top-menu a:hover { background: #005fa3; }
+    .section { 
+        margin-bottom: 25px; 
+        background: #fff; 
+        padding: 20px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+    }
+    .filter { 
+        margin-bottom: 20px; 
+        display: flex; 
+        justify-content: space-between; 
+        gap: 10px;
+        align-items: center;
+    }
+    .filter > div {
+        display: flex;
+        gap: 10px;
+    }
+    button { 
+        padding: 8px 12px; 
+        cursor: pointer; 
+        background: #60a5fa;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: background 0.3s, transform 0.1s;
+    }
+    button:hover {
+        background: #3b82f6; 
+        transform: translateY(-1px);
+    }
+    select {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-weight: 500;
+        background: #fff;
+    }
+    .stats { line-height: 1.6; font-size: 0.95em; }
+    .stats b { color: #2563eb; }
+    table { 
+        border-collapse: separate; 
+        border-spacing: 0;
+        width: 100%; 
+        background: #fff;
+        border-radius: 12px; 
+        overflow: hidden; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+    }
+    th, td { 
+        border: none;
+        padding: 12px; 
+        text-align: center;
+        border-bottom: 2px solid #8d9696;
+    }
+    th { 
+        cursor: pointer; 
+        background: #e0f2f1;
+        color: #0d9488;
+        font-weight: bold;
+        border-bottom: 2px solid #ccfbf1;
+        user-select: none;
+    }
+    tr:nth-child(even) { background-color: #f7f7f7; }
+    tr:hover { background: #ccfbf1; }
+    tr.done { background-color: #d1fae5; }
+    tr.done:hover { background-color: #a7f3d0; }
+    tr.new { background-color: #fef3c7; }
+    tr.new:hover { background-color: #fde68a; }
+</style>
+</head>
+<body>
+<div class="top-menu">
+  <a href="/">📦 Мониторинг</a>
+  <a href="/clients">👥 Клиенты</a>
+  <a href="/search">🔍 Поиск</a>
+</div>
+
+<h1>📦 Мониторинг заказов</h1>
+
+<div id="stats" class="section stats"></div>
+
+<div class="filter">
+  <div>
+    <button onclick="setStatusFilter('all')">Все</button>
+    <button onclick="setStatusFilter('Новый')">Новые</button>
+    <button onclick="setStatusFilter('Готов')">Готовые</button>
+  </div>
+
+  <div>
+    <label for="managerSelect" style="margin-top: 8px;"><b>Менеджер:</b></label>
+    <select id="managerSelect" onchange="setManagerFilter()">
+      <option value="Все">Все</option>
+      <option value="Игорь">Игорь</option>
+      <option value="Кристина">Кристина</option>
+      <option value="Валерия">Валерия</option>
+    </select>
+
+    <button onclick="sortBy('status')">⇅ Статус</button>
+    <button onclick="sortBy('days')">⇅ Давность</button>
+  </div>
+</div>
+
+<table id="orders">
+  <thead>
+    <tr>
+      <th>Название</th>
+      <th>Менеджер</th>
+      <th>Статус</th>
+      <th>Изменено</th>
+      <th>Дней назад</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+let allData = [];
+let currentStatus = 'all';
+let currentManager = 'Все';
+let sortKey = null;
+let sortOrder = 1;
+
+function loadData() {
+  fetch(`/data?manager=${encodeURIComponent(currentManager)}`)
+    .then(r => r.json())
+    .then(json => {
+      allData = json.folders;
+      render();
+      renderStats(json);
+    })
+    .catch(error => console.error('Ошибка при загрузке данных:', error));
+}
+
+function setStatusFilter(status) {
+  currentStatus = status;
+  render();
+}
+
+function setManagerFilter() {
+  currentManager = document.getElementById('managerSelect').value;
+  loadData();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortOrder *= -1;
+  else { sortKey = key; sortOrder = 1; }
+  render();
+}
+
+function renderStats(data) {
+  const statsDiv = document.getElementById('stats');
+  statsDiv.innerHTML = `
+    <b>Всего заказов:</b> ${data.total}<br>
+    <b>Менеджеры:</b> Игорь: ${data.managers.Игорь}, Кристина: ${data.managers.Кристина}, Валерия: ${data.managers.Валерия}, Неизвестно: ${data.managers.Неизвестно}<br>
+    <b>Технологи:</b> Женя: ${data.technologists.Женя}, Игорь: ${data.technologists.Игорь}
+  `;
+}
+
+function render() {
+  let filtered = allData.filter(item => currentStatus === 'all' || item.status === currentStatus);
+
+  if (sortKey) filtered.sort((a, b) => {
+    let aVal = a[sortKey];
+    let bVal = b[sortKey];
+    if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+    }
+    if (aVal < bVal) return -1 * sortOrder;
+    if (aVal > bVal) return 1 * sortOrder;
+    return 0;
+  });
+
+  const tbody = document.querySelector('#orders tbody');
+  tbody.innerHTML = '';
+  filtered.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = item.status === 'Готов' ? 'done' : 'new';
+    tr.innerHTML = `
+      <td>${item.name}</td>
+      <td>${item.manager}</td>
+      <td>${item.status}</td>
+      <td>${item.modified}</td>
+      <td>${item.days}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+loadData();
+setInterval(loadData, 5000);
+</script>
+</body>
+</html>
