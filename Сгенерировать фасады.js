@@ -7,6 +7,14 @@ const listFilePath = 'C:\\Users\\жщшо\\Documents\\Bazis\\facades_list.txt';
 const fragmentsFolder = 'C:\\Users\\жщшо\\Documents\\Bazis\\#_Фрагменты\\Фрагменты элементов мебели';
 const gap = 100; // зазор между панелями по оси X
 
+function showAlert(message) {
+    if (typeof alert === 'function') {
+        alert(message);
+        return;
+    }
+    throw new Error(message);
+}
+
 function readTextFile(path) {
     const tryMethods = [];
 
@@ -84,14 +92,8 @@ function readTextFile(path) {
 
     const details = errors.length ? ('\n' + errors.join('\n')) : '';
     const message = 'Не удалось прочитать файл: ' + path + details;
-
-    if (typeof system !== 'undefined' && typeof system.alert === 'function') {
-        system.alert(message);
-    } else if (typeof alert === 'function') {
-        alert(message);
-    }
-
-    try { halt; } catch (err) { throw new Error(message); }
+    showAlert(message);
+    throw new Error(message);
 }
 
 function normalizeSide(value) {
@@ -159,8 +161,9 @@ function parseItems(text) {
     }
 
     if (errors.length) {
-        system.alert(errors.join('\n'));
-        halt;
+        const message = errors.join('\n');
+        showAlert(message);
+        throw new Error(message);
     }
 
     return items;
@@ -173,12 +176,7 @@ function getFragment(side, hinges) {
     if (fragmentCache[key]) return fragmentCache[key];
 
     const baseNames = [
-        'Fasad_' + side + '_' + hinges + 'P.fr3d',
-        'Fasad_' + side + '_' + hinges + '.fr3d',
-        'Fasdad_' + side + '_' + hinges + 'P.fr3d',
-        'Fasdad_' + side + '_' + hinges + '.fr3d',
-        'Fasad_' + side + '_' + hinges + '_P.fr3d',
-        'Fasdad_' + side + '_' + hinges + '_P.fr3d'
+        'Fasad_' + side + '_' + hinges + 'P.fr3d'
     ];
 
     for (let i = 0; i < baseNames.length; i++) {
@@ -196,8 +194,9 @@ function getFragment(side, hinges) {
 function placePanel(fragment, width, height, offsetX) {
     const obj = fragment.Make();
     if (!obj) {
-        system.alert('Не удалось создать объект из фрагмента.');
-        halt;
+        const message = 'Не удалось создать объект из фрагмента.';
+        showAlert(message);
+        throw new Error(message);
     }
 
     try { obj.Owner = Model.Temp; } catch (e) {}
@@ -216,14 +215,16 @@ function placePanel(fragment, width, height, offsetX) {
 
 const fileContent = readTextFile(listFilePath);
 if (!fileContent) {
-    system.alert('Файл facades_list.txt пуст или не найден: ' + listFilePath);
-    halt;
+    const message = 'Файл facades_list.txt пуст или не найден: ' + listFilePath;
+    showAlert(message);
+    throw new Error(message);
 }
 
 const items = parseItems(fileContent);
 if (!items.length) {
-    system.alert('В файле facades_list.txt нет валидных строк.');
-    halt;
+    const message = 'В файле facades_list.txt нет валидных строк.';
+    showAlert(message);
+    throw new Error(message);
 }
 
 let currentX = 0;
@@ -232,8 +233,9 @@ for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const fragment = getFragment(item.side, item.hinges);
     if (!fragment) {
-        system.alert('Не найден фрагмент для комбинации ' + item.side + ' и ' + item.hinges + ' петель.');
-        halt;
+        const message = 'Не найден фрагмент для комбинации ' + item.side + ' и ' + item.hinges + ' петель.';
+        showAlert(message);
+        throw new Error(message);
     }
 
     const quantity = item.count > 0 ? item.count : 1;
@@ -243,4 +245,4 @@ for (let i = 0; i < items.length; i++) {
     }
 }
 
-system.alert('Панели созданы по списку facades_list.txt.');
+showAlert('Панели созданы по списку facades_list.txt.');
