@@ -8,22 +8,90 @@ const fragmentsFolder = 'C:\\Users\\жщшо\\Documents\\Bazis\\#_Фрагмен
 const gap = 100; // зазор между панелями по оси X
 
 function readTextFile(path) {
-    try {
-        if (system && typeof system.readFile === 'function') {
-            return system.readFile(path);
-        }
-    } catch (e) {}
+    const tryMethods = [];
 
-    try {
-        const fso = new ActiveXObject('Scripting.FileSystemObject');
-        const file = fso.OpenTextFile(path, 1, false, -1);
-        const content = file.ReadAll();
-        file.Close();
-        return content;
-    } catch (e) {
-        system.alert('Не удалось прочитать файл: ' + path + '\n' + e);
-        halt;
+    tryMethods.push(function () {
+        if (typeof system !== 'undefined') {
+            if (typeof system.readFile === 'function') return system.readFile(path);
+            if (typeof system.ReadFile === 'function') return system.ReadFile(path);
+            if (typeof system.readTextFile === 'function') return system.readTextFile(path);
+            if (typeof system.ReadTextFile === 'function') return system.ReadTextFile(path);
+        }
+        return null;
+    });
+
+    tryMethods.push(function () {
+        if (typeof require === 'function') {
+            const fs = require('fs');
+            if (fs && typeof fs.readFileSync === 'function') {
+                return fs.readFileSync(path, 'utf8');
+            }
+        }
+        return null;
+    });
+
+    tryMethods.push(function () {
+        if (typeof system !== 'undefined' && typeof system.CreateObject === 'function') {
+            const fso = system.CreateObject('Scripting.FileSystemObject');
+            if (fso && typeof fso.OpenTextFile === 'function') {
+                const file = fso.OpenTextFile(path, 1, false, -1);
+                const text = file.ReadAll();
+                file.Close();
+                return text;
+            }
+        }
+        return null;
+    });
+
+    tryMethods.push(function () {
+        if (typeof ActiveXObject !== 'undefined') {
+            const fso = new ActiveXObject('Scripting.FileSystemObject');
+            if (fso && typeof fso.OpenTextFile === 'function') {
+                const file = fso.OpenTextFile(path, 1, false, -1);
+                const text = file.ReadAll();
+                file.Close();
+                return text;
+            }
+        }
+        return null;
+    });
+
+    tryMethods.push(function () {
+        if (typeof WScript !== 'undefined' && typeof WScript.CreateObject === 'function') {
+            const fso = WScript.CreateObject('Scripting.FileSystemObject');
+            if (fso && typeof fso.OpenTextFile === 'function') {
+                const file = fso.OpenTextFile(path, 1, false, -1);
+                const text = file.ReadAll();
+                file.Close();
+                return text;
+            }
+        }
+        return null;
+    });
+
+    const errors = [];
+
+    for (let i = 0; i < tryMethods.length; i++) {
+        try {
+            const result = tryMethods[i]();
+            if (result !== null && typeof result !== 'undefined') {
+                return String(result);
+            }
+        } catch (err) {
+            errors.push(String(err));
+        }
     }
+
+    const details = errors.length ? ('\n' + errors.join('\n')) : '';
+    const message = 'Не удалось прочитать файл: ' + path + details;
+
+    if (typeof system !== 'undefined' && typeof system.alert === 'function') {
+        system.alert(message);
+    } else if (typeof alert === 'function') {
+        alert(message);
+    }
+
+    try { halt; } catch (err) { throw new Error(message); }
 }
 
 function normalizeSide(value) {
