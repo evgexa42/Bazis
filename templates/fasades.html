@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Фасады</title>
+<style>
+    body {
+        font-family: 'Inter', Arial, sans-serif;
+        padding: 20px;
+        background: #f4f7f9;
+        color: #333;
+        max-width: 900px;
+        margin: 0 auto;
+        border-radius: 12px;
+    }
+    h1 {
+        margin-bottom: 10px;
+        color: #1e40af;
+        border-bottom: 2px solid #eff6ff;
+        padding-bottom: 10px;
+    }
+    .top-menu {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .top-menu a {
+        text-decoration: none;
+        background: #0078d7;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 6px;
+        transition: background 0.3s;
+    }
+    .top-menu a:hover { background: #005fa3; }
+    .section {
+        background: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    th, td {
+        padding: 10px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: center;
+    }
+    th {
+        background: #e0f2f1;
+        color: #0d9488;
+        font-weight: bold;
+    }
+    input[type="number"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5f5;
+        border-radius: 6px;
+        text-align: right;
+    }
+    select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5f5;
+        border-radius: 6px;
+    }
+    button {
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-weight: 600;
+        transition: background 0.3s, transform 0.1s;
+    }
+    .btn-primary {
+        background: #2563eb;
+        color: #fff;
+    }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+    .btn-secondary {
+        background: #10b981;
+        color: #fff;
+    }
+    .btn-secondary:hover { background: #059669; transform: translateY(-1px); }
+    .btn-danger {
+        background: #dc2626;
+        color: #fff;
+    }
+    .btn-danger:hover { background: #b91c1c; }
+    .actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    .hint {
+        font-size: 0.95em;
+        color: #4b5563;
+        line-height: 1.5;
+    }
+    .status {
+        margin-top: 15px;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: 500;
+        display: none;
+    }
+    .status.success {
+        background: #dcfce7;
+        color: #166534;
+        display: block;
+    }
+    .status.error {
+        background: #fee2e2;
+        color: #b91c1c;
+        display: block;
+    }
+</style>
+</head>
+<body>
+<div class="top-menu">
+  <a href="/">📦 Мониторинг</a>
+  <a href="/clients">👥 Клиенты</a>
+  <a href="/search">🔍 Поиск</a>
+  <a href="/facades">🚪 Фасады</a>
+</div>
+
+<h1>🚪 Генератор фасадов</h1>
+<p class="hint section">
+    Заполните параметры фасадов: ширину и высоту в миллиметрах, количество одинаковых деталей,
+    сторону открывания (левая/правая) и число петель (от 2 до 6).<br>
+    После нажатия <b>«Сгенерировать»</b> будет создан файл <code>facades_list.txt</code> рядом со скриптом
+    <b>«Сгенерировать фасады.js»</b>. Этот файл используется в скрипте для выбора подходящих
+    фрагментов вида <code>Fasad_L_2P.fr3d</code>, <code>Fasad_R_3P.fr3d</code> и т.д.
+</p>
+
+<div class="section">
+  <div class="actions" style="margin-bottom: 10px;">
+    <button id="addRow" type="button" class="btn-secondary">➕ Добавить фасад</button>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Ширина, мм</th>
+          <th>Высота, мм</th>
+          <th>Количество</th>
+          <th>Петли</th>
+          <th>Сторона</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="facadeRows"></tbody>
+    </table>
+  </div>
+  <div class="actions" style="margin-top: 15px;">
+    <button id="generate" type="button" class="btn-primary">📝 Сгенерировать</button>
+  </div>
+  <div id="status" class="status"></div>
+</div>
+
+<script>
+function createSelect(options, selected) {
+  const select = document.createElement('select');
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    if (opt.value === selected) option.selected = true;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function addRow(data = {}) {
+  const tbody = document.getElementById('facadeRows');
+  const tr = document.createElement('tr');
+
+  const widthTd = document.createElement('td');
+  const widthInput = document.createElement('input');
+  widthInput.type = 'number';
+  widthInput.min = '1';
+  widthInput.value = data.width || '';
+  widthTd.appendChild(widthInput);
+
+  const heightTd = document.createElement('td');
+  const heightInput = document.createElement('input');
+  heightInput.type = 'number';
+  heightInput.min = '1';
+  heightInput.value = data.height || '';
+  heightTd.appendChild(heightInput);
+
+  const countTd = document.createElement('td');
+  const countInput = document.createElement('input');
+  countInput.type = 'number';
+  countInput.min = '1';
+  countInput.value = data.count || '1';
+  countTd.appendChild(countInput);
+
+  const hingesTd = document.createElement('td');
+  const hingesSelect = createSelect([
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+    { value: '4', label: '4' },
+    { value: '5', label: '5' },
+    { value: '6', label: '6' }
+  ], data.hinges || '2');
+  hingesTd.appendChild(hingesSelect);
+
+  const sideTd = document.createElement('td');
+  const sideSelect = createSelect([
+    { value: 'left', label: 'Левая' },
+    { value: 'right', label: 'Правая' }
+  ], data.side || 'left');
+  sideTd.appendChild(sideSelect);
+
+  const removeTd = document.createElement('td');
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn-danger';
+  removeBtn.textContent = '✖';
+  removeBtn.title = 'Удалить строку';
+  removeBtn.addEventListener('click', () => tr.remove());
+  removeTd.appendChild(removeBtn);
+
+  tr.appendChild(widthTd);
+  tr.appendChild(heightTd);
+  tr.appendChild(countTd);
+  tr.appendChild(hingesTd);
+  tr.appendChild(sideTd);
+  tr.appendChild(removeTd);
+  tbody.appendChild(tr);
+}
+
+function gatherItems() {
+  const rows = document.querySelectorAll('#facadeRows tr');
+  const items = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input, select');
+    if (inputs.length !== 5) return;
+    const [width, height, count, hinges, side] = inputs;
+    if (!width.value && !height.value && !count.value) return;
+    items.push({
+      width: width.value,
+      height: height.value,
+      count: count.value,
+      hinges: hinges.value,
+      side: side.value
+    });
+  });
+  return items;
+}
+
+function setStatus(message, type) {
+  const status = document.getElementById('status');
+  status.textContent = message;
+  status.className = 'status ' + type;
+}
+
+function clearStatus() {
+  const status = document.getElementById('status');
+  status.textContent = '';
+  status.className = 'status';
+}
+
+document.getElementById('addRow').addEventListener('click', () => addRow());
+
+document.getElementById('generate').addEventListener('click', () => {
+  clearStatus();
+  const items = gatherItems();
+  if (!items.length) {
+    setStatus('Добавьте хотя бы одну строку перед генерацией.', 'error');
+    return;
+  }
+
+  fetch('/facades/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items })
+  })
+    .then(async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errors = (data.errors || ['Не удалось создать файл.']).join('\n');
+        throw new Error(errors);
+      }
+      return data;
+    })
+    .then(data => {
+      setStatus(`Файл ${data.file} успешно создан.`, 'success');
+    })
+    .catch(error => {
+      setStatus(error.message, 'error');
+    });
+});
+
+addRow();
+</script>
+</body>
+</html>

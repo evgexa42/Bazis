@@ -1,20 +1,25 @@
 import os
 import time
 import json
-import datetime
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask import abort
+from flask import current_app
 from telegram import Bot
 import threading
 
 # === Настройки ===
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+
 FOLDER_PATH = r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА"  # Путь к папке заказов
 TELEGRAM_TOKEN = "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U"
 CHAT_ID = "703087159"
-CLIENTS_FILE = "clients.json"
+CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
+FACADES_FILE = os.path.join(BASE_DIR, "facades_list.txt")
 
 # === Flask и Telegram ===
-app = Flask(__name__)
+app = Flask(__name__, template_folder=TEMPLATES_DIR)
 bot = Bot(token=TELEGRAM_TOKEN)
 
 # === Вспомогательные функции для Jinja2 ===
@@ -51,7 +56,7 @@ def get_manager_from_name(folder_name):
 known_folders = set()
 
 # --- messages.json persistent storage ---
-MESSAGES_FILE = "messages.json"
+MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
 
 def load_messages():
     if os.path.exists(MESSAGES_FILE):
@@ -216,6 +221,14 @@ def get_folders():
 def index():
     return render_template("index.html")
 
+@app.route("/facades")
+def facades_page():
+    template_path = os.path.join(current_app.template_folder or "", "facades.html")
+    if template_path and not os.path.exists(template_path):
+        app.logger.error("Шаблон фасадов не найден: %s", template_path)
+        abort(500, description="Не найден шаблон facades.html. Убедитесь, что файл находится в папке templates.")
+    return render_template("facades.html")
+
 @app.route("/data")
 def data():
     folders = get_folders()
@@ -325,6 +338,68 @@ def search_page():
                         })
 
     return render_template("search.html", query=query, results=results, SEARCH_FOLDERS=SEARCH_FOLDERS)
+    
+@app.route("/facades/generate", methods=["POST"])
+def generate_facades():
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("items", [])
+
+    lines = []
+    errors = []
+
+    for idx, item in enumerate(items, start=1):
+        width = str(item.get("width", "")).strip()
+        height = str(item.get("height", "")).strip()
+        count = str(item.get("count", "")).strip()
+        side = str(item.get("side", "")).strip().lower()
+        hinges = str(item.get("hinges", "")).strip()
+
+        if not width or not height or not count:
+            errors.append(f"Строка {idx}: заполните ширину, высоту и количество.")
+            continue
+
+        try:
+            width_int = int(width)
+            height_int = int(height)
+            count_int = int(count)
+        except ValueError:
+            errors.append(f"Строка {idx}: ширина, высота и количество должны быть числами.")
+            continue
+
+        if width_int <= 0 or height_int <= 0 or count_int <= 0:
+            errors.append(f"Строка {idx}: значения должны быть больше нуля.")
+            continue
+
+        if side not in ("left", "right", "левая", "правая", "l", "r"):
+            errors.append(f"Строка {idx}: выберите сторону (левая/правая).")
+            continue
+
+        try:
+            hinges_int = int(hinges)
+        except ValueError:
+            errors.append(f"Строка {idx}: количество петель должно быть числом.")
+            continue
+
+        if hinges_int < 2 or hinges_int > 6:
+            errors.append(f"Строка {idx}: количество петель должно быть от 2 до 6.")
+            continue
+
+        side_code = "L" if side.startswith("l") or side.startswith("л") else "R"
+        lines.append(f"{width_int} {height_int} {count_int} {side_code} {hinges_int}")
+
+    if errors:
+        return jsonify({"status": "error", "errors": errors}), 400
+
+    if not lines:
+        return jsonify({"status": "error", "errors": ["Добавьте хотя бы один фасад перед генерацией."]}), 400
+
+    with open(FACADES_FILE, "w", encoding="utf-8") as f:
+        f.write("# width height count side hinges\n")
+        for line in lines:
+            f.write(line + "\n")
+
+    return jsonify({"status": "ok", "file": os.path.basename(FACADES_FILE)})
+
 
 # === Открытие папки ===
 @app.route("/open_folder", methods=["POST"])
