@@ -3,9 +3,9 @@
 // сторона: L или R (можно также указать left/right/левая/правая в файле)
 // петли: число от 2 до 6
 
-const listFilePath = 'C:\\Users\\жщшо\\Documents\\Bazis\\facades_list.txt';
+const listFilePath = '\\\\Server\\базис\\facades_list.txt';
 const fragmentsFolder = 'C:\\Users\\жщшо\\Documents\\Bazis\\#_Фрагменты\\Фрагменты элементов мебели\\Фасады';
-const gap = 100; // зазор между панелями по оси X
+const gap = 50; // зазор между панелями по оси X
 
 function showAlert(message) {
     if (typeof alert === 'function') {
@@ -87,8 +87,8 @@ function readTextFile(path) {
             }
         } catch (err) {
             errors.push(String(err));
-        }
-    }
+        };
+    };
 
     const details = errors.length ? ('\n' + errors.join('\n')) : '';
     const message = 'Не удалось прочитать файл: ' + path + details;
@@ -251,7 +251,8 @@ function makeFromFragment(fragment) {
     return { object: null, errors: errors };
 }
 
-function placePanel(fragmentInfo, width, height, offsetX) {
+// === изменённая функция ===
+function placePanel(fragmentInfo, width, height, offsetX, hinges) {
     const fragment = fragmentInfo && fragmentInfo.fragment ? fragmentInfo.fragment : fragmentInfo;
     const creation = makeFromFragment(fragment);
     const obj = creation.object;
@@ -276,8 +277,14 @@ function placePanel(fragmentInfo, width, height, offsetX) {
         obj.PositionY = 0;
         obj.PositionZ = 0;
     } catch (e) {}
+
+    // === Устанавливаем имя фасада ===
+    try {
+        obj.Name = `Fasad_${width}_${height}_${hinges}`;
+    } catch (e) {}
 }
 
+// === основной блок ===
 const fileContent = readTextFile(listFilePath);
 if (!fileContent) {
     const message = 'Файл facades_list.txt пуст или не найден: ' + listFilePath;
@@ -308,9 +315,9 @@ for (let i = 0; i < items.length; i++) {
 
     const quantity = item.count > 0 ? item.count : 1;
     for (let j = 0; j < quantity; j++) {
-        placePanel(fragmentInfo, item.width, item.height, currentX);
+        placePanel(fragmentInfo, item.width, item.height, currentX, item.hinges);
         currentX += item.width + gap;
     }
 }
 
-showAlert('Панели созданы по списку facades_list.txt.');
+//showAlert('Панели созданы по списку facades_list.txt.');

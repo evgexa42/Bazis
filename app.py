@@ -16,7 +16,8 @@ FOLDER_PATH = r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА"  # Путь к �
 TELEGRAM_TOKEN = "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U"
 CHAT_ID = "703087159"
 CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
-FACADES_FILE = os.path.join(BASE_DIR, "facades_list.txt")
+FACADES_DIR = r"\\Server\базис"
+FACADES_FILE = os.path.join(FACADES_DIR, "facades_list.txt")
 
 # === Flask и Telegram ===
 app = Flask(__name__, template_folder=TEMPLATES_DIR)
