@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Фасады</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body data-page="facades">
+  <div class="page facade-layout">
+    <nav class="top-menu">
+      <a href="/">📦 Мониторинг</a>
+      <a href="/clients">👥 Клиенты</a>
+      <a href="/search">🔍 Поиск</a>
+      <a href="/facades">🚪 Фасады</a>
+    </nav>
+
+    <header class="page-header">
+      <h1>🚪 Генератор фасадов</h1>
+      <p class="page-description">
+        Подготовьте список фасадов с указанием размеров, количества и стороны открывания. После генерации файл
+        <code>facades_list.txt</code> автоматически сохраняется в папке <code>\\Server\базис</code> и используется
+        скриптом <b>«Сгенерировать фасады.js»</b> для размещения подходящих фрагментов вида
+        <code>Fasad_L_2P.fr3d</code>.
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="badge">Список фасадов</span>
+          <div class="hint">Добавляйте позиции и укажите параметры для каждой детали.</div>
+        </div>
+        <div class="button-group">
+          <button id="addRow" type="button" class="btn btn--primary">➕ Добавить фасад</button>
+          <button id="clearAll" type="button" class="btn btn--ghost">🧹 Очистить список</button>
+        </div>
+      </div>
+
+      <div class="grid-wrapper">
+        <div class="facade-header facade-grid">
+          <div>#</div>
+          <div>Ширина, мм</div>
+          <div>Высота, мм</div>
+          <div>Кол-во</div>
+          <div>Петли</div>
+          <div>Сторона</div>
+          <div></div>
+        </div>
+        <div id="facadeList"></div>
+      </div>
+
+      <div class="panel-header">
+        <div class="hint">Проверьте данные перед генерацией файла.</div>
+        <div class="button-group">
+          <button id="generate" type="button" class="btn btn--accent">📝 Сгенерировать</button>
+        </div>
+      </div>
+
+      <div id="status" class="status"></div>
+    </section>
+  </div>
+</body>
+</html>

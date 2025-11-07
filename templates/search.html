@@ -1,239 +1,70 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Поиск заказов</title>
-<style>
-    body {
-        font-family: 'Inter', Arial, sans-serif;
-        padding: 20px;
-        background: #f4f7f9;
-        color: #333;
-        max-width: 850px;
-        margin: 0 auto;
-        border-radius: 12px;
-    }
-    h1 {
-        margin-bottom: 20px;
-        color: #1e40af;
-        border-bottom: 2px solid #eff6ff;
-        padding-bottom: 10px;
-    }
-    form {
-        margin-bottom: 30px;
-        display: flex;
-        gap: 10px;
-    }
-    input[type="text"] {
-        flex-grow: 1;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        font-size: 16px;
-    }
-    button[type="submit"] {
-        padding: 10px 15px;
-        cursor: pointer;
-        background: #2563eb;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        transition: background 0.3s;
-    }
-    button[type="submit"]:hover { background: #1e40af; }
-
-    .top-menu {
-        margin-bottom: 20px;
-        display: flex;
-        gap: 10px;
-    }
-    .top-menu a {
-        text-decoration: none;
-        background: #0078d7;
-        color: white;
-        padding: 8px 15px;
-        border-radius: 6px;
-        transition: background 0.3s;
-    }
-    .top-menu a:hover { background: #005fa3; }
-
-    .section {
-        margin-bottom: 25px;
-        background: #fff;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    h3 {
-        color: #10b981;
-        margin-top: 0;
-        border-bottom: 1px dashed #e0f2f1;
-        padding-bottom: 8px;
-        margin-bottom: 15px;
-    }
-    .folder-item {
-        margin: 10px 0;
-        padding: 14px;
-        background: #f0fdfa;
-        border: 1px solid #ccfbf1;
-        border-radius: 10px;
-        transition: background 0.3s;
-    }
-    .folder-item:hover { background: #e0f2f1; }
-
-    .folder-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-    .folder-name { font-weight: bold; color: #0d9488; font-size: 1.1em; }
-    .manager { color: #666; font-size: 0.9em; margin-left: 10px; }
-
-    .path-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        padding: 8px 12px;
-        margin-top: 6px;
-        font-size: 14px;
-        color: #555;
-    }
-
-    .open-btn {
-        text-decoration: none;
-        background: #10b981;
-        padding: 8px 15px;
-        border: none;
-        border-radius: 6px;
-        color: #fff;
-        cursor: pointer;
-        font-weight: 500;
-        white-space: nowrap;
-        transition: background 0.3s;
-        margin-left: 8px;
-    }
-    .open-btn:hover { background: #059669; }
-
-    .copy-btn {
-        background: #3b82f6;
-        padding: 7px 14px;
-        border: none;
-        border-radius: 6px;
-        color: #fff;
-        cursor: pointer;
-        font-weight: 500;
-        white-space: nowrap;
-        transition: background 0.3s;
-        margin-left: 10px;
-    }
-    .copy-btn:hover { background: #1d4ed8; }
-
-    .copied {
-        margin-left: 10px;
-        color: #16a34a;
-        font-size: 0.9em;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Поиск заказов</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
-<body>
-<div class="top-menu">
-  <a href="/">📦 Мониторинг</a>
-  <a href="/clients">👥 Клиенты</a>
-  <a href="/search">🔍 Поиск</a>
-  <a href="/facades">🚪 Фасады</a>
-</div>
+<body data-page="search">
+  <div class="page">
+    <nav class="top-menu">
+      <a href="/">📦 Мониторинг</a>
+      <a href="/clients">👥 Клиенты</a>
+      <a href="/search">🔍 Поиск</a>
+      <a href="/facades">🚪 Фасады</a>
+    </nav>
 
-<h1>🔍 Поиск заказов</h1>
+    <header class="page-header">
+      <h1>🔍 Поиск заказов</h1>
+      <p class="page-description">
+        Найдите нужный заказ по номеру и быстро перейдите к папке проекта. Используйте копирование пути или
+        открытие в проводнике для мгновенного доступа.
+      </p>
+    </header>
 
-<form method="POST" action="{{ url_for('search_page') }}">
-    <input type="text" name="query" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
-    <button type="submit">Поиск</button>
-</form>
+    <section class="card">
+      <h2 class="section-title">Поисковый запрос</h2>
+      <form method="POST" action="{{ url_for('search_page') }}" class="form-inline">
+        <input type="text" name="query" class="input" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
+        <button type="submit" class="btn btn--primary">Поиск</button>
+      </form>
+      {% if query %}
+      <p class="hint">Результаты поиска для: <strong>{{ query }}</strong></p>
+      {% endif %}
+    </section>
 
-{% if query %}
-<p>Результаты поиска для: <strong>{{ query }}</strong></p>
-{% endif %}
-
-{% for key, items in results.items() %}
-<div class="section">
-    <h3>{{ key }}</h3>
-    {% if items %}
-	{% for item in items %}
-    <div class="folder-item">
-        <div class="folder-top">
+    {% for key, items in results.items() %}
+    <section class="card">
+      <h3 class="section-title">{{ key }}</h3>
+      {% if items %}
+        {% for item in items %}
+        <article class="folder-card">
+          <div class="folder-top">
             <div>
-                <span class="folder-name">{{ item.name }}</span>
-                <span class="manager">👤 {{ item.manager }}</span>
+              <span class="folder-name">{{ item.name }}</span>
+              <span class="manager-label">👤 {{ item.manager }}</span>
             </div>
-            <form action="{{ url_for('open_folder') }}" method="POST" style="margin:0;">
-                <input type="hidden" name="path" value="{{ item.path }}">
-                <button type="submit" class="open-btn">📂 Открыть папку</button>
+            <form action="{{ url_for('open_folder') }}" method="POST" class="open-form" style="margin:0;">
+              <input type="hidden" name="path" value="{{ item.path }}">
+              <button type="submit" class="btn btn--accent btn--small">📂 Открыть папку</button>
             </form>
-        </div>
-
-        <div class="path-container">
+          </div>
+          <div class="path-container">
             <span class="path-text">{{ item.path }}</span>
-            <div style="display:flex; align-items:center;">
-                <button type="button" class="copy-btn" data-path="{{ item.path }}" onclick="copyPath(this)">📋 Копировать</button>
-                <span class="copied">✅ Скопировано!</span>
+            <div class="copy-actions">
+              <button type="button" class="btn btn--ghost btn--small" data-copy-path="{{ item.path }}">📋 Копировать</button>
+              <span class="copy-status">✅ Скопировано!</span>
             </div>
-        </div>
-    </div>
+          </div>
+        </article>
         {% endfor %}
-    {% else %}
-        <p>Ничего не найдено.</p>
-    {% endif %}
-</div>
-{% endfor %}
-
-<script>
-function copyPath(btn) {
-    const text = btn.getAttribute("data-path");
-
-    // Новый API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-            showCopied(btn);
-        }).catch(() => {
-            fallbackCopy(text, btn);
-        });
-    } else {
-        fallbackCopy(text, btn);
-    }
-}
-
-// Старый способ (фолбэк)
-function fallbackCopy(text, btn) {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    try {
-        document.execCommand("copy");
-        showCopied(btn);
-    } catch (err) {
-        alert("Ошибка копирования");
-    }
-    document.body.removeChild(textarea);
-}
-
-// Отображение "Скопировано"
-function showCopied(btn) {
-    const msg = btn.nextElementSibling;
-    msg.style.opacity = 1;
-    setTimeout(() => msg.style.opacity = 0, 2000);
-}
-</script>
+      {% else %}
+      <p class="hint">Ничего не найдено.</p>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
 </body>
 </html>

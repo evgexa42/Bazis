@@ -1,192 +1,81 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Клиенты и менеджеры</title>
-<style>
-    body { 
-        font-family: 'Inter', Arial, sans-serif; 
-        padding: 20px; 
-        background: #f4f7f9; 
-        color: #333;
-        max-width: 800px;
-        margin: 0 auto;
-        border-radius: 12px;
-    }
-    h1 { 
-        margin-bottom: 20px; 
-        color: #1e40af; 
-        border-bottom: 2px solid #eff6ff; 
-        padding-bottom: 10px;
-        text-align: center;
-    }
-    .top-menu { 
-        margin-bottom: 20px; 
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-    }
-    .top-menu a { 
-        text-decoration: none; 
-        background: #0078d7; 
-        color: white; 
-        padding: 8px 15px; 
-        border-radius: 6px; 
-        transition: background 0.3s;
-        font-weight: 500;
-    }
-    .top-menu a:hover { background: #005fa3; }
-
-    form { 
-        background: #fff; 
-        padding: 20px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-        margin-bottom: 30px; 
-        display: flex; 
-        gap: 10px;
-        align-items: center;
-    }
-    input[type="text"], select { 
-        flex-grow: 1;
-        padding: 10px; 
-        border: 1px solid #ccc;
-        border-radius: 8px; 
-        font-size: 16px;
-    }
-    button { 
-        padding: 8px 15px; 
-        cursor: pointer;
-        border: none;
-        border-radius: 6px;
-        font-weight: bold;
-        transition: 0.2s;
-    }
-    button:hover { transform: translateY(-1px); }
-    .add-btn { background: #2563eb; color: #fff; }
-    .add-btn:hover { background: #1e40af; }
-    .edit-btn { background: #f59e0b; color: #fff; }
-    .edit-btn:hover { background: #d97706; }
-    .save-btn { background: #16a34a; color: #fff; }
-    .save-btn:hover { background: #15803d; }
-    .delete-btn { background: #dc2626; color: #fff; }
-    .delete-btn:hover { background: #b91c1c; }
-
-    table { 
-        border-collapse: separate; 
-        border-spacing: 0;
-        width: 100%; 
-        background: #fff;
-        border-radius: 12px; 
-        overflow: hidden; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-    }
-    th, td { 
-        border: none; 
-        padding: 12px; 
-        text-align: left; 
-        border-bottom: 1px solid #f4f7f9;
-    }
-    th { 
-        background: #e0f2f1;
-        color: #0d9488;
-        font-weight: bold;
-        border-bottom: 2px solid #ccfbf1;
-    }
-    tr:nth-child(even) { background-color: #f7f7f7; }
-    tr:hover { background: #e0f2f1; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Клиенты и менеджеры</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
-<body>
-<div class="top-menu">
-  <a href="/">📦 Мониторинг</a>
-  <a href="/clients">👥 Клиенты</a>
-  <a href="/search">🔍 Поиск</a>
-  <a href="/facades">🚪 Фасады</a>
-</div>
+<body data-page="clients">
+  <div class="page">
+    <nav class="top-menu">
+      <a href="/">📦 Мониторинг</a>
+      <a href="/clients">👥 Клиенты</a>
+      <a href="/search">🔍 Поиск</a>
+      <a href="/facades">🚪 Фасады</a>
+    </nav>
 
-<h1>👥 База клиентов</h1>
+    <header class="page-header">
+      <h1>👥 База клиентов</h1>
+      <p class="page-description">
+        Управляйте списком клиентов и назначайте ответственных менеджеров. Изменения сохраняются моментально
+        и доступны всем участникам команды.
+      </p>
+    </header>
 
-<form action="/add_client" method="post">
-  <input type="text" name="client" placeholder="Имя клиента" required>
-  <select name="manager" required>
-    <option value="">Выбери менеджера</option>
-    <option value="Игорь">Игорь</option>
-    <option value="Кристина">Кристина</option>
-    <option value="Валерия">Валерия</option>
-  </select>
-  <button type="submit" class="add-btn">Добавить</button>
-</form>
+    <section class="card">
+      <h2 class="section-title">Добавить клиента</h2>
+      <form action="/add_client" method="post" class="form-inline">
+        <input type="text" name="client" class="input" placeholder="Имя клиента" required>
+        <select name="manager" class="select" required>
+          <option value="" selected>Выбери менеджера</option>
+          <option value="Игорь">Игорь</option>
+          <option value="Кристина">Кристина</option>
+          <option value="Валерия">Валерия</option>
+        </select>
+        <button type="submit" class="btn btn--primary">Добавить</button>
+      </form>
+    </section>
 
-<table>
-  <thead>
-    <tr><th>Клиент</th><th>Менеджер</th><th>Действия</th></tr>
-  </thead>
-  <tbody>
-  {% for client, manager in clients.items() %}
-  <tr id="row-{{ loop.index }}">
-    <td>
-      <span class="client-name">{{ client }}</span>
-      <input type="text" class="edit-name" value="{{ client }}" style="display:none;">
-    </td>
-    <td>
-      <span class="manager-name">{{ manager }}</span>
-      <select class="edit-manager" style="display:none;">
-        <option value="Игорь" {% if manager == "Игорь" %}selected{% endif %}>Игорь</option>
-        <option value="Кристина" {% if manager == "Кристина" %}selected{% endif %}>Кристина</option>
-        <option value="Валерия" {% if manager == "Валерия" %}selected{% endif %}>Валерия</option>
-      </select>
-    </td>
-    <td>
-      <button class="edit-btn" onclick="editClient('{{ client }}', {{ loop.index }})">✏️</button>
-	  <button class="save-btn" onclick="saveClient('{{ client }}', {{ loop.index }})" style="display:none;">💾</button>
-      <button class="delete-btn" onclick="deleteClient('{{ client }}')">🗑️</button>
-    </td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-
-<script>
-function editClient(client, index) {
-    const row = document.getElementById("row-" + index);
-    row.querySelector(".client-name").style.display = "none";
-    row.querySelector(".manager-name").style.display = "none";
-    row.querySelector(".edit-name").style.display = "inline-block";
-    row.querySelector(".edit-manager").style.display = "inline-block";
-    row.querySelector(".edit-btn").style.display = "none";
-    row.querySelector(".save-btn").style.display = "inline-block";
-}
-
-function saveClient(oldName, index) {
-    const row = document.getElementById("row-" + index);
-    const newName = row.querySelector(".edit-name").value.trim();
-    const newManager = row.querySelector(".edit-manager").value;
-
-    if (!newName) {
-        alert("Имя клиента не может быть пустым!");
-        return;
-    }
-
-    if (!confirm("Сохранить изменения?")) return;
-
-    fetch("/update_client", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ old_name: oldName, new_name: newName, new_manager: newManager })
-    }).then(() => location.reload());
-}
-
-function deleteClient(client) {
-    if (confirm("Удалить клиента '" + client + "'?")) {
-        fetch("/delete_client", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: client })
-        }).then(() => location.reload());
-    }
-}
-</script>
+    <section class="card table-card clients-table">
+      <div class="table-scroll">
+        <table class="data-table" data-clients-table>
+          <thead>
+            <tr>
+              <th>Клиент</th>
+              <th>Менеджер</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for client, manager in clients.items() %}
+            <tr data-client="{{ client }}">
+              <td>
+                <span class="table-primary" data-view>{{ client }}</span>
+                <input type="text" class="input edit-name is-hidden" data-edit value="{{ client }}">
+              </td>
+              <td>
+                <span class="manager-tag" data-view>{{ manager }}</span>
+                <select class="select edit-manager is-hidden" data-edit>
+                  <option value="Игорь" {% if manager == "Игорь" %}selected{% endif %}>Игорь</option>
+                  <option value="Кристина" {% if manager == "Кристина" %}selected{% endif %}>Кристина</option>
+                  <option value="Валерия" {% if manager == "Валерия" %}selected{% endif %}>Валерия</option>
+                </select>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <button type="button" class="btn btn--ghost btn--small" data-action="edit" data-view>✏️ Редактировать</button>
+                  <button type="button" class="btn btn--success btn--small is-hidden" data-action="save" data-edit>💾 Сохранить</button>
+                  <button type="button" class="btn btn--danger btn--small" data-action="delete">🗑️ Удалить</button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 </body>
 </html>
