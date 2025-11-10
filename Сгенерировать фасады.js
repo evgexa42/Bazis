@@ -1,7 +1,6 @@
 // Скрипт для автоматического размещения фасадов на основе списка facades_list.txt
-// Формат строки: ширина высота количество сторона петли
-// сторона: L или R (можно также указать left/right/левая/правая в файле)
-// петли: число от 2 до 6
+// Формат строки: позиция ширина высота количество сторона петли
+// Пример: 1 599 760 1 R 2
 
 const listFilePath = '\\\\Server\\базис\\facades_list.txt';
 const fragmentsFolder = 'C:\\Users\\жщшо\\Documents\\Bazis\\#_Фрагменты\\Фрагменты элементов мебели\\Фасады';
@@ -123,16 +122,17 @@ function parseItems(text) {
         if (!line) continue;
 
         const parts = line.split(/[;,\s]+/).filter(Boolean);
-        if (parts.length < 5) {
-            errors.push('Строка ' + lineNumber + ': ожидается 5 значений.');
+        if (parts.length < 6) {
+            errors.push('Строка ' + lineNumber + ': ожидается 6 значений (позиция ширина высота количество сторона петли).');
             continue;
         }
 
-        const width = Number(parts[0]);
-        const height = Number(parts[1]);
-        const count = Number(parts[2]);
-        const side = normalizeSide(parts[3]);
-        const hinges = Number(parts[4]);
+        const pos = Number(parts[0]);
+        const width = Number(parts[1]);
+        const height = Number(parts[2]);
+        const count = Number(parts[3]);
+        const side = normalizeSide(parts[4]);
+        const hinges = Number(parts[5]);
 
         if (!width || !height || !count || !Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(count)) {
             errors.push('Строка ' + lineNumber + ': ширина, высота и количество должны быть числами.');
@@ -152,6 +152,7 @@ function parseItems(text) {
         }
 
         items.push({
+            pos: pos,
             width: width,
             height: height,
             count: Math.round(count),
@@ -251,8 +252,8 @@ function makeFromFragment(fragment) {
     return { object: null, errors: errors };
 }
 
-// === изменённая функция ===
-function placePanel(fragmentInfo, width, height, offsetX, hinges) {
+// === функция вставки фрагмента ===
+function placePanel(fragmentInfo, width, height, offsetX, hinges, posNum) {
     const fragment = fragmentInfo && fragmentInfo.fragment ? fragmentInfo.fragment : fragmentInfo;
     const creation = makeFromFragment(fragment);
     const obj = creation.object;
@@ -268,9 +269,7 @@ function placePanel(fragmentInfo, width, height, offsetX, hinges) {
     try { obj.Owner = Model.Temp; } catch (e) {}
     try { obj.Build(); } catch (e) {}
 
-    try {
-        obj.ElasticResize({ x: width, y: height, z: 0 });
-    } catch (e) {}
+    try { obj.ElasticResize({ x: width, y: height, z: 0 }); } catch (e) {}
 
     try {
         obj.PositionX = offsetX;
@@ -278,9 +277,13 @@ function placePanel(fragmentInfo, width, height, offsetX, hinges) {
         obj.PositionZ = 0;
     } catch (e) {}
 
-    // === Устанавливаем имя фасада ===
+    try { obj.Name = `Fasad_${width}_${height}_${hinges}`; } catch (e) {}
+
+    // === находим панель внутри фрагмента и задаем ей ArtPos ===
     try {
-        obj.Name = `Fasad_${width}_${height}_${hinges}`;
+        obj.forEachPanel(pan => {
+            pan.ArtPos = String(posNum);
+        });
     } catch (e) {}
 }
 
@@ -315,9 +318,9 @@ for (let i = 0; i < items.length; i++) {
 
     const quantity = item.count > 0 ? item.count : 1;
     for (let j = 0; j < quantity; j++) {
-        placePanel(fragmentInfo, item.width, item.height, currentX, item.hinges);
+        placePanel(fragmentInfo, item.width, item.height, currentX, item.hinges, item.pos);
         currentX += item.width + gap;
     }
 }
 
-//showAlert('Панели созданы по списку facades_list.txt.');
+//showAlert('Фасады созданы по списку facades_list.txt.');
