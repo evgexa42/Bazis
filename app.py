@@ -60,6 +60,7 @@ def get_manager_from_name(folder_name):
 # === Telegram уведомления ===
 known_folders = set()
 known_folders_lock = threading.Lock()
+messages_lock = threading.Lock()
 observer = None
 
 
@@ -110,8 +111,7 @@ class OrderFolderHandler(FileSystemEventHandler):
         if register_known_folder(folder_name):
             return
         if should_notify(folder_name):
-            manager = get_manager_from_name(folder_name)
-            send_telegram_message(f"📁 Новый заказ: {folder_name}\n👤 Менеджер: {manager}", folder_name)
+            send_telegram_message(build_order_message(folder_name), folder_name)
 
     def on_moved(self, event):
         if not event.is_directory:
@@ -130,8 +130,7 @@ class OrderFolderHandler(FileSystemEventHandler):
             if register_known_folder(dest_name):
                 return
             if should_notify(dest_name):
-                manager = get_manager_from_name(dest_name)
-                send_telegram_message(f"📁 Новый заказ: {dest_name}\n👤 Менеджер: {manager}", dest_name)
+                send_telegram_message(build_order_message(dest_name), dest_name)
             return
 
         already_known = move_known_folder(src_name, dest_name)
@@ -140,10 +139,12 @@ class OrderFolderHandler(FileSystemEventHandler):
             delete_telegram_message(dest_name)
             return
 
+        if update_message_for_folder(src_name, dest_name):
+            return
+
         # Если папка переехала внутрь каталога или была переименована
         if not already_known and should_notify(dest_name):
-            manager = get_manager_from_name(dest_name)
-            send_telegram_message(f"📁 Новый заказ: {dest_name}\n👤 Менеджер: {manager}", dest_name)
+            send_telegram_message(build_order_message(dest_name), dest_name)
 
     def on_deleted(self, event):
         if not event.is_directory:
@@ -158,11 +159,34 @@ class OrderFolderHandler(FileSystemEventHandler):
 # --- messages.json persistent storage ---
 MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
 
+
+def order_key_from_name(name):
+    """Берём ключ заказа — первый токен до пробела, в lower()."""
+    if not name:
+        return ""
+    return name.split()[0].lower()
+
+
 def load_messages():
     if os.path.exists(MESSAGES_FILE):
         try:
             with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                raw = json.load(f)
+            if isinstance(raw, list):
+                cleaned = []
+                for entry in raw:
+                    if not isinstance(entry, dict):
+                        continue
+                    folder = entry.get("folder", "")
+                    order_key = entry.get("order_key") or order_key_from_name(folder)
+                    message_id = entry.get("message_id")
+                    chat_id = entry.get("chat_id")
+                    if message_id is None or chat_id is None:
+                        continue
+                    entry["folder"] = folder
+                    entry["order_key"] = order_key
+                    cleaned.append(entry)
+                return cleaned
         except Exception as e:
             print(f"[load_messages] Ошибка чтения {MESSAGES_FILE}: {e}")
     return []  # список записей: {"folder": str, "order_key": str, "chat_id": ..., "message_id": ...}
@@ -177,11 +201,10 @@ def save_messages(msgs):
 # в памяти
 messages = load_messages()
 
-def order_key_from_name(name):
-    """Берём ключ заказа — первый токен до пробела, в lower()."""
-    if not name:
-        return ""
-    return name.split()[0].lower()
+def build_order_message(folder_name):
+    manager = get_manager_from_name(folder_name)
+    return f"📁 Новый заказ: {folder_name}\n👤 Менеджер: {manager}"
+
 
 def send_telegram_message(msg, folder_name):
     """Отправить сообщение и сохранить запись для возможного удаления позже."""
@@ -194,8 +217,9 @@ def send_telegram_message(msg, folder_name):
             "chat_id": CHAT_ID,
             "message_id": sent.message_id
         }
-        messages.append(entry)
-        save_messages(messages)
+        with messages_lock:
+            messages.append(entry)
+            save_messages(messages)
         print(f"[TG] Сообщение отправлено и сохранено для {folder_name} -> id {sent.message_id}")
     except Exception as e:
         print(f"[Telegram Error] {e}")
@@ -204,19 +228,154 @@ def delete_telegram_message(folder_name):
     """Удалить все сообщения из messages.json, соответствующие order_key или точному имени папки."""
     global messages
     key = order_key_from_name(folder_name)
-    to_remove = []
-    for entry in list(messages):
-        if entry.get("folder") == folder_name or entry.get("order_key") == key:
-            try:
-                bot.delete_message(chat_id=entry["chat_id"], message_id=entry["message_id"])
-                print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
-            except Exception as e:
-                # Логируем, но продолжаем (возможно сообщение уже удалено)
-                print(f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
-            to_remove.append(entry)
-    if to_remove:
-        messages = [m for m in messages if m not in to_remove]
+    with messages_lock:
+        candidates = [
+            entry for entry in messages
+            if entry.get("folder") == folder_name or entry.get("order_key") == key
+        ]
+    if not candidates:
+        return
+
+    for entry in candidates:
+        try:
+            bot.delete_message(chat_id=entry["chat_id"], message_id=entry["message_id"])
+            print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
+        except Exception as e:
+            # Логируем, но продолжаем (возможно сообщение уже удалено)
+            print(f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
+
+    with messages_lock:
+        messages = [m for m in messages if m not in candidates]
         save_messages(messages)
+
+
+def find_message_entry(old_name, new_name=None):
+    """Найти запись по имени папки или ключу заказа."""
+    keys = set()
+    if old_name:
+        keys.add(order_key_from_name(old_name))
+    if new_name:
+        keys.add(order_key_from_name(new_name))
+
+    with messages_lock:
+        for entry in messages:
+            if entry.get("folder") == old_name:
+                return entry
+            if keys and entry.get("order_key") in keys:
+                return entry
+    return None
+
+
+def update_message_for_folder(old_name, new_name):
+    """Обновляет текст сообщения в Telegram при переименовании папки."""
+    entry = find_message_entry(old_name, new_name)
+    if not entry:
+        return False
+
+    chat_id = entry.get("chat_id")
+    message_id = entry.get("message_id")
+    if chat_id is None or message_id is None:
+        return False
+
+    new_text = build_order_message(new_name)
+    try:
+        bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=new_text)
+        print(f"[TG] Сообщение {message_id} обновлено для {new_name}")
+    except Exception as e:
+        print(f"[TG edit error] {e} (folder={old_name} -> {new_name})")
+        return False
+
+    with messages_lock:
+        if entry in messages:
+            entry["folder"] = new_name
+            entry["order_key"] = order_key_from_name(new_name)
+            save_messages(messages)
+    return True
+
+
+def ensure_message_for_folder(folder_name):
+    """Гарантирует наличие записи и сообщения для существующей папки."""
+    if not should_notify(folder_name):
+        return
+
+    key = order_key_from_name(folder_name)
+    with messages_lock:
+        for entry in messages:
+            if entry.get("order_key") == key:
+                current_name = entry.get("folder")
+                break
+        else:
+            entry = None
+            current_name = None
+
+    if entry is None:
+        send_telegram_message(build_order_message(folder_name), folder_name)
+        return
+
+    if current_name != folder_name:
+        update_message_for_folder(current_name or folder_name, folder_name)
+
+
+def cleanup_missing_messages(existing_keys):
+    """Удаляет сообщения, если заказов больше не существует."""
+    global messages
+    with messages_lock:
+        current_messages = list(messages)
+
+    stale_entries = []
+    for entry in current_messages:
+        key = entry.get("order_key") or order_key_from_name(entry.get("folder"))
+        if key not in existing_keys:
+            stale_entries.append(entry)
+
+    if not stale_entries:
+        return
+
+    for entry in stale_entries:
+        try:
+            bot.delete_message(chat_id=entry.get("chat_id"), message_id=entry.get("message_id"))
+            print(f"[TG] Удалено устаревшее сообщение {entry.get('message_id')} для {entry.get('folder')}")
+        except Exception as e:
+            print(f"[TG stale delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
+
+    with messages_lock:
+        messages = [m for m in messages if m not in stale_entries]
+        save_messages(messages)
+
+
+def initialize_known_state():
+    """Самовосстанавливает состояние известных папок и сообщений."""
+    if not os.path.isdir(FOLDER_PATH):
+        print(f"[init] Путь не найден: {FOLDER_PATH}")
+        return
+
+    try:
+        folder_names = os.listdir(FOLDER_PATH)
+    except Exception as e:
+        print(f"[init] Не удалось прочитать каталог: {e}")
+        return
+
+    actual_folders = []
+    for name in folder_names:
+        folder_path = os.path.join(FOLDER_PATH, name)
+        if not os.path.isdir(folder_path):
+            continue
+        if name in IGNORED_FOLDERS:
+            continue
+        actual_folders.append(name)
+
+    with known_folders_lock:
+        known_folders.clear()
+        known_folders.update(actual_folders)
+
+    existing_keys = {order_key_from_name(name) for name in actual_folders}
+    cleanup_missing_messages(existing_keys)
+
+    for name in actual_folders:
+        if should_notify(name):
+            ensure_message_for_folder(name)
+        else:
+            delete_telegram_message(name)
 
 @app.route("/update_client", methods=["POST"])
 def update_client():
@@ -490,13 +649,14 @@ def open_folder():
 
 # === Запуск ===
 if __name__ == "__main__":
+    initialize_known_state()
+
     # Исправление бага с дублированием:
     # Запускаем поток мониторинга только в основном процессе,
     # который запускается Flask'ом (когда WERKZEUG_RUN_MAIN == 'true').
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         print("Starting folder monitor observer...")
-        with known_folders_lock:
-            known_folders = set(os.listdir(FOLDER_PATH))
+        initialize_known_state()
 
         handler = OrderFolderHandler()
         observer = Observer()
