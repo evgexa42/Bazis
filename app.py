@@ -1,5 +1,4 @@
 import os
-import time
 import json
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, redirect, url_for
@@ -7,6 +6,10 @@ from flask import abort
 from flask import current_app
 from telegram import Bot
 import threading
+import atexit
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 # === Настройки ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +21,7 @@ CHAT_ID = "703087159"
 CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
 FACADES_DIR = r"\\Server\базис"
 FACADES_FILE = os.path.join(FACADES_DIR, "facades_list.txt")
+WATCHED_PATH = os.path.normcase(os.path.abspath(FOLDER_PATH))
 
 # === Flask и Telegram ===
 app = Flask(__name__, template_folder=TEMPLATES_DIR)
@@ -55,6 +59,101 @@ def get_manager_from_name(folder_name):
 
 # === Telegram уведомления ===
 known_folders = set()
+known_folders_lock = threading.Lock()
+observer = None
+
+
+IGNORED_FOLDERS = {"Архив", "2025"}
+
+
+def should_notify(folder_name):
+    if not folder_name or folder_name.startswith('.'):
+        return False
+    if folder_name in IGNORED_FOLDERS:
+        return False
+    if not any(char.isdigit() for char in folder_name) or " " not in folder_name:
+        return False
+    if "[J]" in folder_name or "[I]" in folder_name:
+        return False
+    return True
+
+
+def register_known_folder(folder_name):
+    """Добавляет папку в known_folders. Возвращает True, если папка уже была известна."""
+    with known_folders_lock:
+        already_known = folder_name in known_folders
+        known_folders.add(folder_name)
+    return already_known
+
+
+def unregister_known_folder(folder_name):
+    with known_folders_lock:
+        known_folders.discard(folder_name)
+
+
+def move_known_folder(src_name, dest_name):
+    with known_folders_lock:
+        known_folders.discard(src_name)
+        already_known = dest_name in known_folders
+        known_folders.add(dest_name)
+    return already_known
+
+
+class OrderFolderHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if not event.is_directory:
+            return
+        parent = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
+        if parent != WATCHED_PATH:
+            return
+        folder_name = os.path.basename(event.src_path)
+        if register_known_folder(folder_name):
+            return
+        if should_notify(folder_name):
+            manager = get_manager_from_name(folder_name)
+            send_telegram_message(f"📁 Новый заказ: {folder_name}\n👤 Менеджер: {manager}", folder_name)
+
+    def on_moved(self, event):
+        if not event.is_directory:
+            return
+        src_name = os.path.basename(event.src_path)
+        dest_name = os.path.basename(event.dest_path)
+        src_in_watch = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path))) == WATCHED_PATH
+        dest_in_watch = os.path.normcase(os.path.abspath(os.path.dirname(event.dest_path))) == WATCHED_PATH
+
+        if src_in_watch and not dest_in_watch:
+            unregister_known_folder(src_name)
+            delete_telegram_message(src_name)
+            return
+
+        if dest_in_watch and not src_in_watch:
+            if register_known_folder(dest_name):
+                return
+            if should_notify(dest_name):
+                manager = get_manager_from_name(dest_name)
+                send_telegram_message(f"📁 Новый заказ: {dest_name}\n👤 Менеджер: {manager}", dest_name)
+            return
+
+        already_known = move_known_folder(src_name, dest_name)
+
+        if "[J]" in dest_name or "[I]" in dest_name:
+            delete_telegram_message(dest_name)
+            return
+
+        # Если папка переехала внутрь каталога или была переименована
+        if not already_known and should_notify(dest_name):
+            manager = get_manager_from_name(dest_name)
+            send_telegram_message(f"📁 Новый заказ: {dest_name}\n👤 Менеджер: {manager}", dest_name)
+
+    def on_deleted(self, event):
+        if not event.is_directory:
+            return
+        parent = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
+        if parent != WATCHED_PATH:
+            return
+        folder_name = os.path.basename(event.src_path)
+        unregister_known_folder(folder_name)
+        delete_telegram_message(folder_name)
 
 # --- messages.json persistent storage ---
 MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
@@ -144,44 +243,6 @@ def delete_client():
         save_clients(clients)
 
     return jsonify({"status": "ok"})
-
-def monitor_folder():
-    global known_folders
-    while True:
-        try:
-            current_folders = set(os.listdir(FOLDER_PATH))
-            new_folders = current_folders - known_folders
-
-            for folder in new_folders:
-                # Игнорирование служебных папок и временных файлов
-                if folder.startswith(".") or folder in ["Архив", "2025"]:
-                    continue
-                
-                # Фильтрация по наличию цифр и пробела (предположительно, это признак заказа)
-                if any(char.isdigit() for char in folder) and " " in folder:
-                    # Игнорирование обновлений, если просто добавили [J] или [I] (это будет учтено в следующем цикле, 
-                    # если только не изменится имя папки, но не будет генерировать лишнее уведомление)
-                    if "[J]" in folder or "[I]" in folder:
-                        continue
-                        
-                    manager = get_manager_from_name(folder)
-                    # отправляем и сохраняем запись о сообщении
-                    send_telegram_message(f"📁 Новый заказ: {folder}\n👤 Менеджер: {manager}", folder)
-
-            # Проверяем готовность заказов — если стали готовыми, удаляем соответствующие сообщения
-            for folder in current_folders:
-                if "[J]" in folder or "[I]" in folder:
-                    delete_telegram_message(folder)
-
-            # Важно: обновляем список известных папок только после успешной обработки
-            known_folders = current_folders
-        except Exception as e:
-            print(f"[Monitor error] {e}")
-        time.sleep(5) # Проверка каждые 5 секунд
-
-
-# Старый запуск потока удален отсюда. Он перенесен в блок if name == "main":.
-
 
 # === Получение списка заказов ===
 def get_folders():
@@ -433,9 +494,20 @@ if __name__ == "__main__":
     # Запускаем поток мониторинга только в основном процессе,
     # который запускается Flask'ом (когда WERKZEUG_RUN_MAIN == 'true').
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        print("Starting folder monitor thread...")
-        # Убедитесь, что 'known_folders' инициализируется при старте, чтобы не отправлять сообщения о старых папках
-        known_folders = set(os.listdir(FOLDER_PATH))
-        threading.Thread(target=monitor_folder, daemon=True).start()
+        print("Starting folder monitor observer...")
+        with known_folders_lock:
+            known_folders = set(os.listdir(FOLDER_PATH))
+
+        handler = OrderFolderHandler()
+        observer = Observer()
+        observer.schedule(handler, FOLDER_PATH, recursive=False)
+        observer.start()
+
+        def stop_observer():
+            if observer is not None:
+                observer.stop()
+                observer.join(timeout=5)
+
+        atexit.register(stop_observer)
     print("Сервер запущен: http://192.168.100.114:5000")
     app.run(host="192.168.100.114", port=5000, debug=True)
