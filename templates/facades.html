@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
-<body data-page="facades">
+<body data-page="facades" data-managers="{{ config_managers | join(',') }}">
   <div class="page facade-layout">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
@@ -20,7 +20,7 @@
       <h1>🚪 Генератор фасадов</h1>
       <p class="page-description">
         Подготовьте список фасадов с указанием размеров, количества и стороны открывания. После генерации файл
-        <code>facades_list.txt</code> автоматически сохраняется в папке <code>\\Server\базис</code> и используется
+        <code>facades_list.txt</code> автоматически сохраняется в папке <code>{{ config_facades_dir or '—' }}</code> и используется
         скриптом <b>«Сгенерировать фасады.js»</b> для размещения подходящих фрагментов вида
         <code>Fasad_L_2P.fr3d</code>.
       </p>

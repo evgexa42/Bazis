@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
-<body data-page="clients">
+<body data-page="clients" data-managers="{{ config_managers | join(',') }}">
   <div class="page">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
@@ -30,9 +30,10 @@
         <input type="text" name="client" class="input" placeholder="Имя клиента" required>
         <select name="manager" class="select" required>
           <option value="" selected>Выбери менеджера</option>
-          <option value="Игорь">Игорь</option>
-          <option value="Кристина">Кристина</option>
-          <option value="Валерия">Валерия</option>
+          {% for manager_name in config_managers %}
+          <option value="{{ manager_name }}">{{ manager_name }}</option>
+          {% endfor %}
+          <option value="Неизвестно">Неизвестно</option>
         </select>
         <button type="submit" class="btn btn--primary">Добавить</button>
       </form>
@@ -58,9 +59,10 @@
               <td>
                 <span class="manager-tag" data-view>{{ manager }}</span>
                 <select class="select edit-manager is-hidden" data-edit>
-                  <option value="Игорь" {% if manager == "Игорь" %}selected{% endif %}>Игорь</option>
-                  <option value="Кристина" {% if manager == "Кристина" %}selected{% endif %}>Кристина</option>
-                  <option value="Валерия" {% if manager == "Валерия" %}selected{% endif %}>Валерия</option>
+                  {% for manager_name in config_managers %}
+                  <option value="{{ manager_name }}" {% if manager == manager_name %}selected{% endif %}>{{ manager_name }}</option>
+                  {% endfor %}
+                  <option value="Неизвестно" {% if manager == "Неизвестно" %}selected{% endif %}>Неизвестно</option>
                 </select>
               </td>
               <td>

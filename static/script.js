@@ -1,3 +1,18 @@
+const APP_CONFIG = (() => {
+  if (typeof document === 'undefined') {
+    return { managers: [] };
+  }
+
+  const body = document.body;
+  const managersRaw = body?.dataset?.managers || '';
+  const managers = managersRaw
+    .split(',')
+    .map(name => name.trim())
+    .filter(Boolean);
+
+  return { managers };
+})();
+
 const OrdersPage = (() => {
   let allData = [];
   let currentStatus = 'all';
@@ -82,7 +97,7 @@ const OrdersPage = (() => {
     const doneCount = folders.filter(item => item.status === 'Готов').length;
     const newCount = folders.filter(item => item.status === 'Новый').length;
 
-    const managerOrder = ['Игорь', 'Кристина', 'Валерия', 'Неизвестно'];
+    const managerOrder = Array.from(new Set([...(APP_CONFIG.managers || []), 'Неизвестно']));
     const managerItems = managerOrder
       .map(name => {
         const value = managers[name] || 0;

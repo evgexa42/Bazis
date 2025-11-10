@@ -1,0 +1,29 @@
+{
+  "server": {
+    "host": "192.168.100.114",
+    "port": 5000,
+    "debug": true
+  },
+  "telegram": {
+    "token": "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U",
+    "chat_id": "703087159"
+  },
+  "paths": {
+    "orders": "\\\\SERVER\\homag\\ПРИСАДКА КЛИЕНТА",
+    "facades_dir": "\\\\Server\\базис",
+    "search": {
+      "Присадка ARHIMOB": "\\\\SERVER\\homag\\ПРИСАДКА ARHIMOB\\2025",
+      "DESENE CPU": "\\\\SERVER\\homag\\DESENE CPU\\2025",
+      "Присадка Клиента": "\\\\SERVER\\homag\\ПРИСАДКА КЛИЕНТА\\2025"
+    }
+  },
+  "managers": [
+    "Игорь",
+    "Кристина",
+    "Валерия"
+  ],
+  "technologists": {
+    "J": "Женя",
+    "I": "Игорь"
+  }
+}

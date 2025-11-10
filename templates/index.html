@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
-<body data-page="orders">
+<body data-page="orders" data-managers="{{ config_managers | join(',') }}">
   <div class="page page--wide">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
@@ -39,9 +39,10 @@
             <span class="field-label">Менеджер</span>
             <select id="managerSelect" class="select" onchange="setManagerFilter()">
               <option value="Все">Все</option>
-              <option value="Игорь">Игорь</option>
-              <option value="Кристина">Кристина</option>
-              <option value="Валерия">Валерия</option>
+              {% for manager in config_managers %}
+              <option value="{{ manager }}">{{ manager }}</option>
+              {% endfor %}
+              <option value="Неизвестно">Неизвестно</option>
             </select>
           </label>
           <div class="button-group">

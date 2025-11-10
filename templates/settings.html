@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Системные настройки</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body data-page="settings" data-managers="{{ config_managers | join(',') }}">
+  <div class="page">
+    <nav class="top-menu">
+      <a href="/">📦 Мониторинг</a>
+      <a href="/clients">👥 Клиенты</a>
+      <a href="/search">🔍 Поиск</a>
+      <a href="/facades">🚪 Фасады</a>
+    </nav>
+
+    <header class="page-header">
+      <h1>⚙️ Системные настройки</h1>
+      <p class="page-description">
+        Централизованная конфигурация приложения. Здесь можно изменить сетевые пути, IP-адрес сервера,
+        параметры Telegram и списки менеджеров и технологов. Для применения отдельных изменений может
+        потребоваться перезапуск сервиса.
+      </p>
+    </header>
+
+    {% if status_message %}
+    <section class="notice-card notice-card--success">
+      {{ status_message }}
+    </section>
+    {% endif %}
+
+    {% if errors %}
+    <section class="notice-card notice-card--error">
+      <strong>Исправьте ошибки:</strong>
+      <ul>
+        {% for error in errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2 class="section-title">Конфигурация</h2>
+      <form method="POST" class="settings-form">
+        <div class="settings-grid">
+          <div class="settings-field settings-field--wide">
+            <label class="field-label" for="orders_path">Путь к папке заказов</label>
+            <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\share" value="{{ config.get('paths', {}).get('orders', '') }}">
+          </div>
+
+          <div class="settings-field settings-field--wide">
+            <label class="field-label" for="facades_dir">Папка для facades_list.txt</label>
+            <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
+          </div>
+
+          <div class="settings-field settings-field--wide">
+            <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
+            <textarea id="search_folders" name="search_folders" class="input" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
+          </div>
+
+          <div class="settings-field">
+            <label class="field-label" for="server_host">Основной IP / хост</label>
+            <input type="text" class="input" id="server_host" name="server_host" placeholder="192.168.0.10" value="{{ config.get('server', {}).get('host', '') }}">
+          </div>
+
+          <div class="settings-field">
+            <label class="field-label" for="server_port">Порт</label>
+            <input type="number" class="input" id="server_port" name="server_port" min="1" max="65535" value="{{ config.get('server', {}).get('port', 5000) }}">
+          </div>
+
+          <div class="settings-field">
+            <label class="field-label" for="telegram_token">Telegram Bot Token</label>
+            <input type="text" class="input" id="telegram_token" name="telegram_token" placeholder="000000:ABC" value="{{ config.get('telegram', {}).get('token', '') }}">
+          </div>
+
+          <div class="settings-field">
+            <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
+            <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+          </div>
+
+          <div class="settings-field settings-field--wide">
+            <label class="field-label" for="managers">Менеджеры (по одному в строке)</label>
+            <textarea id="managers" name="managers" class="input" placeholder="Игорь">{{ managers_text }}</textarea>
+          </div>
+
+          <div class="settings-field settings-field--wide">
+            <label class="field-label" for="technologists">Технологи (маркер=имя)</label>
+            <textarea id="technologists" name="technologists" class="input" placeholder="J=Женя">{{ technologists_text }}</textarea>
+          </div>
+        </div>
+
+        <label class="field">
+          <input type="checkbox" name="debug_mode" {% if config.get('server', {}).get('debug') %}checked{% endif %}>
+          <span>Включить режим отладки Flask</span>
+        </label>
+
+        <div class="settings-actions">
+          <button type="submit" class="btn btn--primary">💾 Сохранить</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</body>
+</html>

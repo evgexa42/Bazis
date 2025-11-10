@@ -1,12 +1,21 @@
 import os
 import json
-from datetime import datetime
-from flask import Flask, render_template, jsonify, request, redirect, url_for
-from flask import abort
-from flask import current_app
-from telegram import Bot
 import threading
 import atexit
+from copy import deepcopy
+from datetime import datetime
+
+from flask import (
+    Flask,
+    render_template,
+    jsonify,
+    request,
+    redirect,
+    url_for,
+    abort,
+    current_app,
+)
+from telegram import Bot
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -14,18 +23,98 @@ from watchdog.observers import Observer
 # === Настройки ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-
-FOLDER_PATH = r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА"  # Путь к папке заказов
-TELEGRAM_TOKEN = "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U"
-CHAT_ID = "703087159"
 CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
-FACADES_DIR = r"\\Server\базис"
-FACADES_FILE = os.path.join(FACADES_DIR, "facades_list.txt")
-WATCHED_PATH = os.path.normcase(os.path.abspath(FOLDER_PATH))
+MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+
+DEFAULT_CONFIG = {
+    "server": {"host": "127.0.0.1", "port": 5000, "debug": False},
+    "telegram": {"token": "", "chat_id": ""},
+    "paths": {
+        "orders": "",
+        "facades_dir": "",
+        "search": {},
+    },
+    "managers": [],
+    "technologists": {},
+}
+
+
+def deep_merge(base, extra):
+    result = deepcopy(base)
+    for key, value in (extra or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_config():
+    config = deepcopy(DEFAULT_CONFIG)
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                file_data = json.load(f)
+            if isinstance(file_data, dict):
+                config = deep_merge(config, file_data)
+        except Exception as exc:
+            print(f"[config] Не удалось прочитать config.json: {exc}")
+    else:
+        save_config(config)
+    return config
+
+
+def save_config(config):
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+
+CONFIG = load_config()
+
+
+def apply_config(config):
+    global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH
+    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS
+
+    server = config.get("server", {})
+    telegram = config.get("telegram", {})
+    paths = config.get("paths", {})
+
+    SERVER_HOST = server.get("host", "127.0.0.1")
+    SERVER_PORT = server.get("port", 5000)
+    DEBUG_MODE = bool(server.get("debug", False))
+
+    TELEGRAM_TOKEN = telegram.get("token", "")
+    CHAT_ID = str(telegram.get("chat_id", "")).strip()
+
+    FOLDER_PATH = paths.get("orders") or ""
+    FACADES_DIR = paths.get("facades_dir") or ""
+    FACADES_FILE = os.path.join(FACADES_DIR, "facades_list.txt") if FACADES_DIR else "facades_list.txt"
+    WATCHED_PATH = os.path.normcase(os.path.abspath(FOLDER_PATH)) if FOLDER_PATH else ""
+
+    search_folders = paths.get("search")
+    SEARCH_FOLDERS = search_folders if isinstance(search_folders, dict) else {}
+
+    MANAGER_NAMES = [name.strip() for name in config.get("managers", []) if name.strip()]
+
+    raw_markers = config.get("technologists", {})
+    if isinstance(raw_markers, dict):
+        TECHNOLOGIST_MARKERS = {
+            marker.strip(): value.strip()
+            for marker, value in raw_markers.items()
+            if marker and value
+        }
+    else:
+        TECHNOLOGIST_MARKERS = {}
+
+
+apply_config(CONFIG)
 
 # === Flask и Telegram ===
 app = Flask(__name__, template_folder=TEMPLATES_DIR)
-bot = Bot(token=TELEGRAM_TOKEN)
+bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
 
 # === Вспомогательные функции для Jinja2 ===
 def replace_slashes(text):
@@ -67,6 +156,22 @@ observer = None
 IGNORED_FOLDERS = {"Архив", "2025"}
 
 
+def folder_has_ready_marker(folder_name):
+    if not TECHNOLOGIST_MARKERS:
+        return False
+    for marker in TECHNOLOGIST_MARKERS:
+        if f"[{marker}]" in folder_name:
+            return True
+    return False
+
+
+def technologist_from_folder(folder_name):
+    for marker, name in TECHNOLOGIST_MARKERS.items():
+        if f"[{marker}]" in folder_name:
+            return name
+    return "Неизвестно"
+
+
 def should_notify(folder_name):
     if not folder_name or folder_name.startswith('.'):
         return False
@@ -74,7 +179,7 @@ def should_notify(folder_name):
         return False
     if not any(char.isdigit() for char in folder_name) or " " not in folder_name:
         return False
-    if "[J]" in folder_name or "[I]" in folder_name:
+    if folder_has_ready_marker(folder_name):
         return False
     return True
 
@@ -135,7 +240,7 @@ class OrderFolderHandler(FileSystemEventHandler):
 
         already_known = move_known_folder(src_name, dest_name)
 
-        if "[J]" in dest_name or "[I]" in dest_name:
+        if folder_has_ready_marker(dest_name):
             delete_telegram_message(dest_name)
             return
 
@@ -157,7 +262,6 @@ class OrderFolderHandler(FileSystemEventHandler):
         delete_telegram_message(folder_name)
 
 # --- messages.json persistent storage ---
-MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
 
 
 def order_key_from_name(name):
@@ -209,6 +313,9 @@ def build_order_message(folder_name):
 def send_telegram_message(msg, folder_name):
     """Отправить сообщение и сохранить запись для возможного удаления позже."""
     global messages
+    if bot is None or not CHAT_ID:
+        print("[TG] Бот не настроен. Сообщение не отправлено.")
+        return
     try:
         sent = bot.send_message(chat_id=CHAT_ID, text=msg)
         entry = {
@@ -238,8 +345,9 @@ def delete_telegram_message(folder_name):
 
     for entry in candidates:
         try:
-            bot.delete_message(chat_id=entry["chat_id"], message_id=entry["message_id"])
-            print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
+            if bot is not None:
+                bot.delete_message(chat_id=entry["chat_id"], message_id=entry["message_id"])
+                print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
         except Exception as e:
             # Логируем, но продолжаем (возможно сообщение уже удалено)
             print(f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
@@ -278,6 +386,9 @@ def update_message_for_folder(old_name, new_name):
         return False
 
     new_text = build_order_message(new_name)
+    if bot is None:
+        return False
+
     try:
         bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=new_text)
         print(f"[TG] Сообщение {message_id} обновлено для {new_name}")
@@ -331,12 +442,13 @@ def cleanup_missing_messages(existing_keys):
     if not stale_entries:
         return
 
-    for entry in stale_entries:
-        try:
-            bot.delete_message(chat_id=entry.get("chat_id"), message_id=entry.get("message_id"))
-            print(f"[TG] Удалено устаревшее сообщение {entry.get('message_id')} для {entry.get('folder')}")
-        except Exception as e:
-            print(f"[TG stale delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
+    if bot is not None:
+        for entry in stale_entries:
+            try:
+                bot.delete_message(chat_id=entry.get("chat_id"), message_id=entry.get("message_id"))
+                print(f"[TG] Удалено устаревшее сообщение {entry.get('message_id')} для {entry.get('folder')}")
+            except Exception as e:
+                print(f"[TG stale delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
 
     with messages_lock:
         messages = [m for m in messages if m not in stale_entries]
@@ -345,7 +457,7 @@ def cleanup_missing_messages(existing_keys):
 
 def initialize_known_state():
     """Самовосстанавливает состояние известных папок и сообщений."""
-    if not os.path.isdir(FOLDER_PATH):
+    if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
         print(f"[init] Путь не найден: {FOLDER_PATH}")
         return
 
@@ -405,24 +517,23 @@ def delete_client():
 
 # === Получение списка заказов ===
 def get_folders():
+    if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
+        return []
+
     folder_data = []
     for folder_name in os.listdir(FOLDER_PATH):
         folder_path = os.path.join(FOLDER_PATH, folder_name)
-        if not os.path.isdir(folder_path) or folder_name in ["Архив", "2025"]:
+        if not os.path.isdir(folder_path) or folder_name in IGNORED_FOLDERS:
             continue
 
         modified_time = os.path.getmtime(folder_path)
         modified_date = datetime.fromtimestamp(modified_time)
         days_ago = (datetime.now() - modified_date).days
-        status = "Готов" if "[J]" in folder_name or "[I]" in folder_name else "Новый"
+        status = "Готов" if folder_has_ready_marker(folder_name) else "Новый"
         manager = get_manager_from_name(folder_name)
 
         # Определяем технолога
-        technologist = None
-        if "[J]" in folder_name:
-            technologist = "Женя"
-        elif "[I]" in folder_name:
-            technologist = "Игорь"
+        technologist = technologist_from_folder(folder_name)
 
         folder_data.append({
             "name": folder_name,
@@ -456,22 +567,24 @@ def data():
 
     total_orders = len(folders)
     # Подсчёт по менеджерам
-    manager_stats = {"Игорь": 0, "Кристина": 0, "Валерия": 0, "Неизвестно": 0}
+    manager_stats = {name: 0 for name in MANAGER_NAMES}
+    manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
     for f in folders:
-        if f["manager"] in manager_stats:
-            manager_stats[f["manager"]] += 1
-        else:
-            manager_stats["Неизвестно"] += 1
+        manager_name = f.get("manager") or "Неизвестно"
+        if manager_name not in manager_stats:
+            manager_stats.setdefault(manager_name, 0)
+        manager_stats[manager_name] += 1
 
     # Подсчёт по технологам
-    tech_stats = {"Женя": 0, "Игорь": 0, "Неизвестно": 0}
+    tech_stats = {name: 0 for name in TECHNOLOGIST_MARKERS.values()}
+    tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
     for f in folders:
-        if f["technologist"] in tech_stats:
-            tech_stats[f["technologist"]] += 1
-        else:
-            tech_stats["Неизвестно"] += 1
+        technologist_name = f.get("technologist") or "Неизвестно"
+        if technologist_name not in tech_stats:
+            tech_stats.setdefault(technologist_name, 0)
+        tech_stats[technologist_name] += 1
 
-    # --- Фильтр по менеджерам ---
+    # --- Фильтр по менеджерам --
     manager_filter = request.args.get("manager", "Все")
     if manager_filter != "Все":
         folders = [f for f in folders if f["manager"] == manager_filter]
@@ -502,13 +615,6 @@ def add_client():
         clients[client_name] = manager
         save_clients(clients)
     return redirect(url_for("clients_page"))
-
-# === Поиск заказов по сетевым папкам ===
-SEARCH_FOLDERS = {
-    "Присадка ARHIMOB": r"\\SERVER\homag\ПРИСАДКА ARHIMOB\2025",
-    "DESENE CPU": r"\\SERVER\homag\DESENE CPU\2025",
-    "Присадка Клиента": r"\\SERVER\homag\ПРИСАДКА КЛИЕНТА\2025"
-}
 
 # === Словарь месяцев на румынском ===
 MONTHS_RO = {
@@ -628,12 +734,26 @@ def generate_facades():
     if not lines:
         return jsonify({"status": "error", "errors": ["Добавьте хотя бы один фасад перед генерацией."]}), 400
 
-    with open(FACADES_FILE, "w", encoding="utf-8") as f:
-        f.write("# position(optional) height width count side hinges\n")
-        for line in lines:
-            f.write(line + "\n")
+    target_dir = os.path.dirname(FACADES_FILE)
+    if target_dir:
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except OSError as exc:
+            return jsonify({"status": "error", "errors": [f"Не удалось создать папку {target_dir}: {exc}"]}), 500
 
-    return jsonify({"status": "ok", "file": os.path.basename(FACADES_FILE)})
+    try:
+        with open(FACADES_FILE, "w", encoding="utf-8") as f:
+            f.write("# position(optional) height width count side hinges\n")
+            for line in lines:
+                f.write(line + "\n")
+    except OSError as exc:
+        return jsonify({"status": "error", "errors": [f"Не удалось записать файл: {exc}"]}), 500
+
+    return jsonify({
+        "status": "ok",
+        "file": os.path.basename(FACADES_FILE),
+        "folder": FACADES_DIR or os.path.dirname(os.path.abspath(FACADES_FILE)),
+    })
 
 
 # === Открытие папки ===
@@ -647,6 +767,103 @@ def open_folder():
             print(f"Ошибка открытия: {e}")
     return ("", 204)
 
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings_page():
+    global CONFIG, bot
+
+    status_message = None
+    errors = []
+
+    if request.method == "POST":
+        def parse_list(value):
+            return [item.strip() for item in value.splitlines() if item.strip()]
+
+        def parse_mapping(value):
+            mapping = {}
+            for line in value.splitlines():
+                if "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                key = key.strip()
+                val = val.strip()
+                if key and val:
+                    mapping[key] = val
+            return mapping
+
+        updated = deepcopy(CONFIG)
+
+        orders_path = request.form.get("orders_path", "").strip()
+        facades_dir = request.form.get("facades_dir", "").strip()
+        search_raw = request.form.get("search_folders", "")
+        managers_raw = request.form.get("managers", "")
+        technologists_raw = request.form.get("technologists", "")
+
+        server_host = request.form.get("server_host", "").strip()
+        server_port = request.form.get("server_port", "").strip()
+        debug_mode = request.form.get("debug_mode") == "on"
+
+        telegram_token = request.form.get("telegram_token", "").strip()
+        telegram_chat = request.form.get("telegram_chat_id", "").strip()
+
+        if orders_path:
+            updated.setdefault("paths", {})["orders"] = orders_path
+        if facades_dir:
+            updated.setdefault("paths", {})["facades_dir"] = facades_dir
+        updated.setdefault("paths", {})["search"] = parse_mapping(search_raw)
+
+        managers_list = parse_list(managers_raw)
+        if managers_list:
+            updated["managers"] = managers_list
+        else:
+            errors.append("Список менеджеров не может быть пустым.")
+
+        technologists_map = parse_mapping(technologists_raw)
+        updated["technologists"] = technologists_map
+
+        server_config = updated.setdefault("server", {})
+        if server_host:
+            server_config["host"] = server_host
+        if server_port:
+            try:
+                server_config["port"] = int(server_port)
+            except (TypeError, ValueError):
+                errors.append("Порт должен быть числом.")
+        server_config["debug"] = debug_mode
+
+        updated.setdefault("telegram", {})["token"] = telegram_token
+        updated.setdefault("telegram", {})["chat_id"] = telegram_chat
+
+        if not errors:
+            save_config(updated)
+            CONFIG.clear()
+            CONFIG.update(updated)
+            apply_config(CONFIG)
+            bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
+            status_message = "Настройки сохранены. Некоторые изменения вступят в силу после перезапуска приложения."
+
+    managers_text = "\n".join(MANAGER_NAMES)
+    technologists_text = "\n".join(f"{marker}={name}" for marker, name in TECHNOLOGIST_MARKERS.items())
+    search_text = "\n".join(f"{title}={path}" for title, path in SEARCH_FOLDERS.items())
+
+    return render_template(
+        "settings.html",
+        config=CONFIG,
+        managers_text=managers_text,
+        technologists_text=technologists_text,
+        search_text=search_text,
+        status_message=status_message,
+        errors=errors,
+    )
+
+
+@app.context_processor
+def inject_config_data():
+    return {
+        "config_managers": MANAGER_NAMES,
+        "config_facades_dir": FACADES_DIR,
+    }
+
 # === Запуск ===
 if __name__ == "__main__":
     initialize_known_state()
@@ -654,7 +871,7 @@ if __name__ == "__main__":
     # Исправление бага с дублированием:
     # Запускаем поток мониторинга только в основном процессе,
     # который запускается Flask'ом (когда WERKZEUG_RUN_MAIN == 'true').
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' and FOLDER_PATH:
         print("Starting folder monitor observer...")
         initialize_known_state()
 
@@ -669,5 +886,5 @@ if __name__ == "__main__":
                 observer.join(timeout=5)
 
         atexit.register(stop_observer)
-    print("Сервер запущен: http://192.168.100.114:5000")
-    app.run(host="192.168.100.114", port=5000, debug=True)
+    print(f"Сервер запущен: http://{SERVER_HOST}:{SERVER_PORT}")
+    app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE)
