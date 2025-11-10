@@ -374,6 +374,14 @@ const FacadesPage = (() => {
     return input;
   }
 
+  function createTextInput(placeholder, value = '') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder;
+    input.value = value;
+    return input;
+  }
+
   function createSelect(options, selected) {
     const select = document.createElement('select');
     options.forEach(opt => {
@@ -406,13 +414,17 @@ const FacadesPage = (() => {
     indexEl.className = 'row-index';
     row.appendChild(indexEl);
 
-    const widthInput = createNumberInput(1, 'ширина', data.width || '');
-    widthInput.dataset.field = 'width';
-    row.appendChild(widthInput);
+    const positionInput = createTextInput('позиция', data.position || '');
+    positionInput.dataset.field = 'position';
+    row.appendChild(positionInput);
 
     const heightInput = createNumberInput(1, 'высота', data.height || '');
     heightInput.dataset.field = 'height';
     row.appendChild(heightInput);
+
+    const widthInput = createNumberInput(1, 'ширина', data.width || '');
+    widthInput.dataset.field = 'width';
+    row.appendChild(widthInput);
 
     const countInput = createNumberInput(1, 'кол-во', data.count || '1');
     countInput.classList.add('quantity-input');
@@ -433,7 +445,7 @@ const FacadesPage = (() => {
     const sideSelect = createSelect([
       { value: 'left', label: 'Левая' },
       { value: 'right', label: 'Правая' }
-    ], data.side || 'left');
+    ], data.side || 'right');
     sideSelect.dataset.field = 'side';
     row.appendChild(sideSelect);
 
@@ -457,20 +469,22 @@ const FacadesPage = (() => {
   function gatherItems() {
     const items = [];
     document.querySelectorAll('.facade-row').forEach(row => {
+      const position = row.querySelector('[data-field="position"]');
       const width = row.querySelector('[data-field="width"]');
       const height = row.querySelector('[data-field="height"]');
       const count = row.querySelector('[data-field="count"]');
       const hinges = row.querySelector('[data-field="hinges"]');
       const side = row.querySelector('[data-field="side"]');
 
-      if (!width || !height || !count || !hinges || !side) return;
+      if (!position || !width || !height || !count || !hinges || !side) return;
       if (!width.value && !height.value && !count.value) return;
 
       items.push({
-        width: width.value,
-        height: height.value,
-        count: count.value,
-        hinges: hinges.value,
+        position: position.value.trim(),
+        width: width.value.trim(),
+        height: height.value.trim(),
+        count: count.value.trim(),
+        hinges: hinges.value.trim(),
         side: side.value
       });
     });

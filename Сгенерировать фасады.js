@@ -122,23 +122,33 @@ function parseItems(text) {
         if (!line) continue;
 
         const parts = line.split(/[;,\s]+/).filter(Boolean);
-        if (parts.length < 6) {
-            errors.push('Строка ' + lineNumber + ': ожидается 6 значений (позиция ширина высота количество сторона петли).');
+        if (parts.length < 5) {
+            errors.push('Строка ' + lineNumber + ': ожидается 5 или 6 значений ([позиция] высота ширина количество сторона петли).');
             continue;
         }
 
-        const pos = Number(parts[0]);
-        const width = Number(parts[1]);
-        const height = Number(parts[2]);
-        const count = Number(parts[3]);
-        const side = normalizeSide(parts[4]);
-        const hinges = Number(parts[5]);
+        let startIndex = 0;
+        let rawPosition = '';
 
-        if (!width || !height || !count || !Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(count)) {
-            errors.push('Строка ' + lineNumber + ': ширина, высота и количество должны быть числами.');
+        if (parts.length >= 6) {
+            rawPosition = parts[0];
+            startIndex = 1;
+        }
+
+        const height = Number(parts[startIndex]);
+        const width = Number(parts[startIndex + 1]);
+        const count = Number(parts[startIndex + 2]);
+        const side = normalizeSide(parts[startIndex + 3]);
+        const hinges = Number(parts[startIndex + 4]);
+
+        const positionText = String(rawPosition || '').trim();
+        const position = positionText !== '' ? positionText : null;
+
+        if (!height || !width || !count || !Number.isFinite(height) || !Number.isFinite(width) || !Number.isFinite(count)) {
+            errors.push('Строка ' + lineNumber + ': высота, ширина и количество должны быть числами.');
             continue;
         }
-        if (width <= 0 || height <= 0 || count <= 0) {
+        if (height <= 0 || width <= 0 || count <= 0) {
             errors.push('Строка ' + lineNumber + ': значения должны быть больше нуля.');
             continue;
         }
@@ -152,7 +162,7 @@ function parseItems(text) {
         }
 
         items.push({
-            pos: pos,
+            pos: position,
             width: width,
             height: height,
             count: Math.round(count),
@@ -280,9 +290,11 @@ function placePanel(fragmentInfo, width, height, offsetX, hinges, posNum) {
     try { obj.Name = `Fasad_${width}_${height}_${hinges}`; } catch (e) {}
 
     // === находим панель внутри фрагмента и задаем ей ArtPos ===
+    const artPos = (posNum === undefined || posNum === null) ? '' : String(posNum).trim();
+
     try {
         obj.forEachPanel(pan => {
-            pan.ArtPos = String(posNum);
+            pan.ArtPos = artPos;
         });
     } catch (e) {}
 }

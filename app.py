@@ -349,6 +349,7 @@ def generate_facades():
     errors = []
 
     for idx, item in enumerate(items, start=1):
+        position = str(item.get("position", "")).strip()
         width = str(item.get("width", "")).strip()
         height = str(item.get("height", "")).strip()
         count = str(item.get("count", "")).strip()
@@ -356,7 +357,7 @@ def generate_facades():
         hinges = str(item.get("hinges", "")).strip()
 
         if not width or not height or not count:
-            errors.append(f"Строка {idx}: заполните ширину, высоту и количество.")
+            errors.append(f"Строка {idx}: заполните высоту, ширину и количество.")
             continue
 
         try:
@@ -364,7 +365,7 @@ def generate_facades():
             height_int = int(height)
             count_int = int(count)
         except ValueError:
-            errors.append(f"Строка {idx}: ширина, высота и количество должны быть числами.")
+            errors.append(f"Строка {idx}: высота, ширина и количество должны быть числами.")
             continue
 
         if width_int <= 0 or height_int <= 0 or count_int <= 0:
@@ -386,7 +387,20 @@ def generate_facades():
             continue
 
         side_code = "L" if side.startswith("l") or side.startswith("л") else "R"
-        lines.append(f"{width_int} {height_int} {count_int} {side_code} {hinges_int}")
+
+        line_parts = []
+        if position:
+            line_parts.append(position)
+
+        line_parts.extend([
+            str(height_int),
+            str(width_int),
+            str(count_int),
+            side_code,
+            str(hinges_int)
+        ])
+
+        lines.append(" ".join(line_parts))
 
     if errors:
         return jsonify({"status": "error", "errors": errors}), 400
@@ -395,7 +409,7 @@ def generate_facades():
         return jsonify({"status": "error", "errors": ["Добавьте хотя бы один фасад перед генерацией."]}), 400
 
     with open(FACADES_FILE, "w", encoding="utf-8") as f:
-        f.write("# width height count side hinges\n")
+        f.write("# position(optional) height width count side hinges\n")
         for line in lines:
             f.write(line + "\n")
 

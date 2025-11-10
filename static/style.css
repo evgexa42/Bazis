@@ -618,7 +618,7 @@ select:focus {
 
 .facade-grid {
   display: grid;
-  grid-template-columns: 42px minmax(90px, 1fr) minmax(90px, 1fr) minmax(68px, 90px) minmax(90px, 130px) minmax(120px, 1.1fr) 44px;
+  grid-template-columns: 42px minmax(80px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(68px, 90px) minmax(90px, 130px) minmax(120px, 1.1fr) 44px;
   gap: 14px;
   align-items: center;
   padding: 16px 20px;
@@ -722,7 +722,7 @@ code {
 
 @media (max-width: 880px) {
   .facade-grid {
-    grid-template-columns: 36px minmax(80px, 1fr) minmax(80px, 1fr) minmax(68px, 90px) minmax(80px, 110px) minmax(110px, 1fr) 36px;
+    grid-template-columns: 36px minmax(70px, 1fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(68px, 90px) minmax(80px, 110px) minmax(110px, 1fr) 36px;
     padding: 14px 16px;
     gap: 12px;
   }
@@ -766,7 +766,8 @@ code {
     grid-template-columns: repeat(2, 1fr);
     grid-template-areas:
       'index index'
-      'width height'
+      'position position'
+      'height width'
       'count hinges'
       'side side'
       'remove remove';
@@ -785,12 +786,16 @@ code {
     justify-self: start;
   }
 
-  .facade-row [data-field="width"] {
-    grid-area: width;
+  .facade-row [data-field="position"] {
+    grid-area: position;
   }
 
   .facade-row [data-field="height"] {
     grid-area: height;
+  }
+
+  .facade-row [data-field="width"] {
+    grid-area: width;
   }
 
   .facade-row [data-field="count"] {
