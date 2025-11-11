@@ -37,6 +37,9 @@ DEFAULT_CONFIG = {
     },
     "managers": [],
     "technologists": {},
+    "features": {
+        "order_confirmation": False,
+    },
 }
 
 
@@ -71,12 +74,14 @@ def save_config(config):
 
 
 CONFIG = load_config()
+ORDER_CONFIRMATION_ENABLED = False
 
 
 def apply_config(config):
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS
+    global ORDER_CONFIRMATION_ENABLED
 
     server = config.get("server", {})
     telegram = config.get("telegram", {})
@@ -108,6 +113,9 @@ def apply_config(config):
         }
     else:
         TECHNOLOGIST_MARKERS = {}
+
+    features = config.get("features", {}) if isinstance(config.get("features"), dict) else {}
+    ORDER_CONFIRMATION_ENABLED = bool(features.get("order_confirmation"))
 
 
 apply_config(CONFIG)
@@ -535,13 +543,20 @@ def get_folders():
         # Определяем технолога
         technologist = technologist_from_folder(folder_name)
 
+        is_confirmed = folder_name.endswith("+")
+        order_number = folder_name.split()[0] if folder_name else ""
+        if is_confirmed and order_number.endswith("+"):
+            order_number = order_number.rstrip("+")
+
         folder_data.append({
             "name": folder_name,
             "status": status,
             "manager": manager,
             "technologist": technologist or "Неизвестно",
             "modified": modified_date.strftime("%d.%m.%Y %H:%M"),
-            "days": days_ago
+            "days": days_ago,
+            "confirmed": is_confirmed,
+            "order_number": order_number,
         })
 
     folder_data.sort(key=lambda x: x["modified"], reverse=True)
@@ -768,6 +783,42 @@ def open_folder():
     return ("", 204)
 
 
+@app.route("/confirm_order", methods=["POST"])
+def confirm_order():
+    if not ORDER_CONFIRMATION_ENABLED:
+        return jsonify({"status": "error", "message": "Подтверждение заказов отключено."}), 400
+
+    if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
+        return jsonify({"status": "error", "message": "Путь к папке заказов не настроен."}), 500
+
+    payload = request.get_json(silent=True) or {}
+    folder_name = (payload.get("folder") or "").strip()
+    if not folder_name:
+        return jsonify({"status": "error", "message": "Не указано имя заказа."}), 400
+
+    current_path = os.path.join(FOLDER_PATH, folder_name)
+    if not os.path.isdir(current_path):
+        return jsonify({"status": "error", "message": "Заказ не найден."}), 404
+
+    if folder_name.endswith("+"):
+        return jsonify({"status": "ok", "folder": folder_name, "message": "Заказ уже подтверждён."})
+
+    new_name = f"{folder_name} +"
+    new_path = os.path.join(FOLDER_PATH, new_name)
+    if os.path.exists(new_path):
+        return jsonify({"status": "error", "message": "Папка с подтверждённым заказом уже существует."}), 409
+
+    try:
+        os.rename(current_path, new_path)
+    except OSError as exc:
+        return jsonify({"status": "error", "message": f"Не удалось подтвердить заказ: {exc}"}), 500
+
+    move_known_folder(folder_name, new_name)
+    update_message_for_folder(folder_name, new_name)
+
+    return jsonify({"status": "ok", "folder": new_name})
+
+
 @app.route("/settings", methods=["GET", "POST"])
 def settings_page():
     global CONFIG, bot
@@ -802,6 +853,7 @@ def settings_page():
         server_host = request.form.get("server_host", "").strip()
         server_port = request.form.get("server_port", "").strip()
         debug_mode = request.form.get("debug_mode") == "on"
+        order_confirmation = request.form.get("order_confirmation") == "on"
 
         telegram_token = request.form.get("telegram_token", "").strip()
         telegram_chat = request.form.get("telegram_chat_id", "").strip()
@@ -834,6 +886,12 @@ def settings_page():
         updated.setdefault("telegram", {})["token"] = telegram_token
         updated.setdefault("telegram", {})["chat_id"] = telegram_chat
 
+        features_config = updated.setdefault("features", {})
+        if not isinstance(features_config, dict):
+            features_config = {}
+            updated["features"] = features_config
+        features_config["order_confirmation"] = order_confirmation
+
         if not errors:
             save_config(updated)
             CONFIG.clear()
@@ -862,6 +920,7 @@ def inject_config_data():
     return {
         "config_managers": MANAGER_NAMES,
         "config_facades_dir": FACADES_DIR,
+        "order_confirmation_enabled": ORDER_CONFIRMATION_ENABLED,
     }
 
 # === Запуск ===

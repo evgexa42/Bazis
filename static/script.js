@@ -1,6 +1,6 @@
 const APP_CONFIG = (() => {
   if (typeof document === 'undefined') {
-    return { managers: [] };
+    return { managers: [], orderConfirmationEnabled: false };
   }
 
   const body = document.body;
@@ -10,7 +10,9 @@ const APP_CONFIG = (() => {
     .map(name => name.trim())
     .filter(Boolean);
 
-  return { managers };
+  const orderConfirmationEnabled = body?.dataset?.orderConfirmation === 'true';
+
+  return { managers, orderConfirmationEnabled };
 })();
 
 const OrdersPage = (() => {
@@ -174,16 +176,111 @@ const OrdersPage = (() => {
 
       const statusClass = item.status === 'Готов' ? 'status-pill status-pill--success' : 'status-pill status-pill--warning';
 
-      tr.innerHTML = `
-        <td><div class="table-primary">${item.name}</div></td>
-        <td><div class="table-secondary">${item.manager || '—'}</div></td>
-        <td><span class="${statusClass}">${item.status}</span></td>
-        <td><div class="table-secondary">${item.modified}</div></td>
-        <td><div class="table-secondary">${item.days}</div></td>
-      `;
+      const nameTd = document.createElement('td');
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'table-primary';
+      nameDiv.textContent = item.name || '';
+      nameTd.appendChild(nameDiv);
+      tr.appendChild(nameTd);
+
+      const managerTd = document.createElement('td');
+      const managerDiv = document.createElement('div');
+      managerDiv.className = 'table-secondary';
+      managerDiv.textContent = item.manager || '—';
+      managerTd.appendChild(managerDiv);
+      tr.appendChild(managerTd);
+
+      const statusTd = document.createElement('td');
+      const statusSpan = document.createElement('span');
+      statusSpan.className = statusClass;
+      statusSpan.textContent = item.status || '';
+      statusTd.appendChild(statusSpan);
+      tr.appendChild(statusTd);
+
+      const modifiedTd = document.createElement('td');
+      const modifiedDiv = document.createElement('div');
+      modifiedDiv.className = 'table-secondary';
+      modifiedDiv.textContent = item.modified || '';
+      modifiedTd.appendChild(modifiedDiv);
+      tr.appendChild(modifiedTd);
+
+      const daysTd = document.createElement('td');
+      const daysDiv = document.createElement('div');
+      daysDiv.className = 'table-secondary';
+      daysDiv.textContent = item.days ?? '—';
+      daysTd.appendChild(daysDiv);
+      tr.appendChild(daysTd);
+
+      if (APP_CONFIG.orderConfirmationEnabled) {
+        const confirmTd = document.createElement('td');
+        confirmTd.className = 'table-checkbox';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'confirm-checkbox';
+        checkbox.checked = Boolean(item.confirmed);
+        checkbox.disabled = Boolean(item.confirmed);
+        checkbox.setAttribute('aria-label', `Подтвердить заказ ${getOrderNumber(item) || item.name || ''}`);
+
+        if (!item.confirmed) {
+          checkbox.addEventListener('change', () => handleOrderConfirmation(item, checkbox));
+        }
+
+        confirmTd.appendChild(checkbox);
+        tr.appendChild(confirmTd);
+      }
 
       table.appendChild(tr);
     });
+  }
+
+  function getOrderNumber(item) {
+    if (!item) return '';
+    if (typeof item.order_number === 'string' && item.order_number.trim()) {
+      return item.order_number.trim();
+    }
+    return extractOrderNumber(item.name);
+  }
+
+  function extractOrderNumber(name) {
+    if (!name) return '';
+    const firstPart = name.trim().split(/\s+/)[0] || '';
+    return firstPart.replace(/\+$/, '');
+  }
+
+  function handleOrderConfirmation(item, checkbox) {
+    const orderNumber = getOrderNumber(item) || item.name || '';
+    const message = `Точно хотите подтвердить заказ ${orderNumber}?`;
+    if (!window.confirm(message)) {
+      checkbox.checked = false;
+      return;
+    }
+
+    checkbox.disabled = true;
+
+    fetch('/confirm_order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ folder: item.name })
+    })
+      .then(async response => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.status !== 'ok') {
+          const errorMessage = payload.message || 'Не удалось подтвердить заказ.';
+          throw new Error(errorMessage);
+        }
+        return payload;
+      })
+      .then(() => {
+        loadData();
+      })
+      .catch(error => {
+        checkbox.checked = false;
+        checkbox.disabled = false;
+        window.alert(error.message || 'Не удалось подтвердить заказ.');
+      });
   }
 
   return {

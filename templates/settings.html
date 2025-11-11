@@ -97,6 +97,11 @@
           <span>Включить режим отладки Flask</span>
         </label>
 
+        <label class="field">
+          <input type="checkbox" name="order_confirmation" {% if config.get('features', {}).get('order_confirmation') %}checked{% endif %}>
+          <span>Включить подтверждение заказов в мониторинге</span>
+        </label>
+
         <div class="settings-actions">
           <button type="submit" class="btn btn--primary">💾 Сохранить</button>
         </div>

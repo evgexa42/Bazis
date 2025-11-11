@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
-<body data-page="orders" data-managers="{{ config_managers | join(',') }}">
+<body data-page="orders" data-managers="{{ config_managers | join(',') }}" data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}">
   <div class="page page--wide">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
@@ -63,6 +63,9 @@
               <th>Статус</th>
               <th>Изменено</th>
               <th>Дней назад</th>
+              {% if order_confirmation_enabled %}
+              <th class="table-checkbox">Подтвердить</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody></tbody>

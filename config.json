@@ -25,5 +25,8 @@
   "technologists": {
     "J": "Женя",
     "I": "Игорь"
+  },
+  "features": {
+    "order_confirmation": true
   }
 }
