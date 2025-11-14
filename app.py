@@ -537,13 +537,16 @@ def get_folders():
         modified_time = os.path.getmtime(folder_path)
         modified_date = datetime.fromtimestamp(modified_time)
         days_ago = (datetime.now() - modified_date).days
-        status = "Готов" if folder_has_ready_marker(folder_name) else "Новый"
         manager = get_manager_from_name(folder_name)
 
         # Определяем технолога
         technologist = technologist_from_folder(folder_name)
 
         is_confirmed = folder_name.endswith("+")
+        if is_confirmed:
+            status = "Подтвержден"
+        else:
+            status = "Готов" if folder_has_ready_marker(folder_name) else "Новый"
         order_number = folder_name.split()[0] if folder_name else ""
         if is_confirmed and order_number.endswith("+"):
             order_number = order_number.rstrip("+")
@@ -802,6 +805,9 @@ def confirm_order():
 
     if folder_name.endswith("+"):
         return jsonify({"status": "ok", "folder": folder_name, "message": "Заказ уже подтверждён."})
+
+    if not folder_has_ready_marker(folder_name):
+        return jsonify({"status": "error", "message": "Заказ ещё не имеет статуса \"Готов\"."}), 400
 
     new_name = f"{folder_name} +"
     new_path = os.path.join(FOLDER_PATH, new_name)

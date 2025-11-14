@@ -96,8 +96,9 @@ const OrdersPage = (() => {
     const technologists = data.technologists || {};
     const folders = Array.isArray(data.folders) ? data.folders : [];
 
-    const doneCount = folders.filter(item => item.status === 'Готов').length;
+    const doneCount = folders.filter(item => item.status === 'Готов' || item.status === 'Подтвержден').length;
     const newCount = folders.filter(item => item.status === 'Новый').length;
+	const confirmedCount = folders.filter(item => item.status === 'Подтвержден').length;
 
     const managerOrder = Array.from(new Set([...(APP_CONFIG.managers || []), 'Неизвестно']));
     const managerItems = managerOrder
@@ -120,6 +121,7 @@ const OrdersPage = (() => {
           <div class="stat-meta">
             <span>Готовых: <strong>${doneCount}</strong></span>
             <span>Новых: <strong>${newCount}</strong></span>
+            <span>Подтвержденных: <strong>${confirmedCount}</strong></span>
           </div>
         </article>
         <article class="stat-card">
@@ -143,7 +145,13 @@ const OrdersPage = (() => {
     if (!table) return;
 
     const filtered = allData
-      .filter(item => currentStatus === 'all' || item.status === currentStatus)
+      .filter(item => {
+        if (currentStatus === 'all') return true;
+        if (currentStatus === 'Готов') {
+          return item.status === 'Готов' || item.status === 'Подтвержден';
+        }
+        return item.status === currentStatus;
+      })
       .slice();
 
     if (sortKey) {
@@ -172,9 +180,20 @@ const OrdersPage = (() => {
 
     filtered.forEach(item => {
       const tr = document.createElement('tr');
-      tr.className = item.status === 'Готов' ? 'done' : 'new';
+      if (item.status === 'Готов') {
+        tr.classList.add('done');
+      } else if (item.status === 'Подтвержден') {
+        tr.classList.add('confirmed');
+      } else {
+        tr.classList.add('new');
+      }
 
-      const statusClass = item.status === 'Готов' ? 'status-pill status-pill--success' : 'status-pill status-pill--warning';
+      let statusClass = 'status-pill status-pill--warning';
+      if (item.status === 'Готов') {
+        statusClass = 'status-pill status-pill--success';
+      } else if (item.status === 'Подтвержден') {
+        statusClass = 'status-pill status-pill--neutral';
+      }
 
       const nameTd = document.createElement('td');
       const nameDiv = document.createElement('div');
@@ -215,18 +234,32 @@ const OrdersPage = (() => {
         const confirmTd = document.createElement('td');
         confirmTd.className = 'table-checkbox';
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'confirm-checkbox';
-        checkbox.checked = Boolean(item.confirmed);
-        checkbox.disabled = Boolean(item.confirmed);
-        checkbox.setAttribute('aria-label', `Подтвердить заказ ${getOrderNumber(item) || item.name || ''}`);
-
-        if (!item.confirmed) {
+        if (item.status === 'Готов') {
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'confirm-checkbox';
+          checkbox.checked = false;
+          const orderLabel = getOrderLabel(item);
+          const ariaLabel = orderLabel ? `Подтвердить заказ ${orderLabel}` : 'Подтвердить заказ';
+          checkbox.setAttribute('aria-label', ariaLabel);
           checkbox.addEventListener('change', () => handleOrderConfirmation(item, checkbox));
+          confirmTd.appendChild(checkbox);
+        } else if (item.status === 'Подтвержден') {
+          const orderLabel = getOrderLabel(item);
+          const confirmedMark = document.createElement('span');
+          confirmedMark.className = 'confirm-status';
+          confirmedMark.textContent = '✔';
+          const ariaLabel = orderLabel ? `Заказ подтвержден ${orderLabel}` : 'Заказ подтвержден';
+          confirmedMark.setAttribute('aria-label', ariaLabel);
+          confirmedMark.title = orderLabel ? `Подтвержден: ${orderLabel}` : 'Заказ подтвержден';
+          confirmTd.appendChild(confirmedMark);
+        } else {
+          const placeholder = document.createElement('span');
+          placeholder.className = 'table-muted';
+          placeholder.textContent = '—';
+          confirmTd.appendChild(placeholder);
         }
 
-        confirmTd.appendChild(checkbox);
         tr.appendChild(confirmTd);
       }
 
@@ -248,9 +281,27 @@ const OrdersPage = (() => {
     return firstPart.replace(/\+$/, '');
   }
 
+  function getClientName(item) {
+    const name = item?.name || '';
+    if (!name.trim()) return '';
+    const withoutPlus = name.replace(/\s+\+$/, '').trim();
+    const firstSpaceIndex = withoutPlus.indexOf(' ');
+    if (firstSpaceIndex === -1) return '';
+    let clientPart = withoutPlus.slice(firstSpaceIndex + 1).trim();
+    clientPart = clientPart.replace(/\[[^\]]*\]/g, '').trim();
+    return clientPart;
+  }
+
+  function getOrderLabel(item) {
+    const orderNumber = getOrderNumber(item);
+    const clientName = getClientName(item);
+    const label = [orderNumber, clientName].filter(Boolean).join(' ');
+    return label || item?.name || '';
+  }
+
   function handleOrderConfirmation(item, checkbox) {
-    const orderNumber = getOrderNumber(item) || item.name || '';
-    const message = `Точно хотите подтвердить заказ ${orderNumber}?`;
+    const orderLabel = getOrderLabel(item);
+    const message = orderLabel ? `Подтвердить заказ ${orderLabel}?` : 'Подтвердить заказ?';
     if (!window.confirm(message)) {
       checkbox.checked = false;
       return;

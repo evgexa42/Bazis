@@ -500,6 +500,14 @@ select:focus {
   background: rgba(250, 204, 21, 0.26);
 }
 
+.data-table tbody tr.confirmed {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.data-table tbody tr.confirmed:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+
 .table-primary {
   font-weight: 600;
   color: var(--text);
@@ -531,10 +539,29 @@ select:focus {
   color: #92400e;
 }
 
+.status-pill--neutral {
+  background: rgba(148, 163, 184, 0.25);
+  color: #1f2937;
+}
+
 .confirm-checkbox {
   width: 18px;
   height: 18px;
   cursor: pointer;
+}
+
+.confirm-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: default;
 }
 
 .table-secondary {

@@ -8,7 +8,7 @@
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </head>
 <body data-page="clients" data-managers="{{ config_managers | join(',') }}">
-  <div class="page">
+  <div class="page page--wide">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
       <a href="/clients">👥 Клиенты</a>
@@ -33,7 +33,6 @@
           {% for manager_name in config_managers %}
           <option value="{{ manager_name }}">{{ manager_name }}</option>
           {% endfor %}
-          <option value="Неизвестно">Неизвестно</option>
         </select>
         <button type="submit" class="btn btn--primary">Добавить</button>
       </form>
