@@ -2,6 +2,7 @@ import os
 import json
 import threading
 import atexit
+import time
 from copy import deepcopy
 from datetime import datetime
 
@@ -76,9 +77,24 @@ def save_config(config):
 CONFIG = load_config()
 ORDER_CONFIRMATION_ENABLED = False
 
+# Глобальные переменные, которые наполняются apply_config
+FOLDER_PATH = ""
+FACADES_DIR = ""
+FACADES_FILE = ""
+WATCHED_PATH = ""
+WATCHED_PATH_NORM = ""
+TELEGRAM_TOKEN = ""
+CHAT_ID = ""
+SERVER_HOST = "127.0.0.1"
+SERVER_PORT = 5000
+DEBUG_MODE = False
+SEARCH_FOLDERS = {}
+MANAGER_NAMES = []
+TECHNOLOGIST_MARKERS = {}
+
 
 def apply_config(config):
-    global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH
+    global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS
     global ORDER_CONFIRMATION_ENABLED
@@ -96,8 +112,16 @@ def apply_config(config):
 
     FOLDER_PATH = paths.get("orders") or ""
     FACADES_DIR = paths.get("facades_dir") or ""
-    FACADES_FILE = os.path.join(FACADES_DIR, "facades_list.txt") if FACADES_DIR else "facades_list.txt"
-    WATCHED_PATH = os.path.normcase(os.path.abspath(FOLDER_PATH)) if FOLDER_PATH else ""
+    FACADES_FILE = (
+        os.path.join(FACADES_DIR, "facades_list.txt") if FACADES_DIR else "facades_list.txt"
+    )
+
+    if FOLDER_PATH:
+        WATCHED_PATH = os.path.abspath(FOLDER_PATH)
+        WATCHED_PATH_NORM = os.path.normcase(WATCHED_PATH)
+    else:
+        WATCHED_PATH = ""
+        WATCHED_PATH_NORM = ""
 
     search_folders = paths.get("search")
     SEARCH_FOLDERS = search_folders if isinstance(search_folders, dict) else {}
@@ -129,8 +153,9 @@ def replace_slashes(text):
     """Заменяет обратные слеши на прямые для корректных URL-адресов file://."""
     return text.replace("\\", "/")
 
+
 # Регистрация пользовательского фильтра 'replace_slashes'
-app.jinja_env.filters['replace_slashes'] = replace_slashes 
+app.jinja_env.filters["replace_slashes"] = replace_slashes
 
 # === Загрузка базы клиентов ===
 def load_clients():
@@ -139,27 +164,31 @@ def load_clients():
             return json.load(f)
     return {}
 
+
 def save_clients(data):
     with open(CLIENTS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-clients = load_clients()
 
+clients = load_clients()
+clients_lock = threading.Lock()
 
 # === Определение менеджера по имени клиента ===
 def get_manager_from_name(folder_name):
-    for client, manager in clients.items():
-        if client.lower() in folder_name.lower():
+    lname = folder_name.lower()
+    with clients_lock:
+        items = list(clients.items())
+    for client, manager in items:
+        if client.lower() in lname:
             return manager
     return "Неизвестно"
 
 
-# === Telegram уведомления ===
+# === Telegram уведомления и мониторинг ===
 known_folders = set()
 known_folders_lock = threading.Lock()
 messages_lock = threading.Lock()
 observer = None
-
 
 IGNORED_FOLDERS = {"Архив", "2025"}
 
@@ -181,7 +210,7 @@ def technologist_from_folder(folder_name):
 
 
 def should_notify(folder_name):
-    if not folder_name or folder_name.startswith('.'):
+    if not folder_name or folder_name.startswith("."):
         return False
     if folder_name in IGNORED_FOLDERS:
         return False
@@ -218,7 +247,7 @@ class OrderFolderHandler(FileSystemEventHandler):
         if not event.is_directory:
             return
         parent = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
-        if parent != WATCHED_PATH:
+        if parent != WATCHED_PATH_NORM:
             return
         folder_name = os.path.basename(event.src_path)
         if register_known_folder(folder_name):
@@ -229,10 +258,16 @@ class OrderFolderHandler(FileSystemEventHandler):
     def on_moved(self, event):
         if not event.is_directory:
             return
+
         src_name = os.path.basename(event.src_path)
         dest_name = os.path.basename(event.dest_path)
-        src_in_watch = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path))) == WATCHED_PATH
-        dest_in_watch = os.path.normcase(os.path.abspath(os.path.dirname(event.dest_path))) == WATCHED_PATH
+
+        src_in_watch = (
+            os.path.normcase(os.path.abspath(os.path.dirname(event.src_path))) == WATCHED_PATH_NORM
+        )
+        dest_in_watch = (
+            os.path.normcase(os.path.abspath(os.path.dirname(event.dest_path))) == WATCHED_PATH_NORM
+        )
 
         if src_in_watch and not dest_in_watch:
             unregister_known_folder(src_name)
@@ -263,15 +298,14 @@ class OrderFolderHandler(FileSystemEventHandler):
         if not event.is_directory:
             return
         parent = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
-        if parent != WATCHED_PATH:
+        if parent != WATCHED_PATH_NORM:
             return
         folder_name = os.path.basename(event.src_path)
         unregister_known_folder(folder_name)
         delete_telegram_message(folder_name)
 
+
 # --- messages.json persistent storage ---
-
-
 def order_key_from_name(name):
     """Берём ключ заказа — первый токен до пробела, в lower()."""
     if not name:
@@ -303,6 +337,7 @@ def load_messages():
             print(f"[load_messages] Ошибка чтения {MESSAGES_FILE}: {e}")
     return []  # список записей: {"folder": str, "order_key": str, "chat_id": ..., "message_id": ...}
 
+
 def save_messages(msgs):
     try:
         with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
@@ -310,8 +345,10 @@ def save_messages(msgs):
     except Exception as e:
         print(f"[save_messages] Ошибка записи {MESSAGES_FILE}: {e}")
 
+
 # в памяти
 messages = load_messages()
+
 
 def build_order_message(folder_name):
     manager = get_manager_from_name(folder_name)
@@ -330,7 +367,7 @@ def send_telegram_message(msg, folder_name):
             "folder": folder_name,
             "order_key": order_key_from_name(folder_name),
             "chat_id": CHAT_ID,
-            "message_id": sent.message_id
+            "message_id": sent.message_id,
         }
         with messages_lock:
             messages.append(entry)
@@ -339,13 +376,15 @@ def send_telegram_message(msg, folder_name):
     except Exception as e:
         print(f"[Telegram Error] {e}")
 
+
 def delete_telegram_message(folder_name):
     """Удалить все сообщения из messages.json, соответствующие order_key или точному имени папки."""
     global messages
     key = order_key_from_name(folder_name)
     with messages_lock:
         candidates = [
-            entry for entry in messages
+            entry
+            for entry in messages
             if entry.get("folder") == folder_name or entry.get("order_key") == key
         ]
     if not candidates:
@@ -358,7 +397,9 @@ def delete_telegram_message(folder_name):
                 print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
         except Exception as e:
             # Логируем, но продолжаем (возможно сообщение уже удалено)
-            print(f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
+            print(
+                f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})"
+            )
 
     with messages_lock:
         messages = [m for m in messages if m not in candidates]
@@ -454,9 +495,13 @@ def cleanup_missing_messages(existing_keys):
         for entry in stale_entries:
             try:
                 bot.delete_message(chat_id=entry.get("chat_id"), message_id=entry.get("message_id"))
-                print(f"[TG] Удалено устаревшее сообщение {entry.get('message_id')} для {entry.get('folder')}")
+                print(
+                    f"[TG] Удалено устаревшее сообщение {entry.get('message_id')} для {entry.get('folder')}"
+                )
             except Exception as e:
-                print(f"[TG stale delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})")
+                print(
+                    f"[TG stale delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})"
+                )
 
     with messages_lock:
         messages = [m for m in messages if m not in stale_entries]
@@ -469,20 +514,19 @@ def initialize_known_state():
         print(f"[init] Путь не найден: {FOLDER_PATH}")
         return
 
+    actual_folders = []
     try:
-        folder_names = os.listdir(FOLDER_PATH)
+        with os.scandir(FOLDER_PATH) as it:
+            for entry in it:
+                if not entry.is_dir():
+                    continue
+                name = entry.name
+                if name in IGNORED_FOLDERS:
+                    continue
+                actual_folders.append(name)
     except Exception as e:
         print(f"[init] Не удалось прочитать каталог: {e}")
         return
-
-    actual_folders = []
-    for name in folder_names:
-        folder_path = os.path.join(FOLDER_PATH, name)
-        if not os.path.isdir(folder_path):
-            continue
-        if name in IGNORED_FOLDERS:
-            continue
-        actual_folders.append(name)
 
     with known_folders_lock:
         known_folders.clear()
@@ -497,6 +541,7 @@ def initialize_known_state():
         else:
             delete_telegram_message(name)
 
+
 @app.route("/update_client", methods=["POST"])
 def update_client():
     data = request.get_json()
@@ -504,10 +549,11 @@ def update_client():
     new_name = data.get("new_name")
     new_manager = data.get("new_manager")
 
-    if old_name in clients:
-        clients.pop(old_name)
-        clients[new_name] = new_manager
-        save_clients(clients)
+    with clients_lock:
+        if old_name in clients:
+            clients.pop(old_name)
+            clients[new_name] = new_manager
+            save_clients(clients)
 
     return jsonify({"status": "ok"})
 
@@ -517,53 +563,87 @@ def delete_client():
     data = request.get_json()
     name = data.get("name")
 
-    if name in clients:
-        clients.pop(name)
-        save_clients(clients)
+    with clients_lock:
+        if name in clients:
+            clients.pop(name)
+            save_clients(clients)
 
     return jsonify({"status": "ok"})
 
+
 # === Получение списка заказов ===
+
+# Кэш для get_folders
+folders_cache = {
+    "ts": 0.0,
+    "data": [],
+}
+folders_cache_lock = threading.Lock()
+
+
 def get_folders():
     if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
         return []
 
     folder_data = []
-    for folder_name in os.listdir(FOLDER_PATH):
-        folder_path = os.path.join(FOLDER_PATH, folder_name)
-        if not os.path.isdir(folder_path) or folder_name in IGNORED_FOLDERS:
-            continue
 
-        modified_time = os.path.getmtime(folder_path)
-        modified_date = datetime.fromtimestamp(modified_time)
-        days_ago = (datetime.now() - modified_date).days
-        manager = get_manager_from_name(folder_name)
+    with os.scandir(FOLDER_PATH) as it:
+        for entry in it:
+            if not entry.is_dir():
+                continue
 
-        # Определяем технолога
-        technologist = technologist_from_folder(folder_name)
+            folder_name = entry.name
+            if folder_name in IGNORED_FOLDERS:
+                continue
 
-        is_confirmed = folder_name.endswith("+")
-        if is_confirmed:
-            status = "Подтвержден"
-        else:
-            status = "Готов" if folder_has_ready_marker(folder_name) else "Новый"
-        order_number = folder_name.split()[0] if folder_name else ""
-        if is_confirmed and order_number.endswith("+"):
-            order_number = order_number.rstrip("+")
+            stat = entry.stat()
+            modified_date = datetime.fromtimestamp(stat.st_mtime)
+            days_ago = (datetime.now() - modified_date).days
+            manager = get_manager_from_name(folder_name)
 
-        folder_data.append({
-            "name": folder_name,
-            "status": status,
-            "manager": manager,
-            "technologist": technologist or "Неизвестно",
-            "modified": modified_date.strftime("%d.%m.%Y %H:%M"),
-            "days": days_ago,
-            "confirmed": is_confirmed,
-            "order_number": order_number,
-        })
+            # Определяем технолога
+            technologist = technologist_from_folder(folder_name)
+
+            is_confirmed = folder_name.endswith("+")
+            if is_confirmed:
+                status = "Подтвержден"
+            else:
+                status = "Готов" if folder_has_ready_marker(folder_name) else "Новый"
+            order_number = folder_name.split()[0] if folder_name else ""
+            if is_confirmed and order_number.endswith("+"):
+                order_number = order_number.rstrip("+")
+
+            folder_data.append(
+                {
+                    "name": folder_name,
+                    "status": status,
+                    "manager": manager,
+                    "technologist": technologist or "Неизвестно",
+                    "modified": modified_date.strftime("%d.%m.%Y %H:%M"),
+                    "days": days_ago,
+                    "confirmed": is_confirmed,
+                    "order_number": order_number,
+                }
+            )
 
     folder_data.sort(key=lambda x: x["modified"], reverse=True)
     return folder_data
+
+
+def get_folders_cached(ttl=1.0):
+    """Возвращает список заказов с кэшированием на ttl секунд."""
+    now = time.time()
+    with folders_cache_lock:
+        if now - folders_cache["ts"] < ttl:
+            return deepcopy(folders_cache["data"])
+
+    data = get_folders()
+
+    with folders_cache_lock:
+        folders_cache["ts"] = now
+        folders_cache["data"] = deepcopy(data)
+
+    return data
 
 
 # === Маршруты Flask ===
@@ -571,17 +651,22 @@ def get_folders():
 def index():
     return render_template("index.html")
 
+
 @app.route("/facades")
 def facades_page():
     template_path = os.path.join(current_app.template_folder or "", "facades.html")
     if template_path and not os.path.exists(template_path):
         app.logger.error("Шаблон фасадов не найден: %s", template_path)
-        abort(500, description="Не найден шаблон facades.html. Убедитесь, что файл находится в папке templates.")
+        abort(
+            500,
+            description="Не найден шаблон facades.html. Убедитесь, что файл находится в папке templates.",
+        )
     return render_template("facades.html")
+
 
 @app.route("/data")
 def data():
-    folders = get_folders()
+    folders = get_folders_cached(ttl=1.0)
 
     total_orders = len(folders)
     # Подсчёт по менеджерам
@@ -607,39 +692,52 @@ def data():
     if manager_filter != "Все":
         folders = [f for f in folders if f["manager"] == manager_filter]
 
-
-    return jsonify({
-        "folders": folders,
-        "total": total_orders,
-        "managers": manager_stats,
-        "technologists": tech_stats
-    })
+    return jsonify(
+        {
+            "folders": folders,
+            "total": total_orders,
+            "managers": manager_stats,
+            "technologists": tech_stats,
+        }
+    )
 
 
 # === Управление клиентами ===
 @app.route("/clients")
 def clients_page():
-    # Перезагрузка клиентов перед отображением, чтобы учесть изменения
-    # global clients
-    # clients = load_clients() 
-    return render_template("clients.html", clients=clients)
+    with clients_lock:
+        clients_snapshot = dict(clients)
+    return render_template("clients.html", clients=clients_snapshot)
+
 
 @app.route("/add_client", methods=["POST"])
 def add_client():
-    client_name = request.form.get("client").strip()
+    client_name = (request.form.get("client") or "").strip()
     manager = request.form.get("manager")
 
     if client_name:
-        clients[client_name] = manager
-        save_clients(clients)
+        with clients_lock:
+            clients[client_name] = manager
+            save_clients(clients)
     return redirect(url_for("clients_page"))
+
 
 # === Словарь месяцев на румынском ===
 MONTHS_RO = {
-    1: "01. Ianuarie", 2: "02. Februarie", 3: "03. Martie", 4: "04. Aprilie",
-    5: "05. Mai", 6: "06. Iunie", 7: "07. Iulie", 8: "08. August",
-    9: "09. Septembrie", 10: "10. Octombrie", 11: "11. Noiembrie", 12: "12. Decembrie"
+    1: "01. Ianuarie",
+    2: "02. Februarie",
+    3: "03. Martie",
+    4: "04. Aprilie",
+    5: "05. Mai",
+    6: "06. Iunie",
+    7: "07. Iulie",
+    8: "08. August",
+    9: "09. Septembrie",
+    10: "10. Octombrie",
+    11: "11. Noiembrie",
+    12: "12. Decembrie",
 }
+
 
 def get_recent_months():
     """Возвращает список последних двух месяцев в формате '10. Octombrie 2025'"""
@@ -676,14 +774,19 @@ def search_page():
                 for folder_name in os.listdir(month_path):
                     if query.lower() in folder_name.lower():
                         manager = get_manager_from_name(folder_name)
-                        results[key].append({
-                            "name": folder_name,
-                            "manager": manager,
-                            "path": os.path.join(month_path, folder_name)
-                        })
+                        results[key].append(
+                            {
+                                "name": folder_name,
+                                "manager": manager,
+                                "path": os.path.join(month_path, folder_name),
+                            }
+                        )
 
-    return render_template("search.html", query=query, results=results, SEARCH_FOLDERS=SEARCH_FOLDERS)
-    
+    return render_template(
+        "search.html", query=query, results=results, SEARCH_FOLDERS=SEARCH_FOLDERS
+    )
+
+
 @app.route("/facades/generate", methods=["POST"])
 def generate_facades():
     payload = request.get_json(silent=True) or {}
@@ -736,13 +839,15 @@ def generate_facades():
         if position:
             line_parts.append(position)
 
-        line_parts.extend([
-            str(height_int),
-            str(width_int),
-            str(count_int),
-            side_code,
-            str(hinges_int)
-        ])
+        line_parts.extend(
+            [
+                str(height_int),
+                str(width_int),
+                str(count_int),
+                side_code,
+                str(hinges_int),
+            ]
+        )
 
         lines.append(" ".join(line_parts))
 
@@ -750,14 +855,25 @@ def generate_facades():
         return jsonify({"status": "error", "errors": errors}), 400
 
     if not lines:
-        return jsonify({"status": "error", "errors": ["Добавьте хотя бы один фасад перед генерацией."]}), 400
+        return jsonify(
+            {"status": "error", "errors": ["Добавьте хотя бы один фасад перед генерацией."]},
+            400,
+        )
 
     target_dir = os.path.dirname(FACADES_FILE)
     if target_dir:
         try:
             os.makedirs(target_dir, exist_ok=True)
         except OSError as exc:
-            return jsonify({"status": "error", "errors": [f"Не удалось создать папку {target_dir}: {exc}"]}), 500
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "errors": [f"Не удалось создать папку {target_dir}: {exc}"],
+                    }
+                ),
+                500,
+            )
 
     try:
         with open(FACADES_FILE, "w", encoding="utf-8") as f:
@@ -765,13 +881,18 @@ def generate_facades():
             for line in lines:
                 f.write(line + "\n")
     except OSError as exc:
-        return jsonify({"status": "error", "errors": [f"Не удалось записать файл: {exc}"]}), 500
+        return (
+            jsonify({"status": "error", "errors": [f"Не удалось записать файл: {exc}"]}),
+            500,
+        )
 
-    return jsonify({
-        "status": "ok",
-        "file": os.path.basename(FACADES_FILE),
-        "folder": FACADES_DIR or os.path.dirname(os.path.abspath(FACADES_FILE)),
-    })
+    return jsonify(
+        {
+            "status": "ok",
+            "file": os.path.basename(FACADES_FILE),
+            "folder": FACADES_DIR or os.path.dirname(os.path.abspath(FACADES_FILE)),
+        }
+    )
 
 
 # === Открытие папки ===
@@ -789,35 +910,78 @@ def open_folder():
 @app.route("/confirm_order", methods=["POST"])
 def confirm_order():
     if not ORDER_CONFIRMATION_ENABLED:
-        return jsonify({"status": "error", "message": "Подтверждение заказов отключено."}), 400
+        return (
+            jsonify(
+                {"status": "error", "message": "Подтверждение заказов отключено."}
+            ),
+            400,
+        )
 
     if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
-        return jsonify({"status": "error", "message": "Путь к папке заказов не настроен."}), 500
+        return (
+            jsonify(
+                {"status": "error", "message": "Путь к папке заказов не настроен."}
+            ),
+            500,
+        )
 
     payload = request.get_json(silent=True) or {}
     folder_name = (payload.get("folder") or "").strip()
     if not folder_name:
-        return jsonify({"status": "error", "message": "Не указано имя заказа."}), 400
+        return (
+            jsonify({"status": "error", "message": "Не указано имя заказа."}),
+            400,
+        )
 
     current_path = os.path.join(FOLDER_PATH, folder_name)
     if not os.path.isdir(current_path):
         return jsonify({"status": "error", "message": "Заказ не найден."}), 404
 
     if folder_name.endswith("+"):
-        return jsonify({"status": "ok", "folder": folder_name, "message": "Заказ уже подтверждён."})
+        return jsonify(
+            {
+                "status": "ok",
+                "folder": folder_name,
+                "message": "Заказ уже подтверждён.",
+            }
+        )
 
     if not folder_has_ready_marker(folder_name):
-        return jsonify({"status": "error", "message": "Заказ ещё не имеет статуса \"Готов\"."}), 400
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": 'Заказ ещё не имеет статуса "Готов".',
+                }
+            ),
+            400,
+        )
 
     new_name = f"{folder_name} +"
     new_path = os.path.join(FOLDER_PATH, new_name)
     if os.path.exists(new_path):
-        return jsonify({"status": "error", "message": "Папка с подтверждённым заказом уже существует."}), 409
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Папка с подтверждённым заказом уже существует.",
+                }
+            ),
+            409,
+        )
 
     try:
         os.rename(current_path, new_path)
     except OSError as exc:
-        return jsonify({"status": "error", "message": f"Не удалось подтвердить заказ: {exc}"}), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": f"Не удалось подтвердить заказ: {exc}",
+                }
+            ),
+            500,
+        )
 
     move_known_folder(folder_name, new_name)
     update_message_for_folder(folder_name, new_name)
@@ -904,10 +1068,14 @@ def settings_page():
             CONFIG.update(updated)
             apply_config(CONFIG)
             bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
-            status_message = "Настройки сохранены. Некоторые изменения вступят в силу после перезапуска приложения."
+            status_message = (
+                "Настройки сохранены. Некоторые изменения вступят в силу после перезапуска приложения."
+            )
 
     managers_text = "\n".join(MANAGER_NAMES)
-    technologists_text = "\n".join(f"{marker}={name}" for marker, name in TECHNOLOGIST_MARKERS.items())
+    technologists_text = "\n".join(
+        f"{marker}={name}" for marker, name in TECHNOLOGIST_MARKERS.items()
+    )
     search_text = "\n".join(f"{title}={path}" for title, path in SEARCH_FOLDERS.items())
 
     return render_template(
@@ -929,17 +1097,17 @@ def inject_config_data():
         "order_confirmation_enabled": ORDER_CONFIRMATION_ENABLED,
     }
 
+
 # === Запуск ===
 if __name__ == "__main__":
+    # Один раз восстанавливаем состояние известных папок и сообщений
     initialize_known_state()
 
     # Исправление бага с дублированием:
     # Запускаем поток мониторинга только в основном процессе,
     # который запускается Flask'ом (когда WERKZEUG_RUN_MAIN == 'true').
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' and FOLDER_PATH:
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" and FOLDER_PATH:
         print("Starting folder monitor observer...")
-        initialize_known_state()
-
         handler = OrderFolderHandler()
         observer = Observer()
         observer.schedule(handler, FOLDER_PATH, recursive=False)
@@ -951,5 +1119,6 @@ if __name__ == "__main__":
                 observer.join(timeout=5)
 
         atexit.register(stop_observer)
+
     print(f"Сервер запущен: http://{SERVER_HOST}:{SERVER_PORT}")
     app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE)
