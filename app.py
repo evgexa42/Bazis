@@ -88,24 +88,33 @@ def deep_merge(base, extra):
     return result
 
 
+def save_json_atomic(filename, data):
+    tmp_filename = f"{filename}.tmp"
+    with open(tmp_filename, "w", encoding="utf-8") as tmp_file:
+        json.dump(data, tmp_file, ensure_ascii=False, indent=2)
+    os.replace(tmp_filename, filename)
+
+
 def load_config():
-    config = deepcopy(DEFAULT_CONFIG)
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 file_data = json.load(f)
             if isinstance(file_data, dict):
-                config = deep_merge(config, file_data)
+                return deep_merge(deepcopy(DEFAULT_CONFIG), file_data)
         except Exception as exc:
             logger.exception("[config] Не удалось прочитать config.json", exc_info=exc)
-    else:
-        save_config(config)
-    return config
+            return {}
+
+    try:
+        save_json_atomic(CONFIG_FILE, {})
+    except Exception as exc:
+        logger.exception("[config] Не удалось создать config.json", exc_info=exc)
+    return deepcopy(DEFAULT_CONFIG)
 
 
 def save_config(config):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+    save_json_atomic(CONFIG_FILE, config)
 
 
 CONFIG = load_config()
@@ -197,28 +206,49 @@ def replace_slashes(text):
 app.jinja_env.filters["replace_slashes"] = replace_slashes
 
 # === Загрузка базы клиентов ===
+def build_clients_lookup(clients_data):
+    return {name.lower(): manager for name, manager in clients_data.items()}
+
+
 def load_clients():
+    default_clients = {}
     if os.path.exists(CLIENTS_FILE):
-        with open(CLIENTS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+        try:
+            with open(CLIENTS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception as exc:
+            logger.exception("[clients] Не удалось прочитать clients.json", exc_info=exc)
+        return default_clients
+
+    try:
+        save_json_atomic(CLIENTS_FILE, default_clients)
+    except Exception as exc:
+        logger.exception("[clients] Не удалось создать clients.json", exc_info=exc)
+    return default_clients
 
 
 def save_clients(data):
-    with open(CLIENTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    save_json_atomic(CLIENTS_FILE, data)
 
 
 clients = load_clients()
+clients_lookup = build_clients_lookup(clients)
 clients_lock = threading.Lock()
+
+
+def refresh_clients_lookup_locked():
+    global clients_lookup
+    clients_lookup = build_clients_lookup(clients)
 
 # === Определение менеджера по имени клиента ===
 def get_manager_from_name(folder_name):
     lname = folder_name.lower()
     with clients_lock:
-        items = list(clients.items())
-    for client, manager in items:
-        if client.lower() in lname:
+        snapshot = dict(clients_lookup)
+    for client_lower, manager in snapshot.items():
+        if client_lower in lname:
             return manager
     return "Неизвестно"
 
@@ -388,6 +418,7 @@ def order_key_from_name(name):
 
 
 def load_messages():
+    default_messages = []
     if os.path.exists(MESSAGES_FILE):
         try:
             with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
@@ -409,13 +440,18 @@ def load_messages():
                 return cleaned
         except Exception as e:
             logger.exception("[load_messages] Ошибка чтения %s", MESSAGES_FILE, exc_info=e)
-    return []  # список записей: {"folder": str, "order_key": str, "chat_id": ..., "message_id": ...}
+        return default_messages
+
+    try:
+        save_json_atomic(MESSAGES_FILE, default_messages)
+    except Exception as e:
+        logger.exception("[load_messages] Не удалось создать %s", MESSAGES_FILE, exc_info=e)
+    return default_messages  # список записей: {"folder": str, "order_key": str, "chat_id": ..., "message_id": ...}
 
 
 def save_messages(msgs):
     try:
-        with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
-            json.dump(msgs, f, ensure_ascii=False, indent=2)
+        save_json_atomic(MESSAGES_FILE, msgs)
     except Exception as e:
         logger.exception("[save_messages] Ошибка записи %s", MESSAGES_FILE, exc_info=e)
 
@@ -643,6 +679,7 @@ def update_client():
         if old_name in clients:
             clients.pop(old_name)
             clients[new_name] = new_manager
+            refresh_clients_lookup_locked()
             save_clients(clients)
 
     return jsonify({"status": "ok"})
@@ -656,6 +693,7 @@ def delete_client():
     with clients_lock:
         if name in clients:
             clients.pop(name)
+            refresh_clients_lookup_locked()
             save_clients(clients)
 
     return jsonify({"status": "ok"})
@@ -808,6 +846,7 @@ def add_client():
     if client_name:
         with clients_lock:
             clients[client_name] = manager
+            refresh_clients_lookup_locked()
             save_clients(clients)
     return redirect(url_for("clients_page"))
 
