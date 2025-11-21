@@ -3,6 +3,8 @@ import json
 import threading
 import atexit
 import time
+import logging
+from logging.handlers import RotatingFileHandler
 from copy import deepcopy
 from datetime import datetime
 
@@ -20,6 +22,7 @@ from telegram import Bot
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
+from werkzeug.exceptions import HTTPException
 
 # === Настройки ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,6 +46,37 @@ DEFAULT_CONFIG = {
     },
 }
 
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
+
+
+def setup_logging():
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+    logger = logging.getLogger("bazis")
+    logger.setLevel(logging.INFO)
+
+    handler = RotatingFileHandler(
+        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8"
+    )
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s - %(message)s")
+    handler.setFormatter(formatter)
+
+    if not any(getattr(h, "baseFilename", None) == handler.baseFilename for h in logger.handlers):
+        logger.addHandler(handler)
+
+    logger.propagate = False
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    if not any(getattr(h, "baseFilename", None) == handler.baseFilename for h in root_logger.handlers):
+        root_logger.addHandler(handler)
+
+    return logger
+
+
+logger = setup_logging()
+
 
 def deep_merge(base, extra):
     result = deepcopy(base)
@@ -63,7 +97,7 @@ def load_config():
             if isinstance(file_data, dict):
                 config = deep_merge(config, file_data)
         except Exception as exc:
-            print(f"[config] Не удалось прочитать config.json: {exc}")
+            logger.exception("[config] Не удалось прочитать config.json", exc_info=exc)
     else:
         save_config(config)
     return config
@@ -146,6 +180,11 @@ apply_config(CONFIG)
 
 # === Flask и Telegram ===
 app = Flask(__name__, template_folder=TEMPLATES_DIR)
+app.logger.handlers = []
+app.logger.setLevel(logging.INFO)
+for h in logger.handlers:
+    app.logger.addHandler(h)
+app.logger.propagate = False
 bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
 
 # === Вспомогательные функции для Jinja2 ===
@@ -189,6 +228,7 @@ known_folders = set()
 known_folders_lock = threading.Lock()
 messages_lock = threading.Lock()
 observer = None
+observer_started = False
 
 IGNORED_FOLDERS = {"Архив", "2025"}
 
@@ -250,6 +290,7 @@ class OrderFolderHandler(FileSystemEventHandler):
         if parent != WATCHED_PATH_NORM:
             return
         folder_name = os.path.basename(event.src_path)
+        logger.info("[observer] Папка создана: %s", folder_name)
         if register_known_folder(folder_name):
             return
         if should_notify(folder_name):
@@ -272,6 +313,7 @@ class OrderFolderHandler(FileSystemEventHandler):
         if src_in_watch and not dest_in_watch:
             unregister_known_folder(src_name)
             delete_telegram_message(src_name)
+            logger.info("[observer] Папка перемещена из каталога: %s", src_name)
             return
 
         if dest_in_watch and not src_in_watch:
@@ -279,9 +321,15 @@ class OrderFolderHandler(FileSystemEventHandler):
                 return
             if should_notify(dest_name):
                 send_telegram_message(build_order_message(dest_name), dest_name)
+            logger.info(
+                "[observer] Папка перемещена в каталог или создана: %s -> %s",
+                src_name,
+                dest_name,
+            )
             return
 
         already_known = move_known_folder(src_name, dest_name)
+        logger.info("[observer] Папка переименована: %s -> %s", src_name, dest_name)
 
         if folder_has_ready_marker(dest_name):
             delete_telegram_message(dest_name)
@@ -301,8 +349,34 @@ class OrderFolderHandler(FileSystemEventHandler):
         if parent != WATCHED_PATH_NORM:
             return
         folder_name = os.path.basename(event.src_path)
+        logger.info("[observer] Папка удалена: %s", folder_name)
         unregister_known_folder(folder_name)
         delete_telegram_message(folder_name)
+
+
+def start_observer_once():
+    global observer_started, observer
+    if observer_started:
+        return
+    observer_started = True
+
+    if not FOLDER_PATH:
+        logger.warning("[observer] Путь к папке заказов не настроен. Мониторинг не запущен.")
+        return
+
+    logger.info("[observer] Запуск мониторинга папки заказов: %s", FOLDER_PATH)
+    handler = OrderFolderHandler()
+    observer = Observer()
+    observer.schedule(handler, FOLDER_PATH, recursive=False)
+    observer.start()
+
+    def stop_observer():
+        if observer is not None:
+            logger.info("[observer] Остановка мониторинга")
+            observer.stop()
+            observer.join(timeout=5)
+
+    atexit.register(stop_observer)
 
 
 # --- messages.json persistent storage ---
@@ -334,7 +408,7 @@ def load_messages():
                     cleaned.append(entry)
                 return cleaned
         except Exception as e:
-            print(f"[load_messages] Ошибка чтения {MESSAGES_FILE}: {e}")
+            logger.exception("[load_messages] Ошибка чтения %s", MESSAGES_FILE, exc_info=e)
     return []  # список записей: {"folder": str, "order_key": str, "chat_id": ..., "message_id": ...}
 
 
@@ -343,7 +417,7 @@ def save_messages(msgs):
         with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
             json.dump(msgs, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"[save_messages] Ошибка записи {MESSAGES_FILE}: {e}")
+        logger.exception("[save_messages] Ошибка записи %s", MESSAGES_FILE, exc_info=e)
 
 
 # в памяти
@@ -359,7 +433,7 @@ def send_telegram_message(msg, folder_name):
     """Отправить сообщение и сохранить запись для возможного удаления позже."""
     global messages
     if bot is None or not CHAT_ID:
-        print("[TG] Бот не настроен. Сообщение не отправлено.")
+        logger.warning("[TG] Бот не настроен. Сообщение не отправлено для %s", folder_name)
         return
     try:
         sent = bot.send_message(chat_id=CHAT_ID, text=msg)
@@ -372,9 +446,13 @@ def send_telegram_message(msg, folder_name):
         with messages_lock:
             messages.append(entry)
             save_messages(messages)
-        print(f"[TG] Сообщение отправлено и сохранено для {folder_name} -> id {sent.message_id}")
+        logger.info(
+            "[TG] Сообщение отправлено и сохранено для %s -> id %s",
+            folder_name,
+            sent.message_id,
+        )
     except Exception as e:
-        print(f"[Telegram Error] {e}")
+        logger.exception("[Telegram Error] %s", e)
 
 
 def delete_telegram_message(folder_name):
@@ -394,11 +472,18 @@ def delete_telegram_message(folder_name):
         try:
             if bot is not None:
                 bot.delete_message(chat_id=entry["chat_id"], message_id=entry["message_id"])
-                print(f"[TG] Удалено сообщение {entry['message_id']} для {entry['folder']}")
+                logger.info(
+                    "[TG] Удалено сообщение %s для %s",
+                    entry["message_id"],
+                    entry["folder"],
+                )
         except Exception as e:
             # Логируем, но продолжаем (возможно сообщение уже удалено)
-            print(
-                f"[TG delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})"
+            logger.exception(
+                "[TG delete error] %s (folder=%s, msg_id=%s)",
+                e,
+                entry.get("folder"),
+                entry.get("message_id"),
             )
 
     with messages_lock:
@@ -440,9 +525,9 @@ def update_message_for_folder(old_name, new_name):
 
     try:
         bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=new_text)
-        print(f"[TG] Сообщение {message_id} обновлено для {new_name}")
+        logger.info("[TG] Сообщение %s обновлено для %s", message_id, new_name)
     except Exception as e:
-        print(f"[TG edit error] {e} (folder={old_name} -> {new_name})")
+        logger.exception("[TG edit error] %s (folder=%s -> %s)", e, old_name, new_name)
         return False
 
     with messages_lock:
@@ -495,12 +580,17 @@ def cleanup_missing_messages(existing_keys):
         for entry in stale_entries:
             try:
                 bot.delete_message(chat_id=entry.get("chat_id"), message_id=entry.get("message_id"))
-                print(
-                    f"[TG] Удалено устаревшее сообщение {entry.get('message_id')} для {entry.get('folder')}"
+                logger.info(
+                    "[TG] Удалено устаревшее сообщение %s для %s",
+                    entry.get("message_id"),
+                    entry.get("folder"),
                 )
             except Exception as e:
-                print(
-                    f"[TG stale delete error] {e} (folder={entry.get('folder')}, msg_id={entry.get('message_id')})"
+                logger.exception(
+                    "[TG stale delete error] %s (folder=%s, msg_id=%s)",
+                    e,
+                    entry.get("folder"),
+                    entry.get("message_id"),
                 )
 
     with messages_lock:
@@ -511,7 +601,7 @@ def cleanup_missing_messages(existing_keys):
 def initialize_known_state():
     """Самовосстанавливает состояние известных папок и сообщений."""
     if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
-        print(f"[init] Путь не найден: {FOLDER_PATH}")
+        logger.warning("[init] Путь не найден: %s", FOLDER_PATH)
         return
 
     actual_folders = []
@@ -525,7 +615,7 @@ def initialize_known_state():
                     continue
                 actual_folders.append(name)
     except Exception as e:
-        print(f"[init] Не удалось прочитать каталог: {e}")
+        logger.exception("[init] Не удалось прочитать каталог", exc_info=e)
         return
 
     with known_folders_lock:
@@ -762,6 +852,7 @@ def search_page():
     search_months = get_recent_months()
 
     if query:
+        logger.info("[search] Запрос поиска: %s", query)
         for key, base_folder in SEARCH_FOLDERS.items():
             if not os.path.exists(base_folder):
                 continue
@@ -895,6 +986,11 @@ def generate_facades():
     )
 
 
+@app.route("/ping", methods=["GET"])
+def ping():
+    return jsonify({"status": "ok"})
+
+
 # === Открытие папки ===
 @app.route("/open_folder", methods=["POST"])
 def open_folder():
@@ -903,13 +999,14 @@ def open_folder():
         try:
             os.startfile(folder_path)  # откроет в проводнике Windows
         except Exception as e:
-            print(f"Ошибка открытия: {e}")
+            logger.exception("Ошибка открытия папки %s", folder_path, exc_info=e)
     return ("", 204)
 
 
 @app.route("/confirm_order", methods=["POST"])
 def confirm_order():
     if not ORDER_CONFIRMATION_ENABLED:
+        logger.warning("[confirm_order] Попытка подтверждения при выключенной функции")
         return (
             jsonify(
                 {"status": "error", "message": "Подтверждение заказов отключено."}
@@ -928,6 +1025,7 @@ def confirm_order():
     payload = request.get_json(silent=True) or {}
     folder_name = (payload.get("folder") or "").strip()
     if not folder_name:
+        logger.warning("[confirm_order] Не указано имя заказа")
         return (
             jsonify({"status": "error", "message": "Не указано имя заказа."}),
             400,
@@ -947,6 +1045,7 @@ def confirm_order():
         )
 
     if not folder_has_ready_marker(folder_name):
+        logger.warning("[confirm_order] Заказ ещё не готов: %s", folder_name)
         return (
             jsonify(
                 {
@@ -960,6 +1059,7 @@ def confirm_order():
     new_name = f"{folder_name} +"
     new_path = os.path.join(FOLDER_PATH, new_name)
     if os.path.exists(new_path):
+        logger.warning("[confirm_order] Папка уже существует: %s", new_path)
         return (
             jsonify(
                 {
@@ -973,6 +1073,7 @@ def confirm_order():
     try:
         os.rename(current_path, new_path)
     except OSError as exc:
+        logger.exception("[confirm_order] Не удалось подтвердить заказ %s", folder_name, exc_info=exc)
         return (
             jsonify(
                 {
@@ -985,6 +1086,8 @@ def confirm_order():
 
     move_known_folder(folder_name, new_name)
     update_message_for_folder(folder_name, new_name)
+
+    logger.info("[confirm_order] Заказ подтверждён: %s -> %s", folder_name, new_name)
 
     return jsonify({"status": "ok", "folder": new_name})
 
@@ -1098,27 +1201,26 @@ def inject_config_data():
     }
 
 
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    if isinstance(error, HTTPException):
+        logger.exception("[exception] HTTP ошибка", exc_info=error)
+        return error
+
+    logger.exception("[exception] Неперехваченное исключение", exc_info=error)
+    return jsonify({"status": "error", "message": "Internal server error"}), 500
+
+
 # === Запуск ===
 if __name__ == "__main__":
-    # Один раз восстанавливаем состояние известных папок и сообщений
     initialize_known_state()
+    start_observer_once()
 
-    # Исправление бага с дублированием:
-    # Запускаем поток мониторинга только в основном процессе,
-    # который запускается Flask'ом (когда WERKZEUG_RUN_MAIN == 'true').
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" and FOLDER_PATH:
-        print("Starting folder monitor observer...")
-        handler = OrderFolderHandler()
-        observer = Observer()
-        observer.schedule(handler, FOLDER_PATH, recursive=False)
-        observer.start()
-
-        def stop_observer():
-            if observer is not None:
-                observer.stop()
-                observer.join(timeout=5)
-
-        atexit.register(stop_observer)
-
-    print(f"Сервер запущен: http://{SERVER_HOST}:{SERVER_PORT}")
-    app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE)
+    logger.info("Сервер запущен: http://%s:%s", "0.0.0.0", SERVER_PORT)
+    app.run(
+        host="0.0.0.0",
+        port=SERVER_PORT,
+        debug=False,
+        threaded=True,
+        use_reloader=False,
+    )
