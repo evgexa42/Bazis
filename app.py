@@ -237,6 +237,16 @@ clients = load_clients()
 clients_lookup = build_clients_lookup(clients)
 clients_lock = threading.Lock()
 
+# === Снапшот заказов и индекс поиска ===
+orders_snapshot = []
+last_snapshot_update = 0.0
+orders_snapshot_lock = threading.Lock()
+SNAPSHOT_TTL = 3.0
+
+search_index = {}
+search_index_updated_at = 0.0
+search_index_lock = threading.Lock()
+
 
 def refresh_clients_lookup_locked():
     global clients_lookup
@@ -701,15 +711,9 @@ def delete_client():
 
 # === Получение списка заказов ===
 
-# Кэш для get_folders
-folders_cache = {
-    "ts": 0.0,
-    "data": [],
-}
-folders_cache_lock = threading.Lock()
 
-
-def get_folders():
+def build_orders_snapshot():
+    """Строит свежий снапшот заказов."""
     if not FOLDER_PATH or not os.path.isdir(FOLDER_PATH):
         return []
 
@@ -758,20 +762,100 @@ def get_folders():
     return folder_data
 
 
-def get_folders_cached(ttl=1.0):
-    """Возвращает список заказов с кэшированием на ttl секунд."""
+def refresh_orders_snapshot(force: bool = False):
+    """Пересчитывает снапшот заказов и обновляет индекс поиска."""
+    global last_snapshot_update, orders_snapshot
+
     now = time.time()
-    with folders_cache_lock:
-        if now - folders_cache["ts"] < ttl:
-            return deepcopy(folders_cache["data"])
+    if not force:
+        with orders_snapshot_lock:
+            if orders_snapshot and now - last_snapshot_update < SNAPSHOT_TTL:
+                return deepcopy(orders_snapshot)
 
-    data = get_folders()
+    snapshot = build_orders_snapshot()
+    now = time.time()
+    with orders_snapshot_lock:
+        orders_snapshot = deepcopy(snapshot)
+        last_snapshot_update = now
 
-    with folders_cache_lock:
-        folders_cache["ts"] = now
-        folders_cache["data"] = deepcopy(data)
+    refresh_search_index()
+    return snapshot
 
-    return data
+
+def get_orders_snapshot(ttl: float = SNAPSHOT_TTL):
+    """Возвращает снапшот заказов с тайм-аутом обновления."""
+    now = time.time()
+    with orders_snapshot_lock:
+        if orders_snapshot and now - last_snapshot_update < ttl:
+            return deepcopy(orders_snapshot)
+
+    return refresh_orders_snapshot(force=True)
+
+
+def build_search_index():
+    """Строит индекс поиска по настроенным папкам."""
+    index = {key: [] for key in SEARCH_FOLDERS.keys()}
+    search_months = get_recent_months()
+
+    for key, base_folder in SEARCH_FOLDERS.items():
+        if not os.path.exists(base_folder):
+            continue
+
+        for month_folder in search_months:
+            month_path = os.path.join(base_folder, month_folder)
+            if not os.path.isdir(month_path):
+                continue
+
+            for folder_name in os.listdir(month_path):
+                manager = get_manager_from_name(folder_name)
+                index[key].append(
+                    {
+                        "name": folder_name,
+                        "manager": manager,
+                        "path": os.path.join(month_path, folder_name),
+                        "_lower_name": folder_name.lower(),
+                    }
+                )
+
+    return index
+
+
+def refresh_search_index():
+    """Перестраивает индекс поиска на основе настроенных папок."""
+    global search_index_updated_at, search_index
+    index = build_search_index()
+    now = time.time()
+    with search_index_lock:
+        search_index = index
+        search_index_updated_at = now
+
+
+def search_in_index(query: str):
+    query_lower = query.lower()
+    results = {key: [] for key in SEARCH_FOLDERS.keys()}
+
+    with search_index_lock:
+        if not search_index:
+            return results
+
+        for key, items in search_index.items():
+            matches = []
+            for item in items:
+                if query_lower in item.get("_lower_name", ""):
+                    matches.append({k: v for k, v in item.items() if not k.startswith("_")})
+            results[key] = matches
+
+    return results
+
+
+def background_snapshot_updater(interval: float = 2.5):
+    """Периодически обновляет снапшот заказов и индекс поиска."""
+    while True:
+        try:
+            refresh_orders_snapshot(force=True)
+        except Exception as exc:
+            logger.exception("[snapshot] Ошибка фонового обновления", exc_info=exc)
+        time.sleep(interval)
 
 
 # === Маршруты Flask ===
@@ -794,7 +878,7 @@ def facades_page():
 
 @app.route("/data")
 def data():
-    folders = get_folders_cached(ttl=1.0)
+    folders = get_orders_snapshot(ttl=SNAPSHOT_TTL)
 
     total_orders = len(folders)
     # Подсчёт по менеджерам
@@ -888,29 +972,18 @@ def get_recent_months():
 def search_page():
     query = request.form.get("query", "").strip()
     results = {key: [] for key in SEARCH_FOLDERS.keys()}
-    search_months = get_recent_months()
 
     if query:
         logger.info("[search] Запрос поиска: %s", query)
-        for key, base_folder in SEARCH_FOLDERS.items():
-            if not os.path.exists(base_folder):
-                continue
+        with search_index_lock:
+            is_index_fresh = bool(search_index) and (
+                time.time() - search_index_updated_at < SNAPSHOT_TTL * 2
+            )
 
-            for month_folder in search_months:
-                month_path = os.path.join(base_folder, month_folder)
-                if not os.path.isdir(month_path):
-                    continue
+        if not is_index_fresh:
+            refresh_orders_snapshot(force=True)
 
-                for folder_name in os.listdir(month_path):
-                    if query.lower() in folder_name.lower():
-                        manager = get_manager_from_name(folder_name)
-                        results[key].append(
-                            {
-                                "name": folder_name,
-                                "manager": manager,
-                                "path": os.path.join(month_path, folder_name),
-                            }
-                        )
+        results = search_in_index(query)
 
     return render_template(
         "search.html", query=query, results=results, SEARCH_FOLDERS=SEARCH_FOLDERS
@@ -1252,6 +1325,8 @@ def handle_unexpected_error(error):
 
 # === Запуск ===
 if __name__ == "__main__":
+    threading.Thread(target=background_snapshot_updater, daemon=True).start()
+    refresh_orders_snapshot(force=True)
     initialize_known_state()
     start_observer_once()
 
