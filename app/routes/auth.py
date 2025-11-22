@@ -49,6 +49,7 @@ def login():
         password = request.form.get("password", "")
         user = verify_user_credentials(username, password)
         if user:
+            session.permanent = True
             session["user"] = user["username"]
             session["role"] = user["role"]
             next_url = request.args.get("next") or url_for("settings.settings_page")

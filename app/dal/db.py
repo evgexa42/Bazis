@@ -1,8 +1,6 @@
-
 import os
-import sqlite3
 
-from sqlalchemy import create_engine
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, func, select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import generate_password_hash
 
@@ -16,70 +14,46 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 Base = declarative_base()
 
-USERS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL,
-    is_active INTEGER DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP
-);
-"""
 
-ORDER_EVENTS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS order_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_name TEXT,
-    manager TEXT,
-    action TEXT,
-    old_value TEXT,
-    new_value TEXT,
-    user TEXT,
-    user_ip TEXT,
-    ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-"""
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.current_timestamp())
 
 
-def get_db_connection() -> sqlite3.Connection:
-    os.makedirs(BASE_DIR, exist_ok=True)
-    connection = sqlite3.connect(DB_PATH)
-    connection.row_factory = sqlite3.Row
-    return connection
+class OrderEvent(Base):
+    __tablename__ = "order_events"
 
-
-def ensure_tables_exist() -> None:
-    """Create required auth/admin tables without touching existing ones."""
-
-    with get_db_connection() as connection:
-        connection.execute(USERS_TABLE_SQL)
-        connection.execute(ORDER_EVENTS_TABLE_SQL)
-        connection.commit()
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_name = Column(String)
+    manager = Column(String)
+    action = Column(String)
+    old_value = Column(Text)
+    new_value = Column(Text)
+    user = Column(String)
+    user_ip = Column(String)
+    ts = Column(DateTime(timezone=True), server_default=func.current_timestamp())
 
 
 def _create_default_admin() -> None:
-    """Seed a temporary default admin user if the table is empty."""
-
-    with get_db_connection() as connection:
-        cursor = connection.execute("SELECT COUNT(*) FROM users")
-        users_count = cursor.fetchone()[0]
-        if users_count:
+    with SessionLocal() as session:
+        existing = session.execute(select(User)).first()
+        if existing:
             return
 
-        # TODO: change the temporary password immediately after first login.
         password_hash = generate_password_hash("admin123")
-        connection.execute(
-            "INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, ?, 1)",
-            ("admin", password_hash, "admin"),
-        )
-        connection.commit()
+        session.add(User(username="admin", password_hash=password_hash, role="admin", is_active=True))
+        session.commit()
 
 
 def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
-    ensure_tables_exist()
     Base.metadata.create_all(engine)
     _create_default_admin()
 
@@ -90,7 +64,7 @@ __all__ = [
     "DATABASE_URL",
     "SessionLocal",
     "engine",
-    "ensure_tables_exist",
-    "get_db_connection",
     "init_db",
+    "User",
+    "OrderEvent",
 ]

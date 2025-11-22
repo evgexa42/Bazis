@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import threading
-from copy import deepcopy
+from datetime import timedelta
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask, g
@@ -10,29 +10,13 @@ from werkzeug.exceptions import HTTPException
 
 from app.dal.database import get_all_clients, replace_clients
 from app.dal.db import init_db
-from app.dal.json_store import load_json_file, save_json_atomic
+from app.dal.json_store import load_json_file
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
 MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-
-DEFAULT_CONFIG = {
-    "server": {"host": "127.0.0.1", "port": 5000, "debug": False},
-    "telegram": {"token": "", "chat_id": ""},
-    "paths": {
-        "orders": "",
-        "facades_dir": "",
-        "search": {},
-    },
-    "managers": [],
-    "technologists": {},
-    "features": {
-        "order_confirmation": False,
-    },
-}
 
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
@@ -63,110 +47,56 @@ def setup_logging():
     return logger_instance
 
 
-def deep_merge(base, extra):
-    result = deepcopy(base)
-    for key, value in (extra or {}).items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def load_config():
-    if os.path.exists(CONFIG_FILE):
-        try:
-            file_data = load_json_file(CONFIG_FILE)
-            if isinstance(file_data, dict):
-                return deep_merge(deepcopy(DEFAULT_CONFIG), file_data)
-        except Exception as exc:
-            logger.exception("[config] Не удалось прочитать config.json", exc_info=exc)
-            return {}
-
-    try:
-        save_json_atomic(CONFIG_FILE, {})
-    except Exception as exc:
-        logger.exception("[config] Не удалось создать config.json", exc_info=exc)
-    return deepcopy(DEFAULT_CONFIG)
-
-
-def save_config(config):
-    save_json_atomic(CONFIG_FILE, config)
-
-
 logger = setup_logging()
 init_db()
-CONFIG = load_config()
-ORDER_CONFIRMATION_ENABLED = False
 
-FOLDER_PATH = ""
-FACADES_DIR = ""
-FACADES_FILE = ""
-WATCHED_PATH = ""
-WATCHED_PATH_NORM = ""
-TELEGRAM_TOKEN = ""
-CHAT_ID = ""
-SERVER_HOST = "127.0.0.1"
-SERVER_PORT = 5000
-DEBUG_MODE = False
-SEARCH_FOLDERS = {}
-MANAGER_NAMES = []
-TECHNOLOGIST_MARKERS = {}
+from app import config as app_config  # noqa: E402
+
+CONFIG = app_config.CONFIG
+ORDER_CONFIRMATION_ENABLED = app_config.ORDER_CONFIRMATION_ENABLED
+
+FOLDER_PATH = app_config.FOLDER_PATH
+FACADES_DIR = app_config.FACADES_DIR
+FACADES_FILE = app_config.FACADES_FILE
+WATCHED_PATH = app_config.WATCHED_PATH
+WATCHED_PATH_NORM = app_config.WATCHED_PATH_NORM
+TELEGRAM_TOKEN = app_config.TELEGRAM_TOKEN
+CHAT_ID = app_config.CHAT_ID
+SERVER_HOST = app_config.SERVER_HOST
+SERVER_PORT = app_config.SERVER_PORT
+DEBUG_MODE = app_config.DEBUG_MODE
+SEARCH_FOLDERS = app_config.SEARCH_FOLDERS
+MANAGER_NAMES = app_config.MANAGER_NAMES
+TECHNOLOGIST_MARKERS = app_config.TECHNOLOGIST_MARKERS
+save_config = app_config.save_config
+load_config = app_config.load_config
+
+
+def _sync_config_from_module():
+    global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
+    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    global ORDER_CONFIRMATION_ENABLED, SEARCH_FOLDERS
+
+    FOLDER_PATH = app_config.FOLDER_PATH
+    FACADES_DIR = app_config.FACADES_DIR
+    FACADES_FILE = app_config.FACADES_FILE
+    WATCHED_PATH = app_config.WATCHED_PATH
+    WATCHED_PATH_NORM = app_config.WATCHED_PATH_NORM
+    TELEGRAM_TOKEN = app_config.TELEGRAM_TOKEN
+    CHAT_ID = app_config.CHAT_ID
+    SERVER_HOST = app_config.SERVER_HOST
+    SERVER_PORT = app_config.SERVER_PORT
+    DEBUG_MODE = app_config.DEBUG_MODE
+    ORDER_CONFIRMATION_ENABLED = app_config.ORDER_CONFIRMATION_ENABLED
+    SEARCH_FOLDERS = app_config.SEARCH_FOLDERS
 
 
 def apply_config(config):
-    global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
-    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
-    global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS
-    global ORDER_CONFIRMATION_ENABLED
-
-    server = config.get("server", {})
-    telegram_cfg = config.get("telegram", {})
-    paths = config.get("paths", {})
-
-    SERVER_HOST = server.get("host", "127.0.0.1")
-    SERVER_PORT = server.get("port", 5000)
-    DEBUG_MODE = bool(server.get("debug", False))
-
-    TELEGRAM_TOKEN = telegram_cfg.get("token", "")
-    CHAT_ID = str(telegram_cfg.get("chat_id", "")).strip()
-
-    FOLDER_PATH = paths.get("orders") or ""
-    FACADES_DIR = paths.get("facades_dir") or ""
-    FACADES_FILE = (
-        os.path.join(FACADES_DIR, "facades_list.txt") if FACADES_DIR else "facades_list.txt"
-    )
-
-    if FOLDER_PATH:
-        WATCHED_PATH = os.path.abspath(FOLDER_PATH)
-        WATCHED_PATH_NORM = os.path.normcase(WATCHED_PATH)
-    else:
-        WATCHED_PATH = ""
-        WATCHED_PATH_NORM = ""
-
-    search_folders = paths.get("search")
-    SEARCH_FOLDERS = search_folders if isinstance(search_folders, dict) else {}
-
-    MANAGER_NAMES[:] = [name.strip() for name in config.get("managers", []) if name.strip()]
-
-    raw_markers = config.get("technologists", {})
-    if isinstance(raw_markers, dict):
-        TECHNOLOGIST_MARKERS.clear()
-        TECHNOLOGIST_MARKERS.update(
-            {
-                marker.strip(): value.strip()
-                for marker, value in raw_markers.items()
-                if marker and value
-            }
-        )
-    else:
-        TECHNOLOGIST_MARKERS.clear()
-
-    features = config.get("features", {}) if isinstance(config.get("features"), dict) else {}
-    ORDER_CONFIRMATION_ENABLED = bool(features.get("order_confirmation"))
+    app_config.apply_config(config)
+    _sync_config_from_module()
 
 
-apply_config(CONFIG)
+_sync_config_from_module()
 
 
 def build_clients_lookup(clients_data):
@@ -243,6 +173,9 @@ def get_manager_from_name(folder_name):
 
 app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+if app.secret_key == "dev-secret-key":
+    logger.warning("[security] Используется дефолтный SECRET_KEY, задайте переменную окружения.")
+app.permanent_session_lifetime = timedelta(hours=12)
 app.logger.handlers = []
 app.logger.setLevel(logging.INFO)
 for h in logger.handlers:
@@ -304,7 +237,10 @@ def register_blueprints(flask_app: Flask):
 register_blueprints(app)
 
 
-telegram_service.init_bot(TELEGRAM_TOKEN)
+if TELEGRAM_TOKEN:
+    telegram_service.init_bot(TELEGRAM_TOKEN)
+else:
+    logger.warning("[telegram] TELEGRAM_TOKEN не задан, бот не инициализирован.")
 telegram_service.load_messages_storage(MESSAGES_FILE)
 
 threading.Thread(target=snapshot_service.background_snapshot_updater, daemon=True).start()

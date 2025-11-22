@@ -3,7 +3,8 @@ from copy import deepcopy
 
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
-from app import CONFIG, MANAGER_NAMES, SEARCH_FOLDERS, TECHNOLOGIST_MARKERS, apply_config, save_config
+import app.config as app_config
+from app.config import CONFIG, MANAGER_NAMES, SEARCH_FOLDERS, TECHNOLOGIST_MARKERS, apply_config, save_config
 from app.dal.users import (
     ALLOWED_ROLES,
     create_user,

@@ -1,48 +1,59 @@
-import sqlite3
+import hashlib
+from contextlib import contextmanager
 from typing import Dict, List, Optional
 
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.dal.db import get_db_connection
+from app.dal.db import SessionLocal, User
 
 ALLOWED_ROLES = {"admin", "technologist", "manager"}
 
 
-def _count_admins(connection: sqlite3.Connection) -> int:
-    cursor = connection.execute(
-        "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1"
-    )
-    return cursor.fetchone()[0]
+@contextmanager
+def session_scope():
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def _user_to_dict(user: User) -> Dict:
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "is_active": bool(user.is_active),
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
+
+
+def _count_admins(session) -> int:
+    return session.execute(
+        select(func.count()).select_from(User).where(User.role == "admin", User.is_active.is_(True))
+    ).scalar_one()
 
 
 def get_all_users() -> List[Dict]:
-    with get_db_connection() as connection:
-        cursor = connection.execute(
-            """
-            SELECT id, username, role, is_active, created_at, updated_at
-            FROM users
-            ORDER BY id ASC
-            """
-        )
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+    with session_scope() as session:
+        rows = session.execute(select(User).order_by(User.id.asc())).scalars().all()
+        return [_user_to_dict(row) for row in rows]
 
 
 def get_user_by_username(username: str) -> Optional[Dict]:
     if not username:
         return None
 
-    with get_db_connection() as connection:
-        cursor = connection.execute(
-            """
-            SELECT id, username, password_hash, role, is_active, created_at, updated_at
-            FROM users
-            WHERE username = ?
-            """,
-            (username,),
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+    with session_scope() as session:
+        user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
+        return _user_to_dict(user) | {"password_hash": user.password_hash} if user else None
 
 
 def create_user(username: str, password: str, role: str) -> Dict[str, str]:
@@ -55,18 +66,12 @@ def create_user(username: str, password: str, role: str) -> Dict[str, str]:
 
     password_hash = generate_password_hash(password)
 
-    with get_db_connection() as connection:
+    with session_scope() as session:
         try:
-            connection.execute(
-                """
-                INSERT INTO users (username, password_hash, role, is_active)
-                VALUES (?, ?, ?, 1)
-                """,
-                (username, password_hash, role),
-            )
-            connection.commit()
+            session.add(User(username=username, password_hash=password_hash, role=role, is_active=True))
             return {"ok": True}
-        except sqlite3.IntegrityError:
+        except IntegrityError:
+            session.rollback()
             return {"ok": False, "error": "Пользователь с таким именем уже существует."}
 
 
@@ -74,29 +79,17 @@ def update_user_role(user_id: int, role: str) -> Dict[str, str]:
     if role not in ALLOWED_ROLES:
         return {"ok": False, "error": "Недопустимая роль."}
 
-    with get_db_connection() as connection:
-        cursor = connection.execute(
-            "SELECT role FROM users WHERE id = ?", (user_id,)
-        )
-        row = cursor.fetchone()
-        if not row:
+    with session_scope() as session:
+        user = session.get(User, user_id)
+        if not user:
             return {"ok": False, "error": "Пользователь не найден."}
 
-        current_role = row[0]
-        if current_role == "admin" and role != "admin":
-            admin_count = _count_admins(connection)
+        if user.role == "admin" and role != "admin":
+            admin_count = _count_admins(session)
             if admin_count <= 1:
                 return {"ok": False, "error": "Нельзя изменить роль последнего администратора."}
 
-        connection.execute(
-            """
-            UPDATE users
-            SET role = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (role, user_id),
-        )
-        connection.commit()
+        user.role = role
         return {"ok": True}
 
 
@@ -104,43 +97,48 @@ def reset_user_password(user_id: int, new_password: str, current_username: str) 
     if not new_password:
         return {"ok": False, "error": "Пароль не может быть пустым."}
 
-    with get_db_connection() as connection:
-        cursor = connection.execute(
-            "SELECT username FROM users WHERE id = ?", (user_id,)
-        )
-        row = cursor.fetchone()
-        if not row:
+    with session_scope() as session:
+        user = session.get(User, user_id)
+        if not user:
             return {"ok": False, "error": "Пользователь не найден."}
 
-        target_username = row[0]
-        if target_username == current_username:
+        if user.username == current_username:
             return {
                 "ok": False,
                 "error": "Нельзя сбросить пароль своей учетной записи без подтверждения.",
             }
 
-        password_hash = generate_password_hash(new_password)
-        connection.execute(
-            """
-            UPDATE users
-            SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (password_hash, user_id),
-        )
-        connection.commit()
+        user.password_hash = generate_password_hash(new_password)
         return {"ok": True}
 
 
 def verify_user_credentials(username: str, password: str) -> Optional[Dict]:
-    user = get_user_by_username(username)
-    if not user or not user.get("is_active"):
+    if not username or not password:
         return None
 
-    if not check_password_hash(user.get("password_hash", ""), password):
-        return None
+    with session_scope() as session:
+        user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
+        if not user or not user.is_active:
+            return None
 
-    return user
+        if not check_password_hash(user.password_hash, password):
+            # Backward compatibility: previously stored raw sha256 hashes
+            is_legacy_hash = (
+                len(user.password_hash) == 64
+                and all(ch in "0123456789abcdef" for ch in user.password_hash.lower())
+            )
+            if not is_legacy_hash:
+                return None
+
+            legacy_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+            if legacy_hash != user.password_hash:
+                return None
+
+            # Upgrade legacy hash to werkzeug-compatible hash
+            user.password_hash = generate_password_hash(password)
+            session.add(user)
+
+        return _user_to_dict(user)
 
 
 __all__ = [
