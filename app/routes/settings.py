@@ -1,15 +1,25 @@
 
 from copy import deepcopy
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 from app import CONFIG, MANAGER_NAMES, SEARCH_FOLDERS, TECHNOLOGIST_MARKERS, apply_config, save_config
+from app.dal.users import (
+    ALLOWED_ROLES,
+    create_user,
+    get_all_users,
+    reset_user_password,
+    update_user_role,
+)
+from app.routes.auth import login_required, roles_required
 from app.services import telegram as telegram_service
 
 settings_bp = Blueprint("settings", __name__)
 
 
 @settings_bp.route("/settings", methods=["GET", "POST"])
+@login_required
+@roles_required(["admin"])
 def settings_page():
     global CONFIG
 
@@ -98,6 +108,8 @@ def settings_page():
     )
     search_text = "\n".join(f"{title}={path}" for title, path in SEARCH_FOLDERS.items())
 
+    users = get_all_users()
+
     return render_template(
         "settings.html",
         config=CONFIG,
@@ -106,4 +118,56 @@ def settings_page():
         search_text=search_text,
         status_message=status_message,
         errors=errors,
+        users=users,
+        allowed_roles=sorted(ALLOWED_ROLES),
+        current_user=session.get("user"),
     )
+
+
+@settings_bp.route("/admin/users/add", methods=["POST"])
+@login_required
+@roles_required(["admin"])
+def add_user():
+    username = request.form.get("username", "")
+    password = request.form.get("password", "")
+    role = request.form.get("role", "")
+
+    result = create_user(username, password, role)
+    status_code = 200 if result.get("ok") else 400
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(result), status_code
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/admin/users/change_role", methods=["POST"])
+@login_required
+@roles_required(["admin"])
+def change_role():
+    try:
+        user_id = int(request.form.get("user_id", "0"))
+    except ValueError:
+        return jsonify({"ok": False, "error": "Неверный идентификатор пользователя."}), 400
+    role = request.form.get("role", "")
+
+    result = update_user_role(user_id, role)
+    status_code = 200 if result.get("ok") else 400
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(result), status_code
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/admin/users/reset_password", methods=["POST"])
+@login_required
+@roles_required(["admin"])
+def reset_password():
+    try:
+        user_id = int(request.form.get("user_id", "0"))
+    except ValueError:
+        return jsonify({"ok": False, "error": "Неверный идентификатор пользователя."}), 400
+
+    new_password = request.form.get("new_password", "")
+    result = reset_user_password(user_id, new_password, session.get("user"))
+    status_code = 200 if result.get("ok") else 400
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(result), status_code
+    return redirect(url_for("settings.settings_page"))

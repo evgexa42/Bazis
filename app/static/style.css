@@ -198,6 +198,12 @@ h1 {
   border-color: transparent;
 }
 
+.btn--compact {
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  border-radius: 10px;
+}
+
 .btn--danger:hover {
   background: rgba(220, 38, 38, 0.18);
   color: var(--danger-hover);
@@ -915,4 +921,121 @@ code {
     grid-area: remove;
     justify-self: end;
   }
+}
+
+.page--narrow {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.auth-card {
+  margin-top: 48px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-submit {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.is-active {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.tab-content {
+  display: none;
+  margin-top: 12px;
+}
+
+.tab-content.is-active {
+  display: block;
+}
+
+.top-menu__user {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.top-menu__logout {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--danger);
+}
+
+.users-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.users-table-wrapper {
+  margin-bottom: 16px;
+}
+
+.role-editor {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input--compact {
+  padding: 8px 10px;
+  height: auto;
+}
+
+.user-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reset-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.users-add-card {
+  margin-top: 18px;
+  background: var(--surface-muted);
+}
+
+.users-add-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 18px;
+}
+
+.users-add-form .settings-actions {
+  justify-content: flex-start;
+}
+
+.notice-card {
+  border-radius: 14px;
 }

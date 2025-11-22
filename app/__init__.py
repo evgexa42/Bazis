@@ -5,7 +5,7 @@ import threading
 from copy import deepcopy
 from logging.handlers import RotatingFileHandler
 
-from flask import Flask
+from flask import Flask, g
 from werkzeug.exceptions import HTTPException
 
 from app.dal.database import get_all_clients, replace_clients
@@ -242,6 +242,7 @@ def get_manager_from_name(folder_name):
 
 
 app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 app.logger.handlers = []
 app.logger.setLevel(logging.INFO)
 for h in logger.handlers:
@@ -277,12 +278,15 @@ def inject_config_data():
         "config_managers": MANAGER_NAMES,
         "config_facades_dir": FACADES_DIR,
         "order_confirmation_enabled": ORDER_CONFIRMATION_ENABLED,
+        "current_user": getattr(g, "current_user", None),
+        "current_role": getattr(g, "current_role", None),
     }
 
 
 from app.services import telegram as telegram_service
 from app.services import snapshot as snapshot_service
 from app.services import monitor as monitor_service
+from app.routes.auth import auth_bp
 from app.routes.clients import clients_bp
 from app.routes.orders import orders_bp
 from app.routes.settings import settings_bp
@@ -290,6 +294,7 @@ from app.routes.telegram_api import telegram_api_bp
 
 
 def register_blueprints(flask_app: Flask):
+    flask_app.register_blueprint(auth_bp)
     flask_app.register_blueprint(orders_bp)
     flask_app.register_blueprint(clients_bp)
     flask_app.register_blueprint(settings_bp)

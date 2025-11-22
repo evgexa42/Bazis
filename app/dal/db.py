@@ -1,10 +1,10 @@
 
-import hashlib
 import os
 import sqlite3
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from werkzeug.security import generate_password_hash
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
@@ -69,7 +69,7 @@ def _create_default_admin() -> None:
             return
 
         # TODO: change the temporary password immediately after first login.
-        password_hash = hashlib.sha256("admin123".encode("utf-8")).hexdigest()
+        password_hash = generate_password_hash("admin123")
         connection.execute(
             "INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, ?, 1)",
             ("admin", password_hash, "admin"),

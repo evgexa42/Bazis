@@ -1,4 +1,4 @@
 Flask
 watchdog
 python-telegram-bot
-SQLAlchem
+SQLAlchemy

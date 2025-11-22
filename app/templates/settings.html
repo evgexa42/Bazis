@@ -14,6 +14,8 @@
       <a href="/clients">👥 Клиенты</a>
       <a href="/search">🔍 Поиск</a>
       <a href="/facades">🚪 Фасады</a>
+	  <span class="top-menu__user">👤 {{ current_user }} · {{ current_role }}</span>
+      <a href="{{ url_for('auth.logout') }}" class="top-menu__logout">🚪 Выйти</a>
     </nav>
 
     <header class="page-header">
@@ -42,7 +44,12 @@
     </section>
     {% endif %}
 
-    <section class="card">
+    <div class="tabs">
+      <button class="tab-btn is-active" data-tab="general">Основные настройки</button>
+      <button class="tab-btn" data-tab="users">Пользователи</button>
+    </div>
+
+    <section class="card tab-content is-active" data-tab-panel="general">
       <h2 class="section-title">Конфигурация</h2>
       <form method="POST" class="settings-form">
         <div class="settings-grid">
@@ -107,6 +114,178 @@
         </div>
       </form>
     </section>
+
+    <section class="card tab-content" data-tab-panel="users">
+      <div class="users-header">
+        <h2 class="section-title">Пользователи</h2>
+        <p class="text-muted">Управление учетными записями и ролями без выхода из настроек.</p>
+      </div>
+
+      <div id="usersMessage" class="notice-card" hidden></div>
+
+      <div class="users-table-wrapper table-scroll">
+        <table class="data-table" id="usersTable">
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Роль</th>
+              <th>Создан</th>
+              <th>Статус</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr data-user-id="{{ user.id }}">
+              <td>
+                <div class="table-primary">{{ user.username }}</div>
+              </td>
+              <td>
+                <div class="role-editor">
+                  <select class="input input--compact" data-role-select>
+                    {% for role in allowed_roles %}
+                    <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>{{ role }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn--primary btn--compact" data-action="save-role">Сохранить роль</button>
+                </div>
+              </td>
+              <td><span class="table-secondary">{{ user.created_at }}</span></td>
+              <td>
+                {% if user.is_active %}
+                  <span class="status-pill status-pill--success">Активен</span>
+                {% else %}
+                  <span class="status-pill status-pill--neutral">Неактивен</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="user-actions">
+                  <button type="button" class="btn btn--outline btn--compact" data-action="toggle-reset">Сбросить пароль</button>
+                  <div class="reset-inline" hidden>
+                    <input type="password" class="input input--compact" placeholder="Новый пароль" data-reset-input>
+                    <button type="button" class="btn btn--primary btn--compact" data-action="reset-password">Обновить</button>
+                    <button type="button" class="btn btn--ghost btn--compact" data-action="cancel-reset">Отмена</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card users-add-card">
+        <h3 class="section-subtitle">Добавить пользователя</h3>
+        <form id="addUserForm" class="users-add-form">
+          <div class="form-grid">
+            <label class="field">
+              <span class="field-label">Имя пользователя</span>
+              <input type="text" class="input" name="username" required>
+            </label>
+            <label class="field">
+              <span class="field-label">Пароль</span>
+              <input type="password" class="input" name="password" required>
+            </label>
+            <label class="field">
+              <span class="field-label">Роль</span>
+              <select class="input" name="role" required>
+                {% for role in allowed_roles %}
+                <option value="{{ role }}">{{ role }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="settings-actions">
+            <button type="submit" class="btn btn--primary">➕ Добавить</button>
+          </div>
+        </form>
+      </div>
+    </section>
   </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.tab-content');
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        tabs.forEach(t => t.classList.toggle('is-active', t === btn));
+        panels.forEach(panel => panel.classList.toggle('is-active', panel.dataset.tabPanel === target));
+      });
+    });
+
+    const messageBox = document.getElementById('usersMessage');
+    function showMessage(text, isError = false) {
+      if (!messageBox) return;
+      messageBox.textContent = text;
+      messageBox.hidden = false;
+      messageBox.classList.remove('notice-card--error', 'notice-card--success');
+      messageBox.classList.add(isError ? 'notice-card--error' : 'notice-card--success');
+    }
+
+    function hideResetBlocks() {
+      document.querySelectorAll('.reset-inline').forEach(block => block.hidden = true);
+    }
+
+    document.getElementById('usersTable')?.addEventListener('click', async (event) => {
+      const action = event.target?.dataset?.action;
+      if (!action) return;
+
+      const row = event.target.closest('tr');
+      const userId = row?.dataset?.userId;
+      if (!userId) return;
+
+      if (action === 'toggle-reset') {
+        hideResetBlocks();
+        const block = row.querySelector('.reset-inline');
+        if (block) block.hidden = !block.hidden;
+        return;
+      }
+
+      if (action === 'cancel-reset') {
+        hideResetBlocks();
+        return;
+      }
+
+      if (action === 'save-role') {
+        const role = row.querySelector('[data-role-select]')?.value;
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('role', role);
+
+        const response = await fetch('/admin/users/change_role', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await response.json();
+        showMessage(data.error || 'Роль обновлена', !data.ok);
+        return;
+      }
+
+      if (action === 'reset-password') {
+        const passwordInput = row.querySelector('[data-reset-input]');
+        const newPassword = passwordInput?.value || '';
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('new_password', newPassword);
+
+        const response = await fetch('/admin/users/reset_password', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await response.json();
+        showMessage(data.error || 'Пароль обновлен', !data.ok);
+        if (data.ok && passwordInput) passwordInput.value = '';
+        hideResetBlocks();
+      }
+    });
+
+    document.getElementById('addUserForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const response = await fetch('/admin/users/add', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await response.json();
+      showMessage(data.error || 'Пользователь добавлен', !data.ok);
+      if (data.ok) {
+        form.reset();
+        window.location.reload();
+      }
+    });
+  </script>
 </body>
 </html>
