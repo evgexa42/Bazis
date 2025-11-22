@@ -12,6 +12,7 @@ from app.dal.users import (
     reset_user_password,
     update_user_role,
 )
+from app import metrics, metrics_lock, ts_ago
 from app.routes.auth import login_required, roles_required
 from app.services import telegram as telegram_service
 
@@ -123,6 +124,29 @@ def settings_page():
         allowed_roles=sorted(ALLOWED_ROLES),
         current_user=session.get("user"),
     )
+
+
+@settings_bp.route("/api/metrics", methods=["GET"])
+@login_required
+@roles_required(["admin"])
+def api_metrics():
+    with metrics_lock:
+        data = deepcopy(metrics)
+
+    data["requests"]["last_minute_rps"] = list(data.get("requests", {}).get("last_minute_rps", []))
+    data["requests"]["per_endpoint"] = dict(data.get("requests", {}).get("per_endpoint", {}))
+    data["errors"]["last_24h"] = list(data.get("errors", {}).get("last_24h", []))
+    data["errors"]["last_items"] = list(data.get("errors", {}).get("last_items", []))
+    data.setdefault("snapshot", {})["seconds_ago"] = ts_ago(data.get("snapshot", {}).get("last_update_ts"))
+    data.setdefault("sse", {})["seconds_ago"] = ts_ago(data.get("sse", {}).get("last_broadcast_ts"))
+    data.setdefault("db", {})["last_backup_hours_ago"] = (
+        None
+        if not data.get("db", {}).get("last_backup_ts")
+        else round(ts_ago(data["db"]["last_backup_ts"]) / 3600, 2)
+    )
+    data["errors"]["errors_last_24h"] = len(data.get("errors", {}).get("last_24h", []))
+
+    return jsonify(data)
 
 
 @settings_bp.route("/admin/users/add", methods=["POST"])

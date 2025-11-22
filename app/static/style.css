@@ -976,6 +976,63 @@ code {
   display: block;
 }
 
+.tab-button.active {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.metrics-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.metrics-card--wide {
+  grid-column: 1 / -1;
+}
+
+.metrics-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.metrics-table th,
+.metrics-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.metrics-errors details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+
+.metrics-errors summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .top-menu__user {
   margin-left: auto;
   color: var(--text-muted);

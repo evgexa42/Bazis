@@ -15,7 +15,7 @@ from flask import (
 )
 
 import app as bazis_app
-from app import get_manager_from_name, logger
+from app import get_manager_from_name, logger, measure_time, metrics_lock
 from app.services.monitor import move_known_folder
 from app.services.snapshot import get_orders_snapshot, refresh_orders_snapshot, search_in_index
 from app.services.telegram import folder_has_ready_marker, update_message_for_folder
@@ -154,7 +154,9 @@ def stream():
     def event_stream():
         last_version_sent = None
         last_heartbeat = time.time()
-        bazis_app.active_sse_clients += 1
+        with metrics_lock:
+            bazis_app.active_sse_clients += 1
+            bazis_app.metrics["sse"]["active_clients"] = bazis_app.active_sse_clients
 
         try:
             while True:
@@ -165,6 +167,8 @@ def stream():
                     payload = _build_orders_payload(visible_manager, requested_manager)
                     last_version_sent = current_version
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                    with metrics_lock:
+                        bazis_app.metrics["sse"]["last_broadcast_ts"] = now
                     last_heartbeat = now
                 elif now - last_heartbeat >= 27:
                     yield "data: {\"ping\": true}\n\n"
@@ -172,7 +176,9 @@ def stream():
 
                 time.sleep(0.5)
         finally:
-            bazis_app.active_sse_clients = max(0, bazis_app.active_sse_clients - 1)
+            with metrics_lock:
+                bazis_app.active_sse_clients = max(0, bazis_app.active_sse_clients - 1)
+                bazis_app.metrics["sse"]["active_clients"] = bazis_app.active_sse_clients
 
     return Response(event_stream(), mimetype="text/event-stream")
 
@@ -303,6 +309,7 @@ def open_folder():
 
 
 @orders_bp.route("/confirm_order", methods=["POST"])
+@measure_time("confirm_order")
 def confirm_order():
     if not bazis_app.ORDER_CONFIRMATION_ENABLED:
         logger.warning("[confirm_order] Попытка подтверждения при выключенной функции")

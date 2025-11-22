@@ -31086,3 +31086,644 @@ werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to a
 2025-11-22 17:33:55,101 [INFO] bazis - [observer] Папка переименована: 563-10 FF [J] -> 563-10 FF [J] +
 2025-11-22 17:33:55,104 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:33:55] "GET /data?manager=Все HTTP/1.1" 200 -
 2025-11-22 17:34:27,198 [INFO] bazis - [observer] Остановка мониторинга
+2025-11-22 17:49:41,363 [WARNING] bazis - [security] Используется дефолтный SECRET_KEY, задайте переменную окружения.
+2025-11-22 17:49:41,911 [INFO] bazis - [observer] Запуск мониторинга папки заказов: \\SERVER\homag\ПРИСАДКА КЛИЕНТА
+2025-11-22 17:49:41,912 [INFO] bazis - Сервер запущен: http://0.0.0.0:5000
+2025-11-22 17:49:41,923 [INFO] werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.114:5000
+2025-11-22 17:49:41,923 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 17:49:42,685 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:42] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:44,222 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "GET / HTTP/1.1" 200 -
+2025-11-22 17:49:44,274 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:44,275 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:49:44,286 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:44,291 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:44,848 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "GET /clients HTTP/1.1" 200 -
+2025-11-22 17:49:44,872 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:44,875 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:44] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:49:45,587 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:45] "GET /facades HTTP/1.1" 200 -
+2025-11-22 17:49:45,600 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:45] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:45,603 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:45] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:49:45,994 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:45] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:49:46,010 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:46,010 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:49:46,396 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "GET / HTTP/1.1" 200 -
+2025-11-22 17:49:46,410 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:46,410 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:49:46,425 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:46,429 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:46,806 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "GET / HTTP/1.1" 200 -
+2025-11-22 17:49:46,820 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:46,825 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:49:46,837 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:46,839 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:46] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:49:48,113 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:48] "GET /settings HTTP/1.1" 200 -
+2025-11-22 17:49:48,120 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:48] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:49:48,121 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:49:48] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:52:25,602 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:25] "GET / HTTP/1.1" 200 -
+2025-11-22 17:52:25,611 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:25] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:52:25,614 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:25] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:52:25,672 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:25] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:52:25,709 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:25] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:52:34,512 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:34] "GET /stream?manager=Игорь HTTP/1.1" 200 -
+2025-11-22 17:52:34,513 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:34] "GET /data?manager=Игорь HTTP/1.1" 200 -
+2025-11-22 17:52:35,532 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:35] "GET /data?manager=Кристина HTTP/1.1" 200 -
+2025-11-22 17:52:35,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:35] "GET /stream?manager=Кристина HTTP/1.1" 200 -
+2025-11-22 17:52:38,112 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:38] "GET /stream?manager=Валерия HTTP/1.1" 200 -
+2025-11-22 17:52:38,114 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:38] "GET /data?manager=Валерия HTTP/1.1" 200 -
+2025-11-22 17:52:39,671 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:39] "GET /data?manager=Неизвестно HTTP/1.1" 200 -
+2025-11-22 17:52:39,673 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:39] "GET /stream?manager=Неизвестно HTTP/1.1" 200 -
+2025-11-22 17:52:40,889 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:40] "GET /data?manager=Валерия HTTP/1.1" 200 -
+2025-11-22 17:52:40,890 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:40] "GET /stream?manager=Валерия HTTP/1.1" 200 -
+2025-11-22 17:52:42,004 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:42] "GET /data?manager=Кристина HTTP/1.1" 200 -
+2025-11-22 17:52:42,005 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:42] "GET /stream?manager=Кристина HTTP/1.1" 200 -
+2025-11-22 17:52:45,438 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:45] "GET /data?manager=Игорь HTTP/1.1" 200 -
+2025-11-22 17:52:45,438 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:45] "GET /stream?manager=Игорь HTTP/1.1" 200 -
+2025-11-22 17:52:47,230 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:47] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:52:47,231 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:47] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:52:49,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:49] "GET /data?manager=Валерия HTTP/1.1" 200 -
+2025-11-22 17:52:49,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:49] "GET /stream?manager=Валерия HTTP/1.1" 200 -
+2025-11-22 17:52:51,185 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:51] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:52:51,186 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:52:51] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:53:08,016 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:08] "GET /clients HTTP/1.1" 200 -
+2025-11-22 17:53:08,033 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:08] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:08,037 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:08] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:08,901 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:08] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:08,913 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:08] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:08,914 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:08] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:11,115 [INFO] bazis - [search] Запрос поиска: 12-10
+2025-11-22 17:53:11,118 [ERROR] bazis - [exception] Неперехваченное исключение
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 133, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 147, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x1884aa3a850> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-11-22 17:53:11,162 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:11] "[35m[1mPOST /search HTTP/1.1[0m" 500 -
+2025-11-22 17:53:13,727 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:13] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:15,850 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:15] "GET / HTTP/1.1" 200 -
+2025-11-22 17:53:15,866 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:15] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:15,866 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:15] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:15,885 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:15] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:53:15,886 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:15] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:53:16,470 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:16] "GET /facades HTTP/1.1" 200 -
+2025-11-22 17:53:16,486 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:16] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:16,488 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:16] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:17,342 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:17] "GET /clients HTTP/1.1" 200 -
+2025-11-22 17:53:17,357 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:17] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:17,357 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:17] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:17,989 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:17] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:18,003 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:18] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:18,004 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:18] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:20,403 [INFO] bazis - [search] Запрос поиска: 563
+2025-11-22 17:53:20,405 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:20] "POST /search HTTP/1.1" 200 -
+2025-11-22 17:53:20,421 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:20] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:20,422 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:20] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:23,083 [INFO] bazis - [search] Запрос поиска: 56
+2025-11-22 17:53:23,084 [ERROR] bazis - [exception] Неперехваченное исключение
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 133, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 147, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x1884a8969d0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-11-22 17:53:23,086 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:23] "[35m[1mPOST /search HTTP/1.1[0m" 500 -
+2025-11-22 17:53:25,816 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:25] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:28,330 [INFO] bazis - [search] Запрос поиска: 11
+2025-11-22 17:53:28,337 [ERROR] bazis - [exception] Неперехваченное исключение
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 133, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 147, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x1884a89a8d0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-11-22 17:53:28,338 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:28] "[35m[1mPOST /search HTTP/1.1[0m" 500 -
+2025-11-22 17:53:29,224 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:29] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:31,880 [INFO] bazis - [search] Запрос поиска: 530
+2025-11-22 17:53:31,882 [ERROR] bazis - [exception] Неперехваченное исключение
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 133, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 147, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x1884aab1a90> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-11-22 17:53:31,883 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:31] "[35m[1mPOST /search HTTP/1.1[0m" 500 -
+2025-11-22 17:53:33,025 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:33] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:48,539 [INFO] bazis - [search] Запрос поиска: 43-11
+2025-11-22 17:53:48,541 [ERROR] bazis - [exception] Неперехваченное исключение
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 133, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 147, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x1884a787890> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-11-22 17:53:48,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:48] "[35m[1mPOST /search HTTP/1.1[0m" 500 -
+2025-11-22 17:53:53,160 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:53] "GET /search HTTP/1.1" 200 -
+2025-11-22 17:53:54,653 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:54] "GET / HTTP/1.1" 200 -
+2025-11-22 17:53:54,668 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:54] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:54,669 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:54] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:53:54,684 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:54] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:53:54,691 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:54] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:53:55,220 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:55] "GET /clients HTTP/1.1" 200 -
+2025-11-22 17:53:55,235 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:55] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:53:55,236 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:53:55] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:54:02,111 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:02] "GET /facades HTTP/1.1" 200 -
+2025-11-22 17:54:02,124 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:02] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:54:02,126 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:02] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:54:09,845 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:09] "POST /facades/generate HTTP/1.1" 200 -
+2025-11-22 17:54:15,816 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:15] "GET / HTTP/1.1" 200 -
+2025-11-22 17:54:15,831 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:15] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 17:54:15,837 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:15] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 17:54:15,860 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:15] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 17:54:15,862 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 17:54:15] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:17:28,146 [INFO] bazis - [observer] Остановка мониторинга
+2025-11-22 18:18:00,216 [WARNING] bazis - [security] Используется дефолтный SECRET_KEY, задайте переменную окружения.
+2025-11-22 18:18:01,117 [INFO] bazis - [observer] Запуск мониторинга папки заказов: \\SERVER\homag\ПРИСАДКА КЛИЕНТА
+2025-11-22 18:18:01,118 [INFO] bazis - Сервер запущен: http://0.0.0.0:5000
+2025-11-22 18:18:01,131 [INFO] werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.114:5000
+2025-11-22 18:18:01,131 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 18:18:01,523 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:18:01] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:18:06,380 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:18:06] "GET /settings HTTP/1.1" 200 -
+2025-11-22 18:18:06,437 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:18:06] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:18:06,449 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:18:06] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:18:10,477 [INFO] bazis - [observer] Остановка мониторинга
+2025-11-22 18:30:13,635 [WARNING] bazis - [security] Используется дефолтный SECRET_KEY, задайте переменную окружения.
+2025-11-22 18:30:14,093 [INFO] bazis - [observer] Запуск мониторинга папки заказов: \\SERVER\homag\ПРИСАДКА КЛИЕНТА
+2025-11-22 18:30:14,093 [INFO] bazis - Сервер запущен: http://0.0.0.0:5000
+2025-11-22 18:30:14,134 [INFO] werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.114:5000
+2025-11-22 18:30:14,134 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 18:30:15,877 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:15] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:15,946 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:15] "GET / HTTP/1.1" 200 -
+2025-11-22 18:30:16,007 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET /static/style.css HTTP/1.1" 200 -
+2025-11-22 18:30:16,009 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:16,014 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:16,018 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:16,029 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 18:30:16,532 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET / HTTP/1.1" 200 -
+2025-11-22 18:30:16,547 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:30:16,548 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:16,563 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:16,568 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:16,984 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:16] "GET /clients HTTP/1.1" 200 -
+2025-11-22 18:30:17,001 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:30:17,002 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:17,437 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "GET /search HTTP/1.1" 200 -
+2025-11-22 18:30:17,452 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:30:17,453 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:17,873 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "GET /facades HTTP/1.1" 200 -
+2025-11-22 18:30:17,888 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:30:17,888 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:17] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:18,282 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:18] "GET / HTTP/1.1" 200 -
+2025-11-22 18:30:18,296 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:18] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:30:18,297 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:18] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:18,315 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:18] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:18,317 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:18] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:30:19,470 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:19] "GET /settings HTTP/1.1" 200 -
+2025-11-22 18:30:19,480 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:19] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:30:19,481 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:19] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:30:21,499 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:21] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:26,504 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:26] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:31,509 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:31] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:36,506 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:36] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:41,500 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:41] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:46,506 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:46] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:51,509 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:51] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:30:56,510 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:30:56] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:01,497 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:01] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:06,501 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:06] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:11,506 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:11] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:17,024 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:17] "GET / HTTP/1.1" 200 -
+2025-11-22 18:31:17,040 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:17] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:31:17,040 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:17] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:31:17,061 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:17] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:31:17,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:17] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:31:20,648 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:20] "GET /search HTTP/1.1" 200 -
+2025-11-22 18:31:20,663 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:20] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:31:20,666 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:20] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:31:22,887 [INFO] bazis - [search] Запрос поиска: 54
+2025-11-22 18:31:22,892 [ERROR] bazis - [exception] Неперехваченное исключение
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 132, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 137, in wrapper
+    return func(*a, **k)
+           ^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 164, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x291fb89b2d0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2025-11-22 18:31:22,916 [ERROR] app - Exception on /search [POST]
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\orders.py", line 132, in search_page
+    results = search_in_index(query)
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 137, in wrapper
+    return func(*a, **k)
+           ^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\services\snapshot.py", line 164, in search_in_index
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\dal\database.py", line 165, in search_orders
+    {"name": row.name, "manager": row.manager or "", "path": row.folder_path}
+             ^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\sqlalchemy\orm\loading.py", line 1607, in load_scalar_attributes
+    raise orm_exc.DetachedInstanceError(
+sqlalchemy.orm.exc.DetachedInstanceError: Instance <OrderIndex at 0x291fb89b2d0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 809, in handle_user_exception
+    return self.ensure_sync(handler)(e)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\__init__.py", line 485, in handle_unexpected_error
+    return render_template("error.html", error=str(error)), 500
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\templating.py", line 149, in render_template
+    template = app.jinja_env.get_or_select_template(template_name_or_list)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\jinja2\environment.py", line 1087, in get_or_select_template
+    return self.get_template(template_name_or_list, parent, globals)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\jinja2\environment.py", line 1016, in get_template
+    return self._load_template(name, globals)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\jinja2\environment.py", line 975, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\jinja2\loaders.py", line 126, in load
+    source, filename, uptodate = self.get_source(environment, name)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\templating.py", line 65, in get_source
+    return self._get_source_fast(environment, template)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\templating.py", line 99, in _get_source_fast
+    raise TemplateNotFound(template)
+jinja2.exceptions.TemplateNotFound: error.html
+2025-11-22 18:31:22,947 [ERROR] bazis - [exception] HTTP ошибка
+werkzeug.exceptions.InternalServerError: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+2025-11-22 18:31:22,948 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:22] "[35m[1mPOST /search HTTP/1.1[0m" 500 -
+2025-11-22 18:31:25,792 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:25] "GET / HTTP/1.1" 200 -
+2025-11-22 18:31:25,814 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:25] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:31:25,823 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:25] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:31:25,873 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:25] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:31:25,915 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:25] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:31:26,734 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:26] "GET /settings HTTP/1.1" 200 -
+2025-11-22 18:31:26,745 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:26] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:31:26,746 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:26] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:31:28,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:33,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:38,057 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:43,055 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:48,056 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:53,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:31:58,065 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:31:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:03,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:08,061 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:13,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:18,082 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:23,055 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:28,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:33,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:38,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:43,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:48,057 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:53,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:32:58,065 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:32:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:03,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:08,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:13,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:18,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:23,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:28,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:33,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:38,061 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:43,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:48,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:53,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:33:58,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:33:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:03,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:08,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:13,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:18,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:23,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:28,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:33,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:38,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:43,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:48,061 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:53,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:34:58,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:34:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:03,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:08,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:13,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:18,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:23,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:28,054 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:33,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:38,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:43,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:48,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:53,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:35:58,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:35:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:03,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:08,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:13,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:18,057 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:23,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:28,065 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:33,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:38,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:43,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:48,077 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:53,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:36:58,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:36:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:03,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:08,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:13,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:18,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:23,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:28,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:33,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:38,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:43,056 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:48,055 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:53,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:37:58,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:37:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:03,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:08,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:13,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:18,061 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:23,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:28,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:33,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:38,054 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:43,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:48,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:53,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:38:58,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:38:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:03,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:08,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:13,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:18,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:23,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:28,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:33,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:38,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:43,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:48,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:53,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:39:58,073 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:39:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:03,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:08,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:13,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:18,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:23,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:28,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:33,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:38,071 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:43,054 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:48,057 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:53,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:40:58,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:40:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:03,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:08,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:13,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:18,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:23,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:28,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:33,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:38,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:43,056 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:48,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:53,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:41:58,065 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:41:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:03,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:08,057 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:13,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:18,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:23,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:28,073 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:33,061 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:38,058 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:43,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:48,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:53,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:42:58,068 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:42:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:03,063 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:08,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:13,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:18,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:23,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:28,062 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:33,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:38,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:43,065 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:48,067 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:53,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:53] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:43:58,065 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:43:58] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:03,064 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:03] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:08,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:08] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:13,073 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:13] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:18,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:18] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:23,059 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:28,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:28] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:33,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:33] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:38,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:38] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:43,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:43] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:48,066 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:48] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 18:44:49,753 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "GET / HTTP/1.1" 200 -
+2025-11-22 18:44:49,768 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 18:44:49,771 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 18:44:49,822 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:44:49,830 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "GET /stream?manager=Все HTTP/1.1" 200 -
+2025-11-22 18:44:54,446 [INFO] bazis - [observer] Остановка мониторинга

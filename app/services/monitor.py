@@ -1,11 +1,13 @@
 import atexit
 import os
 import threading
+import time
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 import app as bazis_app
+from app import heartbeat, measure_time
 from app.services import telegram as telegram_service
 
 logger = bazis_app.logger
@@ -17,6 +19,7 @@ observer_started = False
 
 
 class OrderFolderHandler(FileSystemEventHandler):
+    @measure_time("observer_on_created")
     def on_created(self, event):
         if not event.is_directory:
             return
@@ -32,6 +35,7 @@ class OrderFolderHandler(FileSystemEventHandler):
                 telegram_service.build_order_message(folder_name), folder_name
             )
 
+    @measure_time("observer_on_moved")
     def on_moved(self, event):
         if not event.is_directory:
             return
@@ -83,6 +87,7 @@ class OrderFolderHandler(FileSystemEventHandler):
                 telegram_service.build_order_message(dest_name), dest_name
             )
 
+    @measure_time("observer_on_deleted")
     def on_deleted(self, event):
         if not event.is_directory:
             return
@@ -130,6 +135,13 @@ def start_observer_once():
     observer = Observer()
     observer.schedule(handler, bazis_app.FOLDER_PATH, recursive=False)
     observer.start()
+
+    def watchdog_heartbeat():
+        while observer_started:
+            heartbeat("watchdog")
+            time.sleep(1.5)
+
+    threading.Thread(target=watchdog_heartbeat, daemon=True).start()
 
     def stop_observer():
         if observer is not None:

@@ -3,9 +3,10 @@ import os
 import time
 from copy import deepcopy
 from datetime import datetime
+from time import perf_counter
 
 import app as bazis_app
-from app import get_manager_from_name, logger
+from app import get_manager_from_name, heartbeat, logger, measure_time
 from app.dal.database import replace_order_index, search_orders
 from app.services import telegram as telegram_service
 from app.services.telegram import folder_has_ready_marker, technologist_from_folder
@@ -26,7 +27,9 @@ MONTHS_RO = {
 }
 
 
+@measure_time("build_orders_snapshot")
 def build_orders_snapshot():
+    t0 = perf_counter()
     if not bazis_app.FOLDER_PATH or not os.path.isdir(bazis_app.FOLDER_PATH):
         return []
 
@@ -71,9 +74,20 @@ def build_orders_snapshot():
             )
 
     folder_data.sort(key=lambda x: x["modified"], reverse=True)
+    dt = (perf_counter() - t0) * 1000.0
+    with bazis_app.metrics_lock:
+        snap = bazis_app.metrics["snapshot"]
+        snap["version"] += 1
+        snap["last_update_ts"] = time.time()
+        snap["last_build_ms"] = dt
+        snap["build_count"] += 1
+        snap["avg_build_ms"] += (dt - snap["avg_build_ms"]) / snap["build_count"]
+        snap["orders_count"] = len(folder_data)
+
     return folder_data
 
 
+@measure_time("refresh_orders_snapshot")
 def refresh_orders_snapshot(force: bool = False):
     now = time.time()
     if not force:
@@ -88,6 +102,9 @@ def refresh_orders_snapshot(force: bool = False):
         bazis_app.last_snapshot_update = now
         bazis_app.snapshot_version += 1
         bazis_app.last_snapshot_ts = now
+
+    with bazis_app.metrics_lock:
+        bazis_app.metrics["snapshot"]["version"] = bazis_app.snapshot_version
 
     refresh_search_index()
     return snapshot
@@ -133,14 +150,16 @@ def build_search_index():
     return index
 
 
+@measure_time("refresh_search_index")
 def refresh_search_index():
     index = build_search_index()
     now = time.time()
     replace_order_index(index)
     with bazis_app.order_index_lock:
         bazis_app.order_index_updated_at = now
+    heartbeat("indexer")
 
-
+@measure_time("search")
 def search_in_index(query: str):
     return search_orders(query, bazis_app.SEARCH_FOLDERS)
 
@@ -151,6 +170,7 @@ def background_snapshot_updater(interval: float = 2.5):
             refresh_orders_snapshot(force=True)
         except Exception as exc:
             logger.exception("[snapshot] Ошибка фонового обновления", exc_info=exc)
+        heartbeat("snapshot_updater")
         time.sleep(interval)
 
 
