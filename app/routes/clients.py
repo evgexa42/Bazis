@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 
-from app import clients, clients_lock, refresh_clients_lookup_locked
-from app import save_clients
+from app import clients, clients_lock, reload_clients_from_db
+from app.dal.database import add_client as add_client_db
+from app.dal.database import delete_client as delete_client_db
+from app.dal.database import update_client as update_client_db
 
 clients_bp = Blueprint("clients", __name__)
 
@@ -20,9 +22,8 @@ def add_client():
 
     if client_name:
         with clients_lock:
-            clients[client_name] = manager
-            refresh_clients_lookup_locked()
-            save_clients(clients)
+            add_client_db(client_name, manager)
+            reload_clients_from_db()
     return redirect(url_for("clients.clients_page"))
 
 
@@ -34,11 +35,8 @@ def update_client():
     new_manager = data.get("new_manager")
 
     with clients_lock:
-        if old_name in clients:
-            clients.pop(old_name)
-            clients[new_name] = new_manager
-            refresh_clients_lookup_locked()
-            save_clients(clients)
+        if update_client_db(old_name, new_name, new_manager):
+            reload_clients_from_db()
 
     return jsonify({"status": "ok"})
 
@@ -49,9 +47,7 @@ def delete_client():
     name = data.get("name")
 
     with clients_lock:
-        if name in clients:
-            clients.pop(name)
-            refresh_clients_lookup_locked()
-            save_clients(clients)
+        if delete_client_db(name):
+            reload_clients_from_db()
 
     return jsonify({"status": "ok"})

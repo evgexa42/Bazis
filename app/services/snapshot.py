@@ -6,6 +6,7 @@ from datetime import datetime
 
 import app as bazis_app
 from app import get_manager_from_name, logger
+from app.dal.database import replace_order_index, search_orders
 from app.services import telegram as telegram_service
 from app.services.telegram import folder_has_ready_marker, technologist_from_folder
 
@@ -100,10 +101,10 @@ def get_orders_snapshot(ttl: float = bazis_app.SNAPSHOT_TTL):
 
 
 def build_search_index():
-    index = {key: [] for key in bazis_app.SEARCH_FOLDERS.keys()}
+    index = []
     search_months = get_recent_months()
 
-    for key, base_folder in bazis_app.SEARCH_FOLDERS.items():
+    for _, base_folder in bazis_app.SEARCH_FOLDERS.items():
         if not base_folder:
             continue
         for month_folder in search_months:
@@ -113,12 +114,17 @@ def build_search_index():
 
             for folder_name in os.listdir(month_path):
                 manager = get_manager_from_name(folder_name)
-                index[key].append(
+                folder_path = os.path.join(month_path, folder_name)
+                try:
+                    mtime = os.path.getmtime(folder_path)
+                except OSError:
+                    mtime = 0.0
+                index.append(
                     {
                         "name": folder_name,
                         "manager": manager,
-                        "path": os.path.join(month_path, folder_name),
-                        "_lower_name": folder_name.lower(),
+                        "folder_path": folder_path,
+                        "mtime": mtime,
                     }
                 )
 
@@ -128,27 +134,13 @@ def build_search_index():
 def refresh_search_index():
     index = build_search_index()
     now = time.time()
-    with bazis_app.search_index_lock:
-        bazis_app.search_index = index
-        bazis_app.search_index_updated_at = now
+    replace_order_index(index)
+    with bazis_app.order_index_lock:
+        bazis_app.order_index_updated_at = now
 
 
 def search_in_index(query: str):
-    query_lower = query.lower()
-    results = {key: [] for key in bazis_app.SEARCH_FOLDERS.keys()}
-
-    with bazis_app.search_index_lock:
-        if not bazis_app.search_index:
-            return results
-
-        for key, items in bazis_app.search_index.items():
-            matches = []
-            for item in items:
-                if query_lower in item.get("_lower_name", ""):
-                    matches.append({k: v for k, v in item.items() if not k.startswith("_")})
-            results[key] = matches
-
-    return results
+    return search_orders(query, bazis_app.SEARCH_FOLDERS)
 
 
 def background_snapshot_updater(interval: float = 2.5):

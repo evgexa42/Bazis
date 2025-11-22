@@ -8,6 +8,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 from werkzeug.exceptions import HTTPException
 
+from app.dal.database import get_all_clients, init_db, replace_clients
 from app.dal.json_store import load_json_file, save_json_atomic
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -93,6 +94,7 @@ def save_config(config):
 
 
 logger = setup_logging()
+init_db()
 CONFIG = load_config()
 ORDER_CONFIRMATION_ENABLED = False
 
@@ -172,24 +174,35 @@ def build_clients_lookup(clients_data):
 
 def load_clients():
     default_clients = {}
+    try:
+        db_clients = get_all_clients()
+        if db_clients:
+            return db_clients
+    except Exception as exc:
+        logger.exception("[clients] Не удалось загрузить клиентов из БД", exc_info=exc)
+
     if os.path.exists(CLIENTS_FILE):
         try:
             data = load_json_file(CLIENTS_FILE)
             if isinstance(data, dict):
+                replace_clients(data)
                 return data
         except Exception as exc:
             logger.exception("[clients] Не удалось прочитать clients.json", exc_info=exc)
         return default_clients
 
     try:
-        save_json_atomic(CLIENTS_FILE, default_clients)
+        replace_clients(default_clients)
     except Exception as exc:
-        logger.exception("[clients] Не удалось создать clients.json", exc_info=exc)
+        logger.exception("[clients] Не удалось создать таблицу клиентов", exc_info=exc)
     return default_clients
 
 
 def save_clients(data):
-    save_json_atomic(CLIENTS_FILE, data)
+    try:
+        replace_clients(data)
+    except Exception as exc:
+        logger.exception("[clients] Не удалось сохранить клиентов в БД", exc_info=exc)
 
 
 clients = load_clients()
@@ -201,14 +214,20 @@ last_snapshot_update = 0.0
 orders_snapshot_lock = threading.Lock()
 SNAPSHOT_TTL = 3.0
 
-search_index = {}
-search_index_updated_at = 0.0
-search_index_lock = threading.Lock()
+order_index_updated_at = 0.0
+order_index_lock = threading.Lock()
 
 
 def refresh_clients_lookup_locked():
     global clients_lookup
     clients_lookup = build_clients_lookup(clients)
+
+
+def reload_clients_from_db():
+    global clients
+    clients.clear()
+    clients.update(load_clients())
+    refresh_clients_lookup_locked()
 
 
 def get_manager_from_name(folder_name):
@@ -321,14 +340,14 @@ __all__ = [
     "clients",
     "clients_lock",
     "refresh_clients_lookup_locked",
+    "reload_clients_from_db",
     "get_manager_from_name",
     "SNAPSHOT_TTL",
     "orders_snapshot",
     "orders_snapshot_lock",
     "last_snapshot_update",
-    "search_index",
-    "search_index_lock",
-    "search_index_updated_at",
+    "order_index_updated_at",
+    "order_index_lock",
     "SEARCH_FOLDERS",
     "ORDER_CONFIRMATION_ENABLED",
     "MESSAGES_FILE",

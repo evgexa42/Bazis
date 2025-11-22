@@ -1,3 +1,4 @@
+import json
 import threading
 from typing import List, Optional
 
@@ -5,12 +6,12 @@ from telegram import Bot
 
 import app as bazis_app
 from app import get_manager_from_name, logger
-from app.dal.json_store import load_json_file, save_json_atomic
+from app.dal.database import load_messages as load_messages_from_db
+from app.dal.database import replace_messages as replace_messages_in_db
 
 bot: Optional[Bot] = None
 messages: List[dict] = []
 messages_lock = threading.Lock()
-messages_file_path: Optional[str] = None
 
 IGNORED_FOLDERS = {"Архив", "2025"}
 
@@ -20,46 +21,33 @@ def init_bot(token: str) -> None:
     bot = Bot(token=token) if token else None
 
 
-def load_messages_storage(path: str) -> None:
-    global messages_file_path, messages
-    messages_file_path = path
+def load_messages_storage(path: Optional[str] = None) -> None:
+    del path  # compatibility
+    global messages
 
-    default_messages: List[dict] = []
-    try:
-        data = load_json_file(path)
-    except Exception as exc:
-        logger.exception("[load_messages] Ошибка чтения %s", path, exc_info=exc)
-        data = None
-
-    if isinstance(data, list):
-        cleaned = []
-        for entry in data:
-            if not isinstance(entry, dict):
-                continue
-            folder = entry.get("folder", "")
-            order_key = entry.get("order_key") or order_key_from_name(folder)
-            message_id = entry.get("message_id")
-            chat_id = entry.get("chat_id")
-            if message_id is None or chat_id is None:
-                continue
-            entry["folder"] = folder
-            entry["order_key"] = order_key
-            cleaned.append(entry)
-        messages = cleaned
-    else:
-        messages = default_messages
-
-    if data is None:
-        save_messages(messages)
+    stored = load_messages_from_db(level="telegram")
+    cleaned = []
+    for entry in stored:
+        if not isinstance(entry, dict):
+            continue
+        folder = entry.get("folder", "")
+        order_key = entry.get("order_key") or order_key_from_name(folder)
+        message_id = entry.get("message_id")
+        chat_id = entry.get("chat_id")
+        if message_id is None or chat_id is None:
+            continue
+        entry["folder"] = folder
+        entry["order_key"] = order_key
+        cleaned.append(entry)
+    messages = cleaned
 
 
 def save_messages(msgs: List[dict]) -> None:
-    if not messages_file_path:
-        return
     try:
-        save_json_atomic(messages_file_path, msgs)
+        serialized = [json.loads(json.dumps(entry, ensure_ascii=False)) for entry in msgs]
+        replace_messages_in_db(serialized, level="telegram")
     except Exception as exc:
-        logger.exception("[save_messages] Ошибка записи %s", messages_file_path, exc_info=exc)
+        logger.exception("[save_messages] Ошибка записи сообщений в БД", exc_info=exc)
 
 
 def folder_has_ready_marker(folder_name: str) -> bool:

@@ -69,9 +69,9 @@ def search_page():
 
     if query:
         logger.info("[search] Запрос поиска: %s", query)
-        with bazis_app.search_index_lock:
-            is_index_fresh = bool(bazis_app.search_index) and (
-                time.time() - bazis_app.search_index_updated_at < bazis_app.SNAPSHOT_TTL * 2
+        with bazis_app.order_index_lock:
+            is_index_fresh = bool(bazis_app.order_index_updated_at) and (
+                time.time() - bazis_app.order_index_updated_at < bazis_app.SNAPSHOT_TTL * 2
             )
 
         if not is_index_fresh:
