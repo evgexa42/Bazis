@@ -1,11 +1,11 @@
 import json
 import logging
 import os
+import queue
 import threading
 import time
 import traceback
 from collections import defaultdict, deque
-from copy import deepcopy
 from datetime import timedelta
 from logging.handlers import RotatingFileHandler
 from threading import Lock
@@ -201,6 +201,12 @@ def build_clients_lookup(clients_data):
     return {name.lower(): manager for name, manager in clients_data.items()}
 
 
+def build_clients_lc(clients_data):
+    prepared = [(name.lower(), manager) for name, manager in clients_data.items()]
+    prepared.sort(key=lambda x: len(x[0]), reverse=True)
+    return prepared
+
+
 def load_clients():
     default_clients = {}
     try:
@@ -308,22 +314,55 @@ def metrics_background_worker():
 clients = load_clients()
 clients_lookup = build_clients_lookup(clients)
 clients_lock = threading.Lock()
+clients_lc = build_clients_lc(clients)
 
 orders_snapshot = []
-last_snapshot_update = 0.0
-snapshot_version = 0
-last_snapshot_ts = 0.0
-active_sse_clients = 0
 orders_snapshot_lock = threading.Lock()
+last_snapshot_update = 0.0
+orders_version = 0
+last_snapshot_ts = 0.0
 SNAPSHOT_TTL = 3.0
+sse_clients = set()
+sse_clients_lock = threading.Lock()
 
 order_index_updated_at = 0.0
 order_index_lock = threading.Lock()
 
 
+class SSEClient:
+    def __init__(self):
+        self.q: "queue.Queue[dict]" = queue.Queue(maxsize=50)
+        self.alive = True
+
+
+def sse_broadcast(event: dict):
+    dead = []
+    with sse_clients_lock:
+        for client in sse_clients:
+            try:
+                client.q.put_nowait(event)
+            except queue.Full:
+                try:
+                    client.q.get_nowait()
+                except queue.Empty:
+                    pass
+                try:
+                    client.q.put_nowait(event)
+                except queue.Full:
+                    pass
+            if not getattr(client, "alive", True):
+                dead.append(client)
+        for client in dead:
+            sse_clients.discard(client)
+    with metrics_lock:
+        metrics["sse"]["last_broadcast_ts"] = time.time()
+
+
 def refresh_clients_lookup_locked():
     global clients_lookup
+    global clients_lc
     clients_lookup = build_clients_lookup(clients)
+    clients_lc = build_clients_lc(clients)
 
 
 def reload_clients_from_db():
@@ -335,9 +374,8 @@ def reload_clients_from_db():
 
 def get_manager_from_name(folder_name):
     lname = folder_name.lower()
-    with clients_lock:
-        snapshot = dict(clients_lookup)
-    for client_lower, manager in snapshot.items():
+    snapshot = clients_lc
+    for client_lower, manager in snapshot:
         if client_lower in lname:
             return manager
     return "Неизвестно"
@@ -510,9 +548,12 @@ __all__ = [
     "orders_snapshot",
     "orders_snapshot_lock",
     "last_snapshot_update",
-    "snapshot_version",
+    "orders_version",
     "last_snapshot_ts",
-    "active_sse_clients",
+    "sse_clients",
+    "sse_clients_lock",
+    "SSEClient",
+    "sse_broadcast",
     "order_index_updated_at",
     "order_index_lock",
     "SEARCH_FOLDERS",

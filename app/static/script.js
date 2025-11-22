@@ -26,8 +26,9 @@ const OrdersPage = (() => {
       : 'Все';
   let sortKey = null;
   let sortOrder = 1;
-  let eventSource = null;
-  let fallbackTimer = null;
+  let sse = null;
+  let pollingTimer = null;
+  let pollingBackoff = 5000;
 
   function init() {
     const table = document.getElementById('orders');
@@ -40,8 +41,7 @@ const OrdersPage = (() => {
     if (managerSelect && currentManager !== 'Все') {
       managerSelect.value = currentManager;
     }
-    loadData();
-    startEventStream();
+    startSSE();
   }
 
   function loadData() {
@@ -55,63 +55,59 @@ const OrdersPage = (() => {
       .catch(error => console.error('Ошибка при загрузке данных:', error));
   }
 
-  function startEventStream() {
-    stopEventStream();
+  function startSSE() {
+    stopSSE();
+    stopPollingFallback();
 
-    const baseURL = window.location.origin;
-    const streamUrl = `${baseURL}/stream?${buildManagerParams().toString()}`;
-    eventSource = new EventSource(streamUrl);
+    const streamUrl = `/events?${buildManagerParams().toString()}`;
+    sse = new EventSource(streamUrl);
 
-    eventSource.onopen = () => {
-      stopFallback();
-    };
-
-    eventSource.onerror = () => {
-      startFallback();
-    };
-
-    eventSource.onmessage = event => {
-      if (!event?.data) return;
-
+    sse.onmessage = ev => {
+      pollingBackoff = 5000;
+      stopPollingFallback();
+      if (!ev?.data) return;
       try {
-        const payload = JSON.parse(event.data);
-        if (payload.ping) {
-          stopFallback();
-          return;
-        }
-        if (payload.orders || payload.folders) {
-          stopFallback();
-          updateDataFromPayload(payload);
+        const payload = JSON.parse(ev.data);
+        if (payload.type === 'orders_snapshot') {
+          allData = Array.isArray(payload.folders) ? payload.folders : [];
+          render();
+          renderStats(payload);
         }
       } catch (err) {
         console.warn('Некорректные данные SSE', err);
       }
     };
+
+    sse.onerror = () => {
+      stopSSE();
+      startPollingFallback();
+    };
   }
 
-  function restartEventStream() {
-    startEventStream();
-  }
-
-  function stopEventStream() {
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
+  function stopSSE() {
+    if (sse) {
+      sse.close();
+      sse = null;
     }
   }
 
-  function startFallback() {
-    if (fallbackTimer) return;
+  function startPollingFallback() {
+    if (pollingTimer) return;
 
-    loadData();
-    fallbackTimer = setInterval(loadData, 30000);
+    function tick() {
+      loadData();
+      pollingBackoff = Math.min(pollingBackoff * 1.5, 30000);
+      pollingTimer = setTimeout(tick, pollingBackoff);
+    }
+
+    pollingTimer = setTimeout(tick, pollingBackoff);
   }
 
-  function stopFallback() {
-    if (!fallbackTimer) return;
-
-    clearInterval(fallbackTimer);
-    fallbackTimer = null;
+  function stopPollingFallback() {
+    if (!pollingTimer) return;
+    clearTimeout(pollingTimer);
+    pollingTimer = null;
+    pollingBackoff = 5000;
   }
 
   function updateDataFromPayload(payload) {
@@ -155,8 +151,8 @@ const OrdersPage = (() => {
     } else {
       currentManager = selected;
     }
-    loadData();
-    restartEventStream();
+    stopPollingFallback();
+    startSSE();
   }
 
   function sortBy(key) {

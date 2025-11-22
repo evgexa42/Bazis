@@ -9,6 +9,7 @@ from watchdog.observers import Observer
 import app as bazis_app
 from app import heartbeat, measure_time
 from app.services import telegram as telegram_service
+from app.services.snapshot import remove_order, upsert_order
 
 logger = bazis_app.logger
 
@@ -30,6 +31,7 @@ class OrderFolderHandler(FileSystemEventHandler):
         logger.info("[observer] Папка создана: %s", folder_name)
         if register_known_folder(folder_name):
             return
+        upsert_order(folder_name)
         if telegram_service.should_notify(folder_name):
             telegram_service.send_telegram_message(
                 telegram_service.build_order_message(folder_name), folder_name
@@ -56,11 +58,13 @@ class OrderFolderHandler(FileSystemEventHandler):
             unregister_known_folder(src_name)
             telegram_service.delete_telegram_message(src_name)
             logger.info("[observer] Папка перемещена из каталога: %s", src_name)
+            remove_order(src_name)
             return
 
         if dest_in_watch and not src_in_watch:
             if register_known_folder(dest_name):
                 return
+            upsert_order(dest_name)
             if telegram_service.should_notify(dest_name):
                 telegram_service.send_telegram_message(
                     telegram_service.build_order_message(dest_name), dest_name
@@ -74,6 +78,8 @@ class OrderFolderHandler(FileSystemEventHandler):
 
         already_known = move_known_folder(src_name, dest_name)
         logger.info("[observer] Папка переименована: %s -> %s", src_name, dest_name)
+        remove_order(src_name)
+        upsert_order(dest_name)
 
         if telegram_service.folder_has_ready_marker(dest_name):
             telegram_service.delete_telegram_message(dest_name)
@@ -98,6 +104,7 @@ class OrderFolderHandler(FileSystemEventHandler):
         logger.info("[observer] Папка удалена: %s", folder_name)
         unregister_known_folder(folder_name)
         telegram_service.delete_telegram_message(folder_name)
+        remove_order(folder_name)
 
 
 def register_known_folder(folder_name):

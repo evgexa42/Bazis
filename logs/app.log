@@ -31727,3 +31727,179 @@ werkzeug.exceptions.InternalServerError: 500 Internal Server Error: The server e
 2025-11-22 18:44:49,822 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "GET /data?manager=Все HTTP/1.1" 200 -
 2025-11-22 18:44:49,830 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 18:44:49] "GET /stream?manager=Все HTTP/1.1" 200 -
 2025-11-22 18:44:54,446 [INFO] bazis - [observer] Остановка мониторинга
+2025-11-22 19:07:03,142 [WARNING] bazis - [security] Используется дефолтный SECRET_KEY, задайте переменную окружения.
+2025-11-22 19:12:18,693 [WARNING] bazis - [security] Используется дефолтный SECRET_KEY, задайте переменную окружения.
+2025-11-22 19:12:18,980 [INFO] bazis - [observer] Запуск мониторинга папки заказов: \\SERVER\homag\ПРИСАДКА КЛИЕНТА
+2025-11-22 19:12:18,981 [INFO] bazis - Сервер запущен: http://0.0.0.0:5000
+2025-11-22 19:12:18,996 [INFO] werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.114:5000
+2025-11-22 19:12:18,997 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 19:12:21,069 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:21] "GET / HTTP/1.1" 200 -
+2025-11-22 19:12:21,133 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:21] "GET /static/script.js HTTP/1.1" 200 -
+2025-11-22 19:12:21,134 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:21] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:12:21,185 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:21] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:12:24,187 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:24] "GET /facades HTTP/1.1" 200 -
+2025-11-22 19:12:24,201 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:24] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:12:24,204 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:24] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:12:24,629 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:24] "GET /search HTTP/1.1" 200 -
+2025-11-22 19:12:24,644 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:24] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:12:24,644 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:24] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:12:25,012 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "GET /clients HTTP/1.1" 200 -
+2025-11-22 19:12:25,026 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:12:25,027 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:12:25,350 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "GET / HTTP/1.1" 200 -
+2025-11-22 19:12:25,364 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:12:25,364 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:12:25,533 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:12:25] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:12:32,235 [INFO] bazis - [observer] Папка создана: Новая папка
+2025-11-22 19:12:35,815 [INFO] bazis - [observer] Папка переименована: Новая папка -> 131-10 FF
+2025-11-22 19:12:36,131 [INFO] bazis - [TG] Сообщение отправлено и сохранено для 131-10 FF -> id 959
+2025-11-22 19:12:51,386 [INFO] bazis - [observer] Папка переименована: 131-10 FF -> 131-10 FF ff
+2025-11-22 19:12:51,470 [INFO] bazis - [TG] Сообщение 959 обновлено для 131-10 FF ff
+2025-11-22 19:12:58,664 [INFO] bazis - [observer] Папка переименована: 131-10 FF ff -> 131-11 FF ff
+2025-11-22 19:12:58,732 [INFO] bazis - [TG] Сообщение 959 обновлено для 131-11 FF ff
+2025-11-22 19:13:04,884 [INFO] bazis - [observer] Папка переименована: 131-11 FF ff -> 131-11 FF [J]
+2025-11-22 19:13:04,945 [INFO] bazis - [TG] Удалено сообщение 959 для 131-11 FF ff
+2025-11-22 19:13:10,434 [INFO] bazis - [confirm_order] Заказ подтверждён: 131-11 FF [J] -> 131-11 FF [J] +
+2025-11-22 19:13:10,436 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:10] "POST /confirm_order HTTP/1.1" 200 -
+2025-11-22 19:13:10,436 [INFO] bazis - [observer] Папка переименована: 131-11 FF [J] -> 131-11 FF [J] +
+2025-11-22 19:13:10,439 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:10] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:13:26,937 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:26] "GET / HTTP/1.1" 200 -
+2025-11-22 19:13:26,954 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:26] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:13:26,959 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:26] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:13:26,974 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:26] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 19:13:27,026 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:27] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:13:27,575 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:27] "GET / HTTP/1.1" 200 -
+2025-11-22 19:13:27,591 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:27] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:13:27,592 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:27] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:13:27,607 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:27] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:13:27,608 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:13:27] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 19:13:38,018 [INFO] bazis - [observer] Папка создана: Новая папка
+2025-11-22 19:13:41,837 [INFO] bazis - [observer] Папка переименована: Новая папка -> 563-10 FRR
+2025-11-22 19:13:41,955 [INFO] bazis - [TG] Сообщение отправлено и сохранено для 563-10 FRR -> id 960
+2025-11-22 19:17:12,125 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:12] "GET /search HTTP/1.1" 200 -
+2025-11-22 19:17:12,143 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:12] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:17:12,144 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:12] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:17:14,072 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:14] "GET / HTTP/1.1" 200 -
+2025-11-22 19:17:14,089 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:14] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:17:14,090 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:14] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:17:14,168 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:14] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:17:16,383 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:16] "GET / HTTP/1.1" 200 -
+2025-11-22 19:17:16,407 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:16] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:17:16,408 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:16] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:17:16,499 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:16] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:17:17,600 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:17] "GET /settings HTTP/1.1" 200 -
+2025-11-22 19:17:17,609 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:17] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:17:17,609 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:17] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:17:19,526 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:24,526 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:29,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:34,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:39,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:44,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:49,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:54,539 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:17:59,527 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:17:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:04,540 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:09,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:14,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:19,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:24,538 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:29,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:34,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:39,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:44,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:49,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:54,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:18:59,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:18:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:04,528 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:09,543 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:14,533 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:19,539 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:24,527 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:29,527 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:34,540 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:39,533 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:44,532 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:49,543 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:54,543 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:19:59,535 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:19:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:04,539 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:09,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:14,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:19,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:24,528 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:29,538 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:34,528 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:39,531 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:44,537 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:49,541 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:54,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:20:59,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:20:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:04,537 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:09,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:14,525 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:19,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:24,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:29,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:34,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:39,526 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:44,533 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:49,539 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:54,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:21:59,538 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:21:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:04,531 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:09,540 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:14,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:19,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:24,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:29,535 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:34,540 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:39,538 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:44,541 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:49,527 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:54,528 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:22:59,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:22:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:04,532 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:09,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:14,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:19,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:24,538 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:29,527 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:34,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:39,532 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:44,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:49,532 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:54,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:23:59,534 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:23:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:04,535 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:09,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:09] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:14,539 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:14] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:19,536 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:19] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:24,541 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:24] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:29,535 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:29] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:34,540 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:34] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:39,537 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:44,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:44] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:49,541 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:54,530 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:54] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:24:59,542 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:24:59] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:25:04,527 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:25:09,453 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "GET / HTTP/1.1" 200 -
+2025-11-22 19:25:09,469 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:25:09,470 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:25:09,564 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:25:09,826 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "GET /clients HTTP/1.1" 200 -
+2025-11-22 19:25:09,841 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:25:09,842 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:09] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:25:10,245 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:10] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:25:10,516 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:10] "GET / HTTP/1.1" 200 -
+2025-11-22 19:25:10,529 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:10] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 19:25:10,531 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:10] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 19:25:10,548 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:10] "GET /events?manager=Все HTTP/1.1" 200 -
+2025-11-22 19:25:15,243 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:15] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:25:20,252 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:20] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:25:25,233 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 19:25:25] "GET /api/metrics HTTP/1.1" 200 -
+2025-11-22 19:25:28,811 [INFO] bazis - [observer] Остановка мониторинга
