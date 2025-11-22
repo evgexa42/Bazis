@@ -1,13 +1,33 @@
 import os
 import time
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, request
+from flask import Blueprint, abort, current_app, jsonify, render_template, request, session
 
 import app as bazis_app
-from app import logger
+from app import get_manager_from_name, logger
 from app.services.monitor import move_known_folder
 from app.services.snapshot import get_orders_snapshot, refresh_orders_snapshot, search_in_index
 from app.services.telegram import folder_has_ready_marker, update_message_for_folder
+
+
+def get_visible_manager_filter(request, session):
+    """Определяет, нужно ли ограничить менеджера для текущего запроса."""
+
+    role = session.get("role")
+
+    if role in {"admin", "technologist"}:
+        return None
+
+    if role == "manager":
+        requested_manager = (request.values.get("manager") or "").strip()
+        show_all_flag = (request.values.get("show_all") or "").strip()
+
+        if requested_manager == "Все" or show_all_flag == "1":
+            return None
+
+        return session.get("user")
+
+    return None
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -33,6 +53,20 @@ def facades_page():
 def data():
     folders = get_orders_snapshot(ttl=bazis_app.SNAPSHOT_TTL)
 
+    visible_manager = get_visible_manager_filter(request, session)
+    requested_manager = request.args.get("manager", "Все")
+
+    applied_manager_filter = visible_manager
+    if applied_manager_filter is None and requested_manager not in {"", "Все"}:
+        applied_manager_filter = requested_manager
+
+    if applied_manager_filter:
+        folders = [
+            folder
+            for folder in folders
+            if (folder.get("manager") or "Неизвестно") == applied_manager_filter
+        ]
+
     total_orders = len(folders)
     manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
     manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
@@ -47,10 +81,6 @@ def data():
         technologist_name = folder.get("technologist") or "Неизвестно"
         tech_stats.setdefault(technologist_name, 0)
         tech_stats[technologist_name] += 1
-
-    manager_filter = request.args.get("manager", "Все")
-    if manager_filter != "Все":
-        folders = [folder for folder in folders if folder["manager"] == manager_filter]
 
     return jsonify(
         {
@@ -78,6 +108,15 @@ def search_page():
             refresh_orders_snapshot(force=True)
 
         results = search_in_index(query)
+
+    manager_filter = get_visible_manager_filter(request, session)
+    if manager_filter:
+        filtered_results = {}
+        for key, items in results.items():
+            filtered_results[key] = [
+                item for item in items if (item.get("manager") or "") == manager_filter
+            ]
+        results = filtered_results
 
     return render_template(
         "search.html", query=query, results=results, SEARCH_FOLDERS=bazis_app.SEARCH_FOLDERS
@@ -236,6 +275,31 @@ def confirm_order():
     current_path = os.path.join(bazis_app.FOLDER_PATH, folder_name)
     if not os.path.isdir(current_path):
         return jsonify({"status": "error", "message": "Заказ не найден."}), 404
+
+    current_role = session.get("role")
+    current_user = session.get("user")
+
+    if current_role not in {"admin", "technologist", "manager"}:
+        return (jsonify({"status": "error", "message": "Требуется авторизация."}), 403)
+
+    if current_role == "manager":
+        folder_manager = get_manager_from_name(folder_name)
+        if folder_manager != current_user:
+            logger.warning(
+                "[confirm_order] Менеджер %s пытался подтвердить чужой заказ %s (%s)",
+                current_user,
+                folder_name,
+                folder_manager,
+            )
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Недостаточно прав для подтверждения заказа.",
+                    }
+                ),
+                403,
+            )
 
     if folder_name.endswith("+"):
         return jsonify(

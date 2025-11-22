@@ -11,14 +11,19 @@ const APP_CONFIG = (() => {
     .filter(Boolean);
 
   const orderConfirmationEnabled = body?.dataset?.orderConfirmation === 'true';
+  const currentUser = body?.dataset?.currentUser || '';
+  const currentRole = body?.dataset?.currentRole || '';
 
-  return { managers, orderConfirmationEnabled };
+  return { managers, orderConfirmationEnabled, currentUser, currentRole };
 })();
 
 const OrdersPage = (() => {
   let allData = [];
   let currentStatus = 'all';
-  let currentManager = 'Все';
+  let currentManager =
+    APP_CONFIG.currentRole === 'manager' && APP_CONFIG.currentUser
+      ? APP_CONFIG.currentUser
+      : 'Все';
   let sortKey = null;
   let sortOrder = 1;
   let refreshTimer = null;
@@ -29,12 +34,22 @@ const OrdersPage = (() => {
 
     highlightActiveFilter(currentStatus);
     highlightSortButtons();
+
+    const managerSelect = document.getElementById('managerSelect');
+    if (managerSelect && currentManager !== 'Все') {
+      managerSelect.value = currentManager;
+    }
     loadData();
     refreshTimer = setInterval(loadData, 5000);
   }
 
   function loadData() {
-    fetch(`/data?manager=${encodeURIComponent(currentManager)}`)
+    const params = new URLSearchParams({ manager: currentManager });
+    if (APP_CONFIG.currentRole === 'manager' && currentManager === 'Все') {
+      params.set('show_all', '1');
+    }
+
+    fetch(`/data?${params.toString()}`)
       .then(response => response.json())
       .then(json => {
         allData = Array.isArray(json.folders) ? json.folders : [];
@@ -53,7 +68,18 @@ const OrdersPage = (() => {
   function setManagerFilter() {
     const select = document.getElementById('managerSelect');
     if (!select) return;
-    currentManager = select.value;
+    const selected = select.value;
+
+    if (
+      APP_CONFIG.currentRole === 'manager' &&
+      selected !== 'Все' &&
+      selected !== APP_CONFIG.currentUser
+    ) {
+      currentManager = APP_CONFIG.currentUser || 'Все';
+      select.value = currentManager;
+    } else {
+      currentManager = selected;
+    }
     loadData();
   }
 

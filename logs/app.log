@@ -30398,3 +30398,330 @@ werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to a
 2025-11-22 16:32:51,213 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:32:51] "GET /data?manager=Все HTTP/1.1" 200 -
 2025-11-22 16:32:56,222 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:32:56] "GET /data?manager=Все HTTP/1.1" 200 -
 2025-11-22 16:32:57,238 [INFO] bazis - [observer] Остановка мониторинга
+2025-11-22 16:50:49,256 [WARNING] bazis - [security] Используется дефолтный SECRET_KEY, задайте переменную окружения.
+2025-11-22 16:50:49,688 [INFO] bazis - [observer] Запуск мониторинга папки заказов: \\SERVER\homag\ПРИСАДКА КЛИЕНТА
+2025-11-22 16:50:49,689 [INFO] bazis - Сервер запущен: http://0.0.0.0:5000
+2025-11-22 16:50:49,710 [INFO] werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.114:5000
+2025-11-22 16:50:49,710 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 16:50:51,208 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:51,241 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:51,292 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "GET /static/script.js HTTP/1.1" 200 -
+2025-11-22 16:50:51,293 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:51,302 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:51,970 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "GET /clients HTTP/1.1" 200 -
+2025-11-22 16:50:51,985 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:51,986 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:51] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:52,802 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:52] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:52,815 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:52] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:52,816 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:52] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:52,830 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:52] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:53,408 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:53] "GET /search HTTP/1.1" 200 -
+2025-11-22 16:50:53,420 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:53] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:53,423 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:53] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:53,910 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:53] "GET /facades HTTP/1.1" 200 -
+2025-11-22 16:50:53,921 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:53] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:53,923 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:53] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:54,400 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:54,415 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:54,419 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:54,432 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:54,969 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:54,984 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:54,984 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:54] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,001 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:55,178 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:55,206 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,206 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,211 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:55,328 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:55,341 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,341 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,359 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:55,479 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:55,493 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,497 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,511 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:50:55,636 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET / HTTP/1.1" 200 -
+2025-11-22 16:50:55,653 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,655 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:50:55,668 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:50:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:00,699 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:00] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:02,627 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:02] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:02,649 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:02] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:02,656 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:02] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:02,703 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:02] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:03,964 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:03] "GET /settings HTTP/1.1" 200 -
+2025-11-22 16:51:03,987 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:03] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:03,988 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:03] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:06,060 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:06] "GET /login HTTP/1.1" 200 -
+2025-11-22 16:51:06,075 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:06] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:06,262 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:06] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:11,012 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:11] "[32mPOST /login HTTP/1.1[0m" 302 -
+2025-11-22 16:51:11,015 [ERROR] bazis - [exception] HTTP ошибка
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\auth.py", line 17, in wrapper
+    return view(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\auth.py", line 30, in wrapper
+    abort(403)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to access the requested resource. It is either read-protected or not readable by the server.
+2025-11-22 16:51:11,018 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:11] "[31m[1mGET /settings HTTP/1.1[0m" 403 -
+2025-11-22 16:51:11,246 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:11] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:13,079 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:13,092 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,097 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,109 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:13,115 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,638 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:13,651 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,653 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,661 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:13,677 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,828 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:13,840 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,844 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:13,859 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:13,864 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:13] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,003 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:14,019 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,020 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,034 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:14,040 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,181 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:14,198 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,201 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,215 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:14,219 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,363 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:14,376 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,381 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:14,392 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:14,398 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:14] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:18,852 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:18] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:18,867 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:18] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:18,871 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:18] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:18,886 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:18] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:20,238 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:20] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:21,275 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:21] "GET /data?manager=Игорь HTTP/1.1" 200 -
+2025-11-22 16:51:23,133 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:23,148 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:23,150 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:23,175 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:23,179 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:23,717 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:23,731 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:23,733 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:23,749 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:23,752 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:23] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:25,244 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:25] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:25,292 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:25] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:25,304 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:25] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:25,309 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:25] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:25,321 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:25] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:25,326 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:25] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:26,122 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:26] "GET /clients HTTP/1.1" 200 -
+2025-11-22 16:51:26,137 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:26] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:26,138 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:26] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:26,741 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:26] "GET /facades HTTP/1.1" 200 -
+2025-11-22 16:51:26,754 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:26] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:26,755 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:26] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:27,240 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:27] "GET /clients HTTP/1.1" 200 -
+2025-11-22 16:51:27,255 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:27] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:27,259 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:27] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:27,742 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:27] "GET /search HTTP/1.1" 200 -
+2025-11-22 16:51:27,758 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:27] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:27,764 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:27] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:28,132 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:28] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:28,147 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:28] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:28,148 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:28] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:28,163 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:28] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:30,236 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:30] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:30,442 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:30] "GET /data?manager=Игорь HTTP/1.1" 200 -
+2025-11-22 16:51:31,662 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:31] "GET /data?manager=Кристина HTTP/1.1" 200 -
+2025-11-22 16:51:32,429 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:32] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:33,164 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:33] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:34,274 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "GET /search HTTP/1.1" 200 -
+2025-11-22 16:51:34,290 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:34,294 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:34,648 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "GET /clients HTTP/1.1" 200 -
+2025-11-22 16:51:34,661 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:34,663 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:34,927 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:34,945 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:34,945 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:34,959 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:34] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:35,242 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:35] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:37,697 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:37,710 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:37,712 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:37,729 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:37,733 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:37,877 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:37,889 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:37,893 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:37,905 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:37,911 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:37] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,055 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:38,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,070 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,089 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:38,093 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,223 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:38,237 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,238 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,252 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:38,257 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,391 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:38,405 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,406 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,423 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:38,427 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,561 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET / HTTP/1.1" 200 -
+2025-11-22 16:51:38,576 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,576 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:51:38,584 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:38,599 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:38] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:51:40,231 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:40] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:43,596 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:43] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:45,239 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:45] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:48,603 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:50,242 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:50] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:53,596 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:53] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:55,247 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:51:58,600 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:51:58] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:00,248 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:00] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:03,603 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:03] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:05,237 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:05] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:08,602 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:08] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:10,242 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:10] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:13,586 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:13] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:15,239 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:15] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:18,600 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:18] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:23,596 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:23] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:28,599 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:28] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:33,593 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:33] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:38,589 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:43,600 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:43] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:47,008 [WARNING] bazis - [confirm_order] Менеджер Игорь пытался подтвердить чужой заказ 873-11 TRISCA COSTEA [I] (Валерия)
+2025-11-22 16:52:47,008 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:47] "[31m[1mPOST /confirm_order HTTP/1.1[0m" 403 -
+2025-11-22 16:52:48,632 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:53,609 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:53] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:52:58,597 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:52:58] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:01,295 [INFO] bazis - [confirm_order] Заказ подтверждён: 915-11 ANDEGRI [J] -> 915-11 ANDEGRI [J] +
+2025-11-22 16:53:01,295 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:01] "POST /confirm_order HTTP/1.1" 200 -
+2025-11-22 16:53:01,296 [INFO] bazis - [observer] Папка переименована: 915-11 ANDEGRI [J] -> 915-11 ANDEGRI [J] +
+2025-11-22 16:53:01,300 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:01] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:03,593 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:03] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:08,586 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:08] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:11,237 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:11] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:13,591 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:13] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:15,595 [WARNING] bazis - [confirm_order] Менеджер Игорь пытался подтвердить чужой заказ 869-11 TRISCA COSTEA [I] (Валерия)
+2025-11-22 16:53:15,595 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:15] "[31m[1mPOST /confirm_order HTTP/1.1[0m" 403 -
+2025-11-22 16:53:18,593 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:18] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:23,587 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:23] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:28,590 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:28] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:33,592 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:33] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:38,601 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:43,595 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:43] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:48,366 [INFO] bazis - [observer] Папка переименована: 915-11 ANDEGRI [J] + -> 915-11 ANDEGRI [J]
+2025-11-22 16:53:48,602 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:53,655 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:53] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:53,655 [WARNING] bazis - [confirm_order] Менеджер Игорь пытался подтвердить чужой заказ 869-11 TRISCA COSTEA [I] (Валерия)
+2025-11-22 16:53:53,656 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:53] "[31m[1mPOST /confirm_order HTTP/1.1[0m" 403 -
+2025-11-22 16:53:56,542 [ERROR] bazis - [exception] HTTP ошибка
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\auth.py", line 17, in wrapper
+    return view(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OrderMonitor\app\routes\auth.py", line 30, in wrapper
+    abort(403)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to access the requested resource. It is either read-protected or not readable by the server.
+2025-11-22 16:53:56,543 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:56] "[31m[1mGET /settings HTTP/1.1[0m" 403 -
+2025-11-22 16:53:58,601 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:58] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:53:59,700 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:59] "GET /login HTTP/1.1" 200 -
+2025-11-22 16:53:59,714 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:53:59] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:03,352 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:03] "[32mPOST /login HTTP/1.1[0m" 302 -
+2025-11-22 16:54:03,356 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:03] "GET /settings HTTP/1.1" 200 -
+2025-11-22 16:54:03,369 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:03] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:03,373 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:03] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:11,243 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:11] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:46,420 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:46] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:47,094 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:47,111 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,111 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,156 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:47,166 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,551 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:47,566 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,567 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,584 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:47,590 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,737 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:47,752 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,753 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,760 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:47,776 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,914 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:47,927 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,929 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:47,945 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:47,950 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:47] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,101 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:48,115 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,116 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,132 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:48,137 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,261 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:48,278 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,279 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,294 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:48,299 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,434 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:48,449 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,449 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,457 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:48,472 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,616 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET / HTTP/1.1" 200 -
+2025-11-22 16:54:48,630 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,631 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 16:54:48,649 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:48,652 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:48] "[36mGET /static/logo_arh.png HTTP/1.1[0m" 304 -
+2025-11-22 16:54:53,665 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:53] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:54:58,652 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:54:58] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:03,661 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:03] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:08,665 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:08] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:13,658 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:13] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:18,657 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:18] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:23,652 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:23] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:28,653 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:28] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:33,666 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:33] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:38,649 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:38] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:43,659 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:43] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:48,665 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:48] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:53,658 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:53] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:55:58,651 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:55:58] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:56:03,651 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 16:56:03] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 16:56:07,744 [INFO] bazis - [observer] Остановка мониторинга
