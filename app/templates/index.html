@@ -8,7 +8,7 @@
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
   <link rel="icon" href="{{ url_for('static', filename='logo_arh.png') }}">
 </head>
-<body data-page="orders" data-managers="{{ config_managers | join(',') }}" data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}">
+<body data-page="orders" data-managers="{{ config_managers | join(',') }}" data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}" data-current-user="{{ current_user or '' }}" data-current-role="{{ current_role or '' }}">
   <div class="page page--wide">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>

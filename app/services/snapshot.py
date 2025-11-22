@@ -86,6 +86,8 @@ def refresh_orders_snapshot(force: bool = False):
     with bazis_app.orders_snapshot_lock:
         bazis_app.orders_snapshot = deepcopy(snapshot)
         bazis_app.last_snapshot_update = now
+        bazis_app.snapshot_version += 1
+        bazis_app.last_snapshot_ts = now
 
     refresh_search_index()
     return snapshot

@@ -142,6 +142,9 @@ clients_lock = threading.Lock()
 
 orders_snapshot = []
 last_snapshot_update = 0.0
+snapshot_version = 0
+last_snapshot_ts = 0.0
+active_sse_clients = 0
 orders_snapshot_lock = threading.Lock()
 SNAPSHOT_TTL = 3.0
 
@@ -288,6 +291,9 @@ __all__ = [
     "orders_snapshot",
     "orders_snapshot_lock",
     "last_snapshot_update",
+    "snapshot_version",
+    "last_snapshot_ts",
+    "active_sse_clients",
     "order_index_updated_at",
     "order_index_lock",
     "SEARCH_FOLDERS",

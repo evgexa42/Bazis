@@ -1,7 +1,18 @@
+import json
 import os
 import time
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, request, session
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    jsonify,
+    render_template,
+    request,
+    session,
+    stream_with_context,
+)
 
 import app as bazis_app
 from app import get_manager_from_name, logger
@@ -32,6 +43,51 @@ def get_visible_manager_filter(request, session):
 orders_bp = Blueprint("orders", __name__)
 
 
+def _apply_manager_filter(folders, visible_manager, requested_manager):
+    applied_manager_filter = visible_manager
+    if applied_manager_filter is None and requested_manager not in {"", "Все"}:
+        applied_manager_filter = requested_manager
+
+    if applied_manager_filter:
+        folders = [
+            folder
+            for folder in folders
+            if (folder.get("manager") or "Неизвестно") == applied_manager_filter
+        ]
+
+    return folders, applied_manager_filter
+
+
+def _build_orders_payload(visible_manager, requested_manager):
+    folders = get_orders_snapshot(ttl=bazis_app.SNAPSHOT_TTL)
+    folders, _ = _apply_manager_filter(folders, visible_manager, requested_manager)
+
+    total_orders = len(folders)
+    manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
+    manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
+    for folder in folders:
+        manager_name = folder.get("manager") or "Неизвестно"
+        manager_stats.setdefault(manager_name, 0)
+        manager_stats[manager_name] += 1
+
+    tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
+    tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
+    for folder in folders:
+        technologist_name = folder.get("technologist") or "Неизвестно"
+        tech_stats.setdefault(technologist_name, 0)
+        tech_stats[technologist_name] += 1
+
+    return {
+        "orders": folders,
+        "folders": folders,
+        "total": total_orders,
+        "managers": manager_stats,
+        "technologists": tech_stats,
+        "version": bazis_app.snapshot_version,
+        "last_snapshot_ts": bazis_app.last_snapshot_ts,
+    }
+
+
 @orders_bp.route("/")
 def index():
     return render_template("index.html")
@@ -51,45 +107,11 @@ def facades_page():
 
 @orders_bp.route("/data")
 def data():
-    folders = get_orders_snapshot(ttl=bazis_app.SNAPSHOT_TTL)
-
     visible_manager = get_visible_manager_filter(request, session)
     requested_manager = request.args.get("manager", "Все")
+    payload = _build_orders_payload(visible_manager, requested_manager)
 
-    applied_manager_filter = visible_manager
-    if applied_manager_filter is None and requested_manager not in {"", "Все"}:
-        applied_manager_filter = requested_manager
-
-    if applied_manager_filter:
-        folders = [
-            folder
-            for folder in folders
-            if (folder.get("manager") or "Неизвестно") == applied_manager_filter
-        ]
-
-    total_orders = len(folders)
-    manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
-    manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
-    for folder in folders:
-        manager_name = folder.get("manager") or "Неизвестно"
-        manager_stats.setdefault(manager_name, 0)
-        manager_stats[manager_name] += 1
-
-    tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
-    tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
-    for folder in folders:
-        technologist_name = folder.get("technologist") or "Неизвестно"
-        tech_stats.setdefault(technologist_name, 0)
-        tech_stats[technologist_name] += 1
-
-    return jsonify(
-        {
-            "folders": folders,
-            "total": total_orders,
-            "managers": manager_stats,
-            "technologists": tech_stats,
-        }
-    )
+    return jsonify(payload)
 
 
 @orders_bp.route("/search", methods=["GET", "POST"])
@@ -121,6 +143,38 @@ def search_page():
     return render_template(
         "search.html", query=query, results=results, SEARCH_FOLDERS=bazis_app.SEARCH_FOLDERS
     )
+
+
+@orders_bp.route("/stream")
+def stream():
+    visible_manager = get_visible_manager_filter(request, session)
+    requested_manager = request.args.get("manager", "Все")
+
+    @stream_with_context
+    def event_stream():
+        last_version_sent = None
+        last_heartbeat = time.time()
+        bazis_app.active_sse_clients += 1
+
+        try:
+            while True:
+                current_version = bazis_app.snapshot_version
+                now = time.time()
+
+                if last_version_sent != current_version:
+                    payload = _build_orders_payload(visible_manager, requested_manager)
+                    last_version_sent = current_version
+                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                    last_heartbeat = now
+                elif now - last_heartbeat >= 27:
+                    yield "data: {\"ping\": true}\n\n"
+                    last_heartbeat = now
+
+                time.sleep(0.5)
+        finally:
+            bazis_app.active_sse_clients = max(0, bazis_app.active_sse_clients - 1)
+
+    return Response(event_stream(), mimetype="text/event-stream")
 
 
 @orders_bp.route("/facades/generate", methods=["POST"])

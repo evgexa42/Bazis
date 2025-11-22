@@ -26,7 +26,8 @@ const OrdersPage = (() => {
       : 'Все';
   let sortKey = null;
   let sortOrder = 1;
-  let refreshTimer = null;
+  let eventSource = null;
+  let fallbackTimer = null;
 
   function init() {
     const table = document.getElementById('orders');
@@ -40,23 +41,97 @@ const OrdersPage = (() => {
       managerSelect.value = currentManager;
     }
     loadData();
-    refreshTimer = setInterval(loadData, 5000);
+    startEventStream();
   }
 
   function loadData() {
+    const url = `/data?${buildManagerParams().toString()}`;
+
+    fetch(url)
+      .then(response => response.json())
+      .then(json => {
+        updateDataFromPayload(json);
+      })
+      .catch(error => console.error('Ошибка при загрузке данных:', error));
+  }
+
+  function startEventStream() {
+    stopEventStream();
+
+    const baseURL = window.location.origin;
+    const streamUrl = `${baseURL}/stream?${buildManagerParams().toString()}`;
+    eventSource = new EventSource(streamUrl);
+
+    eventSource.onopen = () => {
+      stopFallback();
+    };
+
+    eventSource.onerror = () => {
+      startFallback();
+    };
+
+    eventSource.onmessage = event => {
+      if (!event?.data) return;
+
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.ping) {
+          stopFallback();
+          return;
+        }
+        if (payload.orders || payload.folders) {
+          stopFallback();
+          updateDataFromPayload(payload);
+        }
+      } catch (err) {
+        console.warn('Некорректные данные SSE', err);
+      }
+    };
+  }
+
+  function restartEventStream() {
+    startEventStream();
+  }
+
+  function stopEventStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  }
+
+  function startFallback() {
+    if (fallbackTimer) return;
+
+    loadData();
+    fallbackTimer = setInterval(loadData, 30000);
+  }
+
+  function stopFallback() {
+    if (!fallbackTimer) return;
+
+    clearInterval(fallbackTimer);
+    fallbackTimer = null;
+  }
+
+  function updateDataFromPayload(payload) {
+    const orders = Array.isArray(payload?.orders)
+      ? payload.orders
+      : Array.isArray(payload?.folders)
+        ? payload.folders
+        : [];
+
+    allData = orders;
+    render();
+    renderStats({ ...payload, folders: orders });
+  }
+
+  function buildManagerParams() {
     const params = new URLSearchParams({ manager: currentManager });
     if (APP_CONFIG.currentRole === 'manager' && currentManager === 'Все') {
       params.set('show_all', '1');
     }
-
-    fetch(`/data?${params.toString()}`)
-      .then(response => response.json())
-      .then(json => {
-        allData = Array.isArray(json.folders) ? json.folders : [];
-        render();
-        renderStats(json);
-      })
-      .catch(error => console.error('Ошибка при загрузке данных:', error));
+    return params;
   }
 
   function setStatusFilter(status) {
@@ -81,6 +156,7 @@ const OrdersPage = (() => {
       currentManager = selected;
     }
     loadData();
+    restartEventStream();
   }
 
   function sortBy(key) {
