@@ -6,6 +6,7 @@
   <title>Мониторинг заказов</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+  <link rel="icon" href="{{ url_for('static', filename='logo_arh.png') }}">
 </head>
 <body data-page="orders" data-managers="{{ config_managers | join(',') }}" data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}">
   <div class="page page--wide">

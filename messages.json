@@ -1,38 +1,8 @@
 [
   {
-    "folder": "721-11 ALIANTA MODERNA P.F",
-    "order_key": "721-11",
+    "folder": "901-11 VRABIE VASILII [НЕ ДЕЛАТЬ]",
+    "order_key": "901-11",
     "chat_id": "703087159",
-    "message_id": 885
-  },
-  {
-    "folder": "748-11 ZABACEAI DANIEL",
-    "order_key": "748-11",
-    "chat_id": "703087159",
-    "message_id": 892
-  },
-  {
-    "folder": "676-11 DACTRIL COM",
-    "order_key": "676-11",
-    "chat_id": "703087159",
-    "message_id": 906
-  },
-  {
-    "folder": "810-11 Badea Ion",
-    "order_key": "810-11",
-    "chat_id": "703087159",
-    "message_id": 909
-  },
-  {
-    "folder": "811-11 GHEORGHE ROSCA",
-    "order_key": "811-11",
-    "chat_id": "703087159",
-    "message_id": 910
-  },
-  {
-    "folder": "821-11 STOG DMITRII",
-    "order_key": "821-11",
-    "chat_id": "703087159",
-    "message_id": 911
+    "message_id": 935
   }
 ]

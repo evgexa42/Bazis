@@ -26,7 +26,7 @@
 
     <section class="card">
       <h2 class="section-title">Поисковый запрос</h2>
-      <form method="POST" action="{{ url_for('search_page') }}" class="form-inline">
+      <form method="POST" action="{{ url_for('orders.search_page') }}" class="form-inline">
         <input type="text" name="query" class="input" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
         <button type="submit" class="btn btn--primary">Поиск</button>
       </form>
