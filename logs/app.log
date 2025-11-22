@@ -29663,3 +29663,54 @@ werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'search
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.100.114:5000
 2025-11-22 13:50:13,875 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 14:10:06,507 [INFO] bazis - [observer] Остановка мониторинга
+2025-11-22 14:15:09,952 [INFO] bazis - [observer] Запуск мониторинга папки заказов: \\SERVER\homag\ПРИСАДКА КЛИЕНТА
+2025-11-22 14:15:09,953 [INFO] bazis - Сервер запущен: http://0.0.0.0:5000
+2025-11-22 14:15:09,984 [INFO] werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.114:5000
+2025-11-22 14:15:09,984 [INFO] werkzeug - [33mPress CTRL+C to quit[0m
+2025-11-22 14:15:15,792 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:15] "GET / HTTP/1.1" 200 -
+2025-11-22 14:15:15,876 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:15] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 14:15:15,890 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:15] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 14:15:15,939 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:15] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:20,967 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:20] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:22,157 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "GET /clients HTTP/1.1" 200 -
+2025-11-22 14:15:22,173 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 14:15:22,175 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 14:15:22,232 [ERROR] bazis - [exception] HTTP ошибка
+Traceback (most recent call last):
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\жщшо\AppData\Local\Programs\Python\Python311\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-11-22 14:15:22,280 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-11-22 14:15:22,849 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "GET /search HTTP/1.1" 200 -
+2025-11-22 14:15:22,862 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 14:15:22,864 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:22] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 14:15:23,575 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:23] "GET /facades HTTP/1.1" 200 -
+2025-11-22 14:15:23,590 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:23] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 14:15:23,593 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:23] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 14:15:24,331 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:24] "GET / HTTP/1.1" 200 -
+2025-11-22 14:15:24,345 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:24] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2025-11-22 14:15:24,347 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:24] "[36mGET /static/script.js HTTP/1.1[0m" 304 -
+2025-11-22 14:15:24,356 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:24] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:29,365 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:29] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:34,357 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:34] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:39,362 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:39] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:44,363 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:44] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:50,240 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:50] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:15:55,237 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:15:55] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:16:00,241 [INFO] werkzeug - 192.168.100.114 - - [22/Nov/2025 14:16:00] "GET /data?manager=Все HTTP/1.1" 200 -
+2025-11-22 14:16:03,796 [INFO] bazis - [observer] Остановка мониторинга

@@ -8,7 +8,8 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 from werkzeug.exceptions import HTTPException
 
-from app.dal.database import get_all_clients, init_db, replace_clients
+from app.dal.database import get_all_clients, replace_clients
+from app.dal.db import init_db
 from app.dal.json_store import load_json_file, save_json_atomic
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

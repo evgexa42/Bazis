@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from app.dal.database import init_db, replace_clients, replace_messages
+from app.dal.database import replace_clients, replace_messages
+from app.dal.db import init_db
 from app.dal.json_store import load_json_file
 
 BASE_DIR = Path(__file__).resolve().parent
