@@ -19,13 +19,50 @@ observer = None
 observer_started = False
 
 
+def _norm_real(p: str) -> str:
+    return os.path.normcase(os.path.realpath(os.path.abspath(p)))
+
+def _norm_abs(p: str) -> str:
+    return os.path.normcase(os.path.abspath(p))
+
+def _get_watch_roots() -> set[str]:
+    # корень берём тот же, на котором висит observer:
+    root = bazis_app.WATCHED_PATH or bazis_app.FOLDER_PATH
+    if not root:
+        return set()
+    return {_norm_real(root), _norm_abs(root)}
+
+WATCH_ROOTS = _get_watch_roots()
+
+def in_watch_dir(path: str) -> bool:
+    if not path or not WATCH_ROOTS:
+        return False
+
+    p_real = _norm_real(path)
+    p_abs  = _norm_abs(path)
+
+    for root in WATCH_ROOTS:
+        try:
+            if os.path.commonpath([p_real, root]) == root:
+                return True
+        except ValueError:
+            pass
+
+        try:
+            if os.path.commonpath([p_abs, root]) == root:
+                return True
+        except ValueError:
+            pass
+
+    return False
+
+
 class OrderFolderHandler(FileSystemEventHandler):
     @measure_time("observer_on_created")
     def on_created(self, event):
         if not event.is_directory:
             return
-        parent = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
-        if parent != bazis_app.WATCHED_PATH_NORM:
+        if not in_watch_dir(event.src_path):
             return
         folder_name = os.path.basename(event.src_path)
         logger.info("[observer] Папка создана: %s", folder_name)
@@ -33,8 +70,10 @@ class OrderFolderHandler(FileSystemEventHandler):
             return
         upsert_order(folder_name)
         if telegram_service.should_notify(folder_name):
-            telegram_service.send_telegram_message(
-                telegram_service.build_order_message(folder_name), folder_name
+            telegram_service.enqueue(
+                telegram_service.send_telegram_message,
+                telegram_service.build_order_message(folder_name),
+                folder_name,
             )
 
     @measure_time("observer_on_moved")
@@ -45,18 +84,12 @@ class OrderFolderHandler(FileSystemEventHandler):
         src_name = os.path.basename(event.src_path)
         dest_name = os.path.basename(event.dest_path)
 
-        src_in_watch = (
-            os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
-            == bazis_app.WATCHED_PATH_NORM
-        )
-        dest_in_watch = (
-            os.path.normcase(os.path.abspath(os.path.dirname(event.dest_path)))
-            == bazis_app.WATCHED_PATH_NORM
-        )
+        src_in_watch = in_watch_dir(event.src_path)
+        dest_in_watch = in_watch_dir(event.dest_path)
 
         if src_in_watch and not dest_in_watch:
             unregister_known_folder(src_name)
-            telegram_service.delete_telegram_message(src_name)
+            telegram_service.enqueue(telegram_service.delete_telegram_message, src_name)
             logger.info("[observer] Папка перемещена из каталога: %s", src_name)
             remove_order(src_name)
             return
@@ -66,8 +99,10 @@ class OrderFolderHandler(FileSystemEventHandler):
                 return
             upsert_order(dest_name)
             if telegram_service.should_notify(dest_name):
-                telegram_service.send_telegram_message(
-                    telegram_service.build_order_message(dest_name), dest_name
+                telegram_service.enqueue(
+                    telegram_service.send_telegram_message,
+                    telegram_service.build_order_message(dest_name),
+                    dest_name,
                 )
             logger.info(
                 "[observer] Папка перемещена в каталог или создана: %s -> %s",
@@ -80,30 +115,20 @@ class OrderFolderHandler(FileSystemEventHandler):
         logger.info("[observer] Папка переименована: %s -> %s", src_name, dest_name)
         remove_order(src_name)
         upsert_order(dest_name)
-
-        if telegram_service.folder_has_ready_marker(dest_name):
-            telegram_service.delete_telegram_message(dest_name)
-            return
-
-        if telegram_service.update_message_for_folder(src_name, dest_name):
-            return
-
-        if not already_known and telegram_service.should_notify(dest_name):
-            telegram_service.send_telegram_message(
-                telegram_service.build_order_message(dest_name), dest_name
-            )
+        telegram_service.enqueue(
+            telegram_service.handle_moved_notification, src_name, dest_name, already_known
+        )
 
     @measure_time("observer_on_deleted")
     def on_deleted(self, event):
         if not event.is_directory:
             return
-        parent = os.path.normcase(os.path.abspath(os.path.dirname(event.src_path)))
-        if parent != bazis_app.WATCHED_PATH_NORM:
+        if not in_watch_dir(event.src_path):
             return
         folder_name = os.path.basename(event.src_path)
         logger.info("[observer] Папка удалена: %s", folder_name)
         unregister_known_folder(folder_name)
-        telegram_service.delete_telegram_message(folder_name)
+        telegram_service.enqueue(telegram_service.delete_telegram_message, folder_name)
         remove_order(folder_name)
 
 
@@ -140,7 +165,13 @@ def start_observer_once():
     logger.info("[observer] Запуск мониторинга папки заказов: %s", bazis_app.FOLDER_PATH)
     handler = OrderFolderHandler()
     observer = Observer()
+
+    # пересчёт корней (на случай если конфиг загрузился позже)
+    global WATCH_ROOTS
+    WATCH_ROOTS = _get_watch_roots()
+
     observer.schedule(handler, bazis_app.FOLDER_PATH, recursive=False)
+
     observer.start()
 
     def watchdog_heartbeat():

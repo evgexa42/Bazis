@@ -54,6 +54,56 @@ def get_visible_manager_filter(request, session):
 
     return None
 
+
+def _filter_by_manager(folders, visible_manager, requested_manager):
+    applied_manager_filter = visible_manager
+    if applied_manager_filter is None and requested_manager not in {"", "Все"}:
+        applied_manager_filter = requested_manager
+
+    if applied_manager_filter:
+        folders = [
+            folder
+            for folder in folders
+            if (folder.get("manager") or "Неизвестно") == applied_manager_filter
+        ]
+
+    return folders, applied_manager_filter
+
+
+def _prepare_event_for_client(event: dict, visible_manager, requested_manager):
+    if not isinstance(event, dict):
+        return event
+
+    folders = event.get("folders") or event.get("orders")
+    if folders is None:
+        return event
+
+    filtered_folders, applied_manager = _filter_by_manager(
+        list(folders), visible_manager, requested_manager
+    )
+
+    manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
+    manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
+    tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
+    tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
+
+    for folder in filtered_folders:
+        manager_name = folder.get("manager") or "Неизвестно"
+        technologist = folder.get("technologist") or "Неизвестно"
+        manager_stats.setdefault(manager_name, 0)
+        manager_stats[manager_name] += 1
+        tech_stats.setdefault(technologist, 0)
+        tech_stats[technologist] += 1
+
+    prepared = dict(event)
+    prepared["folders"] = filtered_folders
+    prepared["orders"] = filtered_folders
+    prepared["total"] = len(filtered_folders)
+    prepared["managers"] = manager_stats
+    prepared["technologists"] = tech_stats
+    prepared["applied_manager"] = applied_manager
+    return prepared
+
 orders_bp = Blueprint("orders", __name__)
 
 
@@ -126,6 +176,7 @@ def events():
 
     def gen():
         initial = build_orders_payload(visible_manager, requested_manager)
+        initial = _prepare_event_for_client(initial, visible_manager, requested_manager)
         yield f"data: {json.dumps(initial, ensure_ascii=False)}\n\n"
 
         last_ping = time.time()
@@ -133,7 +184,8 @@ def events():
             while True:
                 try:
                     ev = client.q.get(timeout=15)
-                    yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+                    prepared = _prepare_event_for_client(ev, visible_manager, requested_manager)
+                    yield f"data: {json.dumps(prepared, ensure_ascii=False)}\n\n"
                 except queue.Empty:
                     yield ": ping\n\n"
                 if time.time() - last_ping > 60:

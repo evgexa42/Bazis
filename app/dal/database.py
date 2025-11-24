@@ -5,7 +5,7 @@ from typing import Dict, Iterable, List
 
 from sqlalchemy import Column, Float, Integer, String, Text
 
-from app.dal.db import Base, SessionLocal, engine, init_db
+from app.dal.db import BASE_DIR, Base, SessionLocal, engine, init_db
 
 
 class Client(Base):

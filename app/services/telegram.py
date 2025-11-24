@@ -1,4 +1,5 @@
 import json
+import queue
 import threading
 from typing import List, Optional
 
@@ -12,6 +13,38 @@ from app.dal.database import replace_messages as replace_messages_in_db
 bot: Optional[Bot] = None
 messages: List[dict] = []
 messages_lock = threading.Lock()
+tg_queue: "queue.Queue[tuple]" = queue.Queue(maxsize=1000)
+
+
+def enqueue(fn, *args, **kwargs) -> None:
+    try:
+        tg_queue.put_nowait((fn, args, kwargs))
+    except queue.Full:
+        logger.warning("[TG queue] Очередь заполнена, задача отброшена: %s", fn)
+
+
+def _worker():
+    while True:
+        func, args, kwargs = tg_queue.get()
+        try:
+            func(*args, **kwargs)
+        except Exception as exc:  # pragma: no cover - логирование ошибок воркера
+            logger.exception("[TG queue] Ошибка выполнения задачи %s", exc_info=exc)
+        finally:
+            tg_queue.task_done()
+
+_worker_started = False
+_worker_lock = threading.Lock()
+
+def start_worker_once():
+    global _worker_started
+    if _worker_started:
+        return
+    with _worker_lock:
+        if _worker_started:
+            return
+        threading.Thread(target=_worker, daemon=True).start()
+        _worker_started = True
 
 IGNORED_FOLDERS = {"Архив", "2025"}
 
@@ -19,6 +52,7 @@ IGNORED_FOLDERS = {"Архив", "2025"}
 def init_bot(token: str) -> None:
     global bot
     bot = Bot(token=token) if token else None
+    start_worker_once()
 
 
 def load_messages_storage(path: Optional[str] = None) -> None:
@@ -39,7 +73,9 @@ def load_messages_storage(path: Optional[str] = None) -> None:
         entry["folder"] = folder
         entry["order_key"] = order_key
         cleaned.append(entry)
-    messages = cleaned
+    with messages_lock:
+        messages = cleaned
+
 
 
 def save_messages(msgs: List[dict]) -> None:
@@ -104,7 +140,8 @@ def send_telegram_message(msg: str, folder_name: str) -> None:
         }
         with messages_lock:
             messages.append(entry)
-            save_messages(messages)
+            snapshot = list(messages)
+        save_messages(snapshot)
         logger.info(
             "[TG] Сообщение отправлено и сохранено для %s -> id %s",
             folder_name,
@@ -145,7 +182,9 @@ def delete_telegram_message(folder_name: str) -> None:
 
     with messages_lock:
         messages = [m for m in messages if m not in candidates]
-        save_messages(messages)
+        snapshot = list(messages)
+
+    save_messages(snapshot)
 
 
 def find_message_entry(old_name: str, new_name: Optional[str] = None):
@@ -189,8 +228,22 @@ def update_message_for_folder(old_name: str, new_name: str) -> bool:
         if entry in messages:
             entry["folder"] = new_name
             entry["order_key"] = order_key_from_name(new_name)
-            save_messages(messages)
+        snapshot = list(messages)
+
+    save_messages(snapshot)
     return True
+
+
+def handle_moved_notification(old_name: str, new_name: str, already_known: bool) -> None:
+    if folder_has_ready_marker(new_name):
+        delete_telegram_message(new_name)
+        return
+
+    if update_message_for_folder(old_name, new_name):
+        return
+
+    if not already_known and should_notify(new_name):
+        send_telegram_message(build_order_message(new_name), new_name)
 
 
 def ensure_message_for_folder(folder_name: str) -> None:
@@ -248,4 +301,6 @@ def cleanup_missing_messages(existing_keys) -> None:
 
     with messages_lock:
         messages = [m for m in messages if m not in stale_entries]
-        save_messages(messages)
+        snapshot = list(messages)
+
+    save_messages(snapshot)

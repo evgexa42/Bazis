@@ -1,8 +1,7 @@
-
-import hashlib
 import hashlib
 import os
 import sqlite3
+import threading
 import time
 from datetime import datetime
 from time import perf_counter
@@ -71,7 +70,10 @@ def parse_folder_entry(
         "days": days_ago,
         "confirmed": confirmed,
         "order_number": order_number,
-    }
+}
+
+INDEX_TTL = 60.0
+_index_lock = threading.Lock()
 
 
 def _apply_snapshot(new_snapshot: List[Dict]) -> bool:
@@ -145,7 +147,6 @@ def refresh_orders_snapshot(force: bool = False):
     changed = _apply_snapshot(snapshot)
     if changed:
         sse_broadcast(build_orders_payload())
-    refresh_search_index()
     return list(snapshot)
 
 
@@ -159,19 +160,18 @@ def get_orders_snapshot(ttl: float = bazis_app.SNAPSHOT_TTL):
 
 
 def _merge_order(entry: dict) -> bool:
+    # атомарно читаем+меняем snapshot под одним локом
     with bazis_app.orders_snapshot_lock:
         snapshot = list(bazis_app.orders_snapshot)
 
-    replaced = False
-    for idx, item in enumerate(snapshot):
-        if item.get("name") == entry.get("name"):
-            if item == entry:
-                return False
-            snapshot[idx] = entry
-            replaced = True
-            break
-    if not replaced:
-        snapshot.append(entry)
+        for idx, item in enumerate(snapshot):
+            if item.get("name") == entry.get("name"):
+                if item == entry:
+                    return False
+                snapshot[idx] = entry
+                break
+        else:
+            snapshot.append(entry)
 
     return _apply_snapshot(snapshot)
 
@@ -188,8 +188,12 @@ def upsert_order(folder_name: str) -> bool:
 
 
 def remove_order(folder_name: str) -> bool:
+    # тоже атомарно формируем новый snapshot под локом
     with bazis_app.orders_snapshot_lock:
-        snapshot = [item for item in bazis_app.orders_snapshot if item.get("name") != folder_name]
+        snapshot = [
+            item for item in bazis_app.orders_snapshot
+            if item.get("name") != folder_name
+        ]
 
     changed = _apply_snapshot(snapshot)
     if changed:
@@ -287,84 +291,107 @@ def ensure_search_table(conn: sqlite3.Connection):
 
 
 def refresh_search_index(full: bool = False):
-    conn = get_sqlite_connection()
-    ensure_search_table(conn)
-    cur = conn.cursor()
+    now = time.time()
+    if not full:
+        with bazis_app.order_index_lock:
+            if bazis_app.order_index_updated_at and now - bazis_app.order_index_updated_at < INDEX_TTL:
+                return False
 
-    search_months = get_recent_months()
-    all_rows: List[Tuple] = []
-    cleanup_batches: List[Tuple[str, str, Set[str]]] = []
+    if not _index_lock.acquire(blocking=False):
+        return False
 
-    for base_key, base_folder in bazis_app.SEARCH_FOLDERS.items():
-        if not base_folder:
-            continue
-        for month in search_months:
-            month_path = os.path.join(base_folder, month)
-            if not os.path.isdir(month_path):
+    conn = None
+    try:
+        if not full:
+            with bazis_app.order_index_lock:
+                if bazis_app.order_index_updated_at and time.time() - bazis_app.order_index_updated_at < INDEX_TTL:
+                    return False
+
+        conn = get_sqlite_connection()
+        ensure_search_table(conn)
+        cur = conn.cursor()
+
+        search_months = get_recent_months()
+        all_rows: List[Tuple] = []
+        cleanup_batches: List[Tuple[str, str, Set[str]]] = []
+
+        for base_key, base_folder in bazis_app.SEARCH_FOLDERS.items():
+            if not base_folder:
                 continue
+            for month in search_months:
+                month_path = os.path.join(base_folder, month)
+                if not os.path.isdir(month_path):
+                    continue
 
-            paths_set: set[str] = set()
-            try:
-                with os.scandir(month_path) as it:
-                    for entry in it:
-                        if not entry.is_dir():
-                            continue
-                        name = entry.name
-                        full_path = os.path.join(month_path, name)
-                        paths_set.add(full_path)
-                        mtime_ts = entry.stat().st_mtime
-                        manager = get_manager_from_name(name)
-                        all_rows.append(
-                            (
-                                base_key,
-                                month,
-                                name,
-                                name.lower(),
-                                manager,
-                                full_path,
-                                mtime_ts,
+                paths_set: set[str] = set()
+                try:
+                    with os.scandir(month_path) as it:
+                        for entry in it:
+                            if not entry.is_dir():
+                                continue
+                            name = entry.name
+                            full_path = os.path.join(month_path, name)
+                            paths_set.add(full_path)
+                            mtime_ts = entry.stat().st_mtime
+                            manager = get_manager_from_name(name)
+                            all_rows.append(
+                                (
+                                    base_key,
+                                    month,
+                                    name,
+                                    name.lower(),
+                                    manager,
+                                    full_path,
+                                    mtime_ts,
+                                )
                             )
-                        )
-            except FileNotFoundError:
-                paths_set = set()
+                except FileNotFoundError:
+                    paths_set = set()
 
-            cleanup_batches.append((base_key, month, paths_set))
+                cleanup_batches.append((base_key, month, paths_set))
 
-    if all_rows:
-        cur.execute("BEGIN")
-        cur.executemany(
-            """
-            INSERT INTO search_index(base_key, month, name, name_lc, manager, path, mtime_ts)
-            VALUES(?,?,?,?,?,?,?)
-            ON CONFLICT(path) DO UPDATE SET
-                name=excluded.name,
-                name_lc=excluded.name_lc,
-                manager=excluded.manager,
-                mtime_ts=excluded.mtime_ts
-            """,
-            all_rows,
-        )
-        cur.execute("COMMIT")
-
-    for base_key, month, paths_set in cleanup_batches:
-        if paths_set:
-            placeholders = ",".join("?" for _ in paths_set)
-            cur.execute(
-                f"DELETE FROM search_index WHERE base_key=? AND month=? AND path NOT IN ({placeholders})",
-                (base_key, month, *paths_set),
+        if all_rows:
+            cur.execute("BEGIN")
+            cur.executemany(
+                """
+                INSERT INTO search_index(base_key, month, name, name_lc, manager, path, mtime_ts)
+                VALUES(?,?,?,?,?,?,?)
+                ON CONFLICT(path) DO UPDATE SET
+                    name=excluded.name,
+                    name_lc=excluded.name_lc,
+                    manager=excluded.manager,
+                    mtime_ts=excluded.mtime_ts
+                """,
+                all_rows,
             )
-        else:
-            cur.execute(
-                "DELETE FROM search_index WHERE base_key=? AND month=?",
-                (base_key, month),
-            )
+            cur.execute("COMMIT")
 
-    conn.commit()
-    conn.close()
+        for base_key, month, paths_set in cleanup_batches:
+            if paths_set:
+                placeholders = ",".join("?" for _ in paths_set)
+                cur.execute(
+                    f"DELETE FROM search_index WHERE base_key=? AND month=? AND path NOT IN ({placeholders})",
+                    (base_key, month, *paths_set),
+                )
+            else:
+                cur.execute(
+                    "DELETE FROM search_index WHERE base_key=? AND month=?",
+                    (base_key, month),
+                )
 
-    with bazis_app.order_index_lock:
-        bazis_app.order_index_updated_at = time.time()
-    heartbeat("indexer")
+        conn.commit()
+
+        with bazis_app.order_index_lock:
+            bazis_app.order_index_updated_at = time.time()
+        heartbeat("indexer")
+        return True
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        _index_lock.release()
 
 
 @measure_time("search")
@@ -396,15 +423,12 @@ def search_in_index(query: str):
 
 
 def background_snapshot_updater(interval: float = 180.0):
-    last_hash = None
     while True:
         try:
             snapshot = build_orders_snapshot()
             changed = _apply_snapshot(snapshot)
-            current_hash = hashlib.sha256(str(snapshot).encode("utf-8", errors="ignore")).hexdigest()
-            if changed or last_hash != current_hash:
+            if changed:
                 sse_broadcast(build_orders_payload())
-                last_hash = current_hash
             refresh_search_index()
         except Exception as exc:
             logger.exception("[snapshot] Ошибка фонового обновления", exc_info=exc)

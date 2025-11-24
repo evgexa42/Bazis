@@ -46,7 +46,7 @@
               <span class="folder-name">{{ item.name }}</span>
               <span class="manager-label">👤 {{ item.manager }}</span>
             </div>
-            <form action="{{ url_for('open_folder') }}" method="POST" class="open-form" style="margin:0;">
+            <form action="{{ url_for('orders.open_folder') }}" method="POST" class="open-form" style="margin:0;">
               <input type="hidden" name="path" value="{{ item.path }}">
               <button type="submit" class="btn btn--accent btn--small">📂 Открыть папку</button>
             </form>
