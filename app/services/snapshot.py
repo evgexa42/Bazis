@@ -145,9 +145,37 @@ def refresh_orders_snapshot(force: bool = False):
 
     snapshot = build_orders_snapshot()
     changed = _apply_snapshot(snapshot)
+    # всегда возвращаем применённый (отсортированный) снапшот, а не сырой build_orders_snapshot
+    with bazis_app.orders_snapshot_lock:
+        applied_snapshot = list(bazis_app.orders_snapshot)
+
     if changed:
-        sse_broadcast(build_orders_payload())
-    return list(snapshot)
+        manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
+        manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
+        tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
+        tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
+
+        for folder in applied_snapshot:
+            manager_name = folder.get("manager") or "Неизвестно"
+            manager_stats.setdefault(manager_name, 0)
+            manager_stats[manager_name] += 1
+
+            technologist_name = folder.get("technologist") or "Неизвестно"
+            tech_stats.setdefault(technologist_name, 0)
+            tech_stats[technologist_name] += 1
+
+        sse_broadcast({
+            "type": "orders_snapshot",
+            "orders": applied_snapshot,
+            "folders": applied_snapshot,
+            "total": len(applied_snapshot),
+            "managers": manager_stats,
+            "technologists": tech_stats,
+            "version": bazis_app.orders_version,
+            "last_snapshot_ts": bazis_app.last_snapshot_ts,
+        })
+
+    return applied_snapshot
 
 
 def get_orders_snapshot(ttl: float = bazis_app.SNAPSHOT_TTL):
