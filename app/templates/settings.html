@@ -167,9 +167,84 @@ data-managers="{{ config_managers | join(',') }}"
   </section>
 
   <section class="card tab-content" data-tab-panel="metrics">
-    <h2 class="section-title">Метрики и состояние</h2>
-    <div id="metrics">
-      <p class="hint">Метрики загрузятся автоматически.</p>
+    <div class="users-header">
+      <div>
+        <h2 class="section-title">Метрики и состояние</h2>
+        <p class="hint">Сводка по серверу, снапшотам, потокам и ошибкам. Обновляется автоматически.</p>
+      </div>
+      <span id="metricsStatus" class="text-muted"></span>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metrics-card">
+        <h3 class="section-subtitle">Server</h3>
+        <div class="metrics-row"><span>Uptime</span><span id="metric-uptime">—</span></div>
+        <div class="metrics-row"><span>Started at</span><span id="metric-started">—</span></div>
+        <div class="metrics-row"><span>Active requests</span><span id="metric-active-requests">—</span></div>
+        <div class="metrics-row"><span>Total requests</span><span id="metric-total-requests">—</span></div>
+        <div class="metrics-row"><span>RPS (avg, 60s)</span><span id="metric-rps">—</span></div>
+        <div class="metrics-row"><span>CPU %</span><span id="metric-cpu">—</span></div>
+        <div class="metrics-row"><span>RAM %</span><span id="metric-ram">—</span></div>
+        <div class="metrics-row"><span>Process RSS</span><span id="metric-rss">—</span></div>
+      </div>
+
+      <div class="metrics-card">
+        <h3 class="section-subtitle">Snapshot</h3>
+        <div class="metrics-row"><span>Version</span><span id="metric-snapshot-version">—</span></div>
+        <div class="metrics-row"><span>Orders count</span><span id="metric-snapshot-orders">—</span></div>
+        <div class="metrics-row"><span>Last update</span><span id="metric-snapshot-age">—</span></div>
+        <div class="metrics-row"><span>Last build, ms</span><span id="metric-snapshot-last">—</span></div>
+        <div class="metrics-row"><span>Avg build, ms</span><span id="metric-snapshot-avg">—</span></div>
+        <div class="metrics-row"><span>Build count</span><span id="metric-snapshot-count">—</span></div>
+      </div>
+
+      <div class="metrics-card">
+        <h3 class="section-subtitle">SSE</h3>
+        <div class="metrics-row"><span>Active clients</span><span id="metric-sse-clients">—</span></div>
+        <div class="metrics-row"><span>Last broadcast</span><span id="metric-sse-age">—</span></div>
+      </div>
+
+      <div class="metrics-card">
+        <h3 class="section-subtitle">Threads</h3>
+        <table class="metrics-table">
+          <thead><tr><th>Thread</th><th>Last heartbeat</th><th>Status</th></tr></thead>
+          <tbody id="metrics-threads"></tbody>
+        </table>
+      </div>
+
+      <div class="metrics-card">
+        <h3 class="section-subtitle">DB</h3>
+        <div class="metrics-row"><span>Size (MB)</span><span id="metric-db-size">—</span></div>
+        <div class="metrics-row"><span>Last backup</span><span id="metric-db-backup">—</span></div>
+      </div>
+
+      <div class="metrics-card">
+        <h3 class="section-subtitle">Errors</h3>
+        <div class="metrics-row"><span>Total</span><span id="metric-errors-total">—</span></div>
+        <div class="metrics-row"><span>Last 24h</span><span id="metric-errors-24h">—</span></div>
+      </div>
+    </div>
+
+    <div class="metrics-card metrics-card--wide">
+      <h3 class="section-subtitle">Endpoints performance</h3>
+      <table class="metrics-table">
+        <thead>
+          <tr>
+            <th>Endpoint</th>
+            <th>Count</th>
+            <th>Avg, ms</th>
+            <th>Last, ms</th>
+            <th>Max, ms</th>
+            <th>Last status</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-endpoints"></tbody>
+      </table>
+    </div>
+
+    <div class="metrics-card metrics-card--wide">
+      <h3 class="section-subtitle">Errors log (last 10)</h3>
+      <div id="metrics-errors-list" class="metrics-errors"></div>
     </div>
   </section>
 {% endblock %}

@@ -441,7 +441,7 @@ const OrdersPage = (() => {
 })();
 
 const SettingsPage = (() => {
-  let metricsLoaded = false;
+  let metricsTimer = null;
 
   function init() {
     const tabs = document.querySelectorAll('.tab-btn');
@@ -458,7 +458,7 @@ const SettingsPage = (() => {
     }
   }
 
-  function activateTab(tab, tabs, panels, shouldFocusMetrics = true) {
+  function activateTab(tab, tabs, panels, manageMetrics = true) {
     const target = tab.dataset.tab;
 
     tabs.forEach(btn => btn.classList.toggle('is-active', btn === tab));
@@ -466,33 +466,164 @@ const SettingsPage = (() => {
       panel.classList.toggle('is-active', panel.dataset.tabPanel === target);
     });
 
-    if (target === 'metrics' && shouldFocusMetrics) {
-      loadMetrics();
+    if (!manageMetrics) return;
+    if (target === 'metrics') {
+      startMetricsPolling();
+    } else {
+      stopMetricsPolling();
     }
   }
 
-  function loadMetrics() {
-    if (metricsLoaded) return;
-    const metricsContainer = document.getElementById('metrics');
-    if (!metricsContainer) return;
+  function startMetricsPolling() {
+    if (metricsTimer) return;
+    metricsTimer = setInterval(loadMetrics, 5000);
+    loadMetrics();
+  }
 
-    metricsContainer.innerHTML = '<p class="hint">Загружаем метрики...</p>';
+  function stopMetricsPolling() {
+    if (!metricsTimer) return;
+    clearInterval(metricsTimer);
+    metricsTimer = null;
+  }
 
-    fetch('/api/metrics')
-      .then(response => {
-        if (!response.ok) throw new Error('Failed to load metrics');
-        return response.json();
-      })
-      .then(data => {
-        metricsLoaded = true;
-        const pre = document.createElement('pre');
-        pre.textContent = JSON.stringify(data, null, 2);
-        metricsContainer.innerHTML = '';
-        metricsContainer.appendChild(pre);
-      })
-      .catch(() => {
-        metricsContainer.innerHTML = '<p class="notice-card notice-card--error">Не удалось загрузить метрики.</p>';
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function formatUptime(seconds) {
+    if (seconds === null || seconds === undefined) return '—';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hrs} ч ${mins} м`;
+  }
+
+  function formatMs(value) {
+    if (value === null || value === undefined) return '—';
+    return value.toFixed(1);
+  }
+
+  function setStatus(text, isError = false) {
+    const box = document.getElementById('metricsStatus');
+    if (!box) return;
+    box.textContent = text;
+    box.classList.toggle('text-danger', isError);
+  }
+
+  function buildThreadsTable(threads, nowSec) {
+    const tbody = document.getElementById('metrics-threads');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    Object.entries(threads || {})
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([name, info]) => {
+        const lastTs = info?.last_heartbeat || 0;
+        const secondsAgo = lastTs ? Math.max(0, (nowSec - lastTs).toFixed(1)) : '—';
+        const alive = lastTs && nowSec - lastTs <= 5 ? 'OK' : 'DEAD';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${name}</td>
+          <td>${secondsAgo} c назад</td>
+          <td>
+            <span class="status-pill ${alive === 'OK' ? 'status-pill--success' : 'status-pill--error'}">${alive}</span>
+          </td>
+        `;
+        tbody.appendChild(row);
       });
+  }
+
+  function buildEndpointsTable(perEndpoint) {
+    const tbody = document.getElementById('metrics-endpoints');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const entries = Object.entries(perEndpoint || {})
+      .sort(([, a], [, b]) => (b?.count || 0) - (a?.count || 0))
+      .slice(0, 30);
+
+    entries.forEach(([name, info]) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${name}</td>
+        <td>${info.count || 0}</td>
+        <td>${formatMs(info.avg_ms || 0)}</td>
+        <td>${formatMs(info.last_ms || 0)}</td>
+        <td>${formatMs(info.max_ms || 0)}</td>
+        <td>${info.last_status || 0}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function buildErrorsList(errors) {
+    const container = document.getElementById('metrics-errors-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    (errors || []).slice(-10).reverse().forEach(item => {
+      const wrapper = document.createElement('details');
+      const when = item?.ts ? new Date(item.ts * 1000).toLocaleString() : '';
+      wrapper.innerHTML = `
+        <summary>${when} · ${item?.endpoint || ''} · ${item?.err || ''}</summary>
+        <pre>${item?.trace || ''}</pre>
+      `;
+      container.appendChild(wrapper);
+    });
+  }
+
+  async function loadMetrics() {
+    const metricsPanel = document.querySelector('[data-tab-panel="metrics"].is-active');
+    if (!metricsPanel) return;
+
+    try {
+      const response = await fetch('/api/metrics', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!response.ok) throw new Error('Response not ok');
+
+      const data = await response.json();
+      const nowSec = Date.now() / 1000;
+      setStatus(`Обновлено: ${new Date().toLocaleTimeString()}`);
+
+      const uptime = Math.max(0, Math.round(nowSec - (data.started_at || nowSec)));
+      setText('metric-uptime', formatUptime(uptime));
+      setText('metric-started', data.started_at ? new Date(data.started_at * 1000).toLocaleString() : '—');
+      setText('metric-active-requests', data?.requests?.active ?? '—');
+      setText('metric-total-requests', data?.requests?.total ?? '—');
+      const rpsValues = data?.requests?.last_minute_rps || [];
+      const rpsAvg = rpsValues.length
+        ? (rpsValues.reduce((a, b) => a + b, 0) / rpsValues.length).toFixed(2)
+        : '0.00';
+      setText('metric-rps', rpsAvg);
+      setText('metric-cpu', data?.system?.cpu_percent ?? '—');
+      setText('metric-ram', data?.system?.ram_percent ?? '—');
+      setText('metric-rss', data?.system?.process_rss_mb ? `${data.system.process_rss_mb} МБ` : '—');
+
+      setText('metric-snapshot-version', data?.snapshot?.version ?? '—');
+      setText('metric-snapshot-orders', data?.snapshot?.orders_count ?? '—');
+      setText('metric-snapshot-age', data?.snapshot?.seconds_ago !== undefined ? `${data.snapshot.seconds_ago} c назад` : '—');
+      setText('metric-snapshot-last', formatMs(data?.snapshot?.last_build_ms));
+      setText('metric-snapshot-avg', formatMs(data?.snapshot?.avg_build_ms));
+      setText('metric-snapshot-count', data?.snapshot?.build_count ?? '—');
+
+      setText('metric-sse-clients', data?.sse?.active_clients ?? '—');
+      setText('metric-sse-age', data?.sse?.seconds_ago !== undefined ? `${data.sse.seconds_ago} c назад` : '—');
+
+      const dbSize = data?.db?.size_bytes ? (data.db.size_bytes / (1024 * 1024)).toFixed(2) : '—';
+      setText('metric-db-size', dbSize);
+      const backupAgo = data?.db?.last_backup_hours_ago;
+      setText('metric-db-backup', backupAgo !== null && backupAgo !== undefined ? `${backupAgo} ч назад` : '—');
+
+      setText('metric-errors-total', data?.errors?.total ?? '—');
+      setText('metric-errors-24h', data?.errors?.errors_last_24h ?? '—');
+
+      buildThreadsTable(data?.threads, nowSec);
+      buildEndpointsTable(data?.requests?.per_endpoint);
+      buildErrorsList(data?.errors?.last_items);
+    } catch (error) {
+      console.error('Metrics load failed', error);
+      setStatus('Не удалось обновить метрики', true);
+    }
   }
 
   return { init };
@@ -846,4 +977,5 @@ document.addEventListener('DOMContentLoaded', () => {
   ClientsPage.init();
   SearchPage.init();
   FacadesPage.init();
+  SettingsPage.init();
 });

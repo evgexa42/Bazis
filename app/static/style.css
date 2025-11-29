@@ -600,6 +600,14 @@ select:focus {
   line-height: 1.4;
 }
 
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
 .clients-table .manager-tag {
   display: inline-flex;
   align-items: center;
