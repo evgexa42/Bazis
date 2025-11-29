@@ -381,11 +381,38 @@ def get_manager_from_name(folder_name):
     return "Неизвестно"
 
 
+def get_secret_key():
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        return env_key
+
+    server_config = CONFIG.get("server", {}) if isinstance(CONFIG, dict) else {}
+    config_key = server_config.get("secret_key")
+    if config_key:
+        return config_key
+
+    logger.warning(
+        "[security] SECRET_KEY не задан в окружении или config.json, используется значение по умолчанию."
+    )
+    return "dev-secret-key"
+
+
 app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
-if app.secret_key == "dev-secret-key":
-    logger.warning("[security] Используется дефолтный SECRET_KEY, задайте переменную окружения.")
-app.permanent_session_lifetime = timedelta(hours=12)
+
+secret_key = get_secret_key()
+app.config.update(
+    SECRET_KEY=secret_key,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+    SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=False,
+)
+
+if secret_key == "dev-secret-key":
+    logger.warning(
+        "[security] Используется дефолтный SECRET_KEY, задайте переменную окружения или config.json."
+    )
 app.logger.handlers = []
 app.logger.setLevel(logging.INFO)
 for h in logger.handlers:

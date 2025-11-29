@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вход в систему</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body class="page page--narrow">
+{% extends "base.html" %}
+
+{% block title %}Вход в систему{% endblock %}
+
+{% block body_attrs %}data-page="login"{% endblock %}
+
+{% block page_class %}page--narrow{% endblock %}
+
+{% block content %}
   <div class="auth-card card">
     <h1 class="section-title">Вход в панель</h1>
     {% if error %}
@@ -22,5 +22,4 @@
       <button type="submit" class="btn btn--primary auth-submit">Войти</button>
     </form>
   </div>
-</body>
-</html>
+{% endblock %}

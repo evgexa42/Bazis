@@ -1,12 +1,22 @@
 from functools import wraps
 from typing import Callable, Iterable, Optional
 
-from flask import (Blueprint, abort, g, redirect, render_template, request,
-                   session, url_for)
+from flask import (
+    Blueprint,
+    abort,
+    g,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 from app.dal.users import verify_user_credentials
 
 auth_bp = Blueprint("auth", __name__)
+
+PUBLIC_ENDPOINTS = {"auth.login", "static", "orders.ping"}
 
 
 def login_required(view: Callable):
@@ -41,6 +51,19 @@ def load_current_user():
     g.current_role = session.get("role")
 
 
+@auth_bp.before_app_request
+def enforce_login():
+    endpoint = request.endpoint or ""
+
+    if endpoint in PUBLIC_ENDPOINTS or endpoint.startswith("static"):
+        return
+
+    if not session.get("user"):
+        next_url = request.full_path if request.query_string else request.path
+        next_url = next_url.rstrip("?")
+        return redirect(url_for("auth.login", next=next_url))
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     error: Optional[str] = None
@@ -52,7 +75,7 @@ def login():
             session.permanent = True
             session["user"] = user["username"]
             session["role"] = user["role"]
-            next_url = request.args.get("next") or url_for("settings.settings_page")
+            next_url = request.args.get("next") or url_for("orders.index")
             return redirect(next_url)
         error = "Неверное имя пользователя или пароль."
 

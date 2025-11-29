@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ошибка{% if code %} {{ code }}{% endif %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% extends "base.html" %}
 
-  <!-- Локальные стили только для этой страницы -->
+{% block title %}Ошибка{% if code %} {{ code }}{% endif %}{% endblock %}
+
+{% block body_attrs %}data-page="error"{% endblock %}
+
+{% block page_class %}page--narrow{% endblock %}
+
+{% block extra_head %}
   <style>
     .error-hero {
       display: grid;
@@ -55,73 +55,43 @@
       word-break: break-word;
     }
   </style>
-</head>
+{% endblock %}
 
-<body>
-  <div class="page page--narrow">
-    <nav class="top-menu" aria-label="Навигация">
-      <a href="/">Главная</a>
-      <a href="/search">Поиск</a>
-      <a href="/settings">Настройки</a>
-    </nav>
+{% block content %}
+  <header class="page-header">
+    <div class="error-hero">
+      <div class="error-icon">!</div>
 
-    <header class="page-header">
-      <div class="error-hero">
-        <div class="error-icon">!</div>
-
-        <div>
-          <h1>Произошла ошибка</h1>
-          {% if code %}
-            <div class="error-code">Код: {{ code }}</div>
-          {% endif %}
-        </div>
+      <div>
+        <h1>Произошла ошибка</h1>
+        {% if code %}
+          <div class="error-code">Код: {{ code }}</div>
+        {% endif %}
       </div>
+    </div>
 
-      <p class="page-description">
-        {{ error or "Что-то пошло не так. Попробуйте повторить действие." }}
-      </p>
-    </header>
+    <p class="page-description">
+      Что-то пошло не так. Попробуйте вернуться на главную или повторить действие позднее.
+    </p>
+  </header>
 
-    <section class="card">
-      <div class="notice-card notice-card--error">
-        Если ошибка повторяется — это уже баг, а не случайность.
-        Скопируй детали и отправь разработчику / себе в заметки.
-      </div>
+  {% if message %}
+  <section class="card">
+    <h2 class="section-title">Детали</h2>
+    <p class="error-hint">{{ message }}</p>
+  </section>
+  {% endif %}
 
-      <div class="error-actions">
-        <button class="btn btn--primary" onclick="location.reload()">
-          Обновить страницу
-        </button>
-        <button class="btn btn--ghost" onclick="history.back()">
-          Назад
-        </button>
-        <a class="btn btn--accent" href="/">
-          На главную
-        </a>
-      </div>
+  {% if traceback %}
+  <section class="card">
+    <h2 class="section-title">Traceback</h2>
+    <pre>{{ traceback }}</pre>
+  </section>
+  {% endif %}
 
-      <p class="error-hint">
-        Часто это помогает: перезагрузка страницы, повтор входа, или проверка сетевой шары/серверного диска.
-      </p>
-    </section>
-
-    {% if traceback %}
-      <section class="card" style="margin-top:16px;">
-        <h2 class="section-title">Технические детали</h2>
-        <details class="metrics-errors" open>
-          <summary>Показать / скрыть трассировку</summary>
-          <pre><code>{{ traceback }}</code></pre>
-        </details>
-      </section>
-    {% endif %}
-
-    {% if request_id %}
-      <section class="card" style="margin-top:16px;">
-        <div class="table-muted">
-          Request ID: <code>{{ request_id }}</code>
-        </div>
-      </section>
-    {% endif %}
+  <div class="error-actions">
+    <a href="/" class="btn btn--primary">На главную</a>
+    <a href="/search" class="btn btn--ghost">К поиску</a>
+    <a href="/settings" class="btn btn--ghost">Настройки</a>
   </div>
-</body>
-</html>
+{% endblock %}

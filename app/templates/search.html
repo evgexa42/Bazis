@@ -1,70 +1,60 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Поиск заказов</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
-</head>
-<body data-page="search" data-managers="{{ config_managers | join(',') }}" data-current-user="{{ current_user or '' }}" data-current-role="{{ current_role or '' }}">
-  <div class="page page--wide">
-    <nav class="top-menu">
-      <a href="/">📦 Мониторинг</a>
-      <a href="/clients">👥 Клиенты</a>
-      <a href="/search">🔍 Поиск</a>
-      <a href="/facades">🚪 Фасады</a>
-    </nav>
+{% extends "base.html" %}
 
-    <header class="page-header">
-      <h1>🔍 Поиск заказов</h1>
-      <p class="page-description">
-        Найдите нужный заказ по номеру и быстро перейдите к папке проекта. Используйте копирование пути или
-        открытие в проводнике для мгновенного доступа.
-      </p>
-    </header>
+{% block title %}Поиск заказов{% endblock %}
 
-    <section class="card">
-      <h2 class="section-title">Поисковый запрос</h2>
-      <form method="POST" action="{{ url_for('orders.search_page') }}" class="form-inline">
-        <input type="text" name="query" class="input" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
-        <button type="submit" class="btn btn--primary">Поиск</button>
-      </form>
-      {% if query %}
-      <p class="hint">Результаты поиска для: <strong>{{ query }}</strong></p>
-      {% endif %}
-    </section>
+{% block body_attrs %}
+data-page="search"
+data-managers="{{ config_managers | join(',') }}"
+{% endblock %}
 
-    {% for key, items in results.items() %}
-    <section class="card">
-      <h3 class="section-title">{{ key }}</h3>
-      {% if items %}
-        {% for item in items %}
-        <article class="folder-card">
-          <div class="folder-top">
-            <div>
-              <span class="folder-name">{{ item.name }}</span>
-              <span class="manager-label">👤 {{ item.manager }}</span>
-            </div>
-            <form action="{{ url_for('orders.open_folder') }}" method="POST" class="open-form" style="margin:0;">
-              <input type="hidden" name="path" value="{{ item.path }}">
-              <button type="submit" class="btn btn--accent btn--small">📂 Открыть папку</button>
-            </form>
+{% block content %}
+  <header class="page-header">
+    <h1>🔍 Поиск заказов</h1>
+    <p class="page-description">
+      Найдите нужный заказ по номеру и быстро перейдите к папке проекта. Используйте копирование пути или
+      открытие в проводнике для мгновенного доступа.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2 class="section-title">Поисковый запрос</h2>
+    <form method="POST" action="{{ url_for('orders.search_page') }}" class="form-inline">
+      <input type="text" name="query" class="input" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
+      <button type="submit" class="btn btn--primary">Поиск</button>
+    </form>
+    {% if query %}
+    <p class="hint">Результаты поиска для: <strong>{{ query }}</strong></p>
+    {% endif %}
+  </section>
+
+  {% for key, items in results.items() %}
+  <section class="card">
+    <h3 class="section-title">{{ key }}</h3>
+    {% if items %}
+      {% for item in items %}
+      <article class="folder-card">
+        <div class="folder-top">
+          <div>
+            <span class="folder-name">{{ item.name }}</span>
+            <span class="manager-label">👤 {{ item.manager }}</span>
           </div>
-          <div class="path-container">
-            <span class="path-text">{{ item.path }}</span>
-            <div class="copy-actions">
-              <button type="button" class="btn btn--ghost btn--small" data-copy-path="{{ item.path }}">📋 Копировать</button>
-              <span class="copy-status">✅ Скопировано!</span>
-            </div>
+          <form action="{{ url_for('orders.open_folder') }}" method="POST" class="open-form" style="margin:0;">
+            <input type="hidden" name="path" value="{{ item.path }}">
+            <button type="submit" class="btn btn--accent btn--small">📂 Открыть папку</button>
+          </form>
+        </div>
+        <div class="path-container">
+          <span class="path-text">{{ item.path }}</span>
+          <div class="copy-actions">
+            <button type="button" class="btn btn--ghost btn--small" data-copy-path="{{ item.path }}">📋 Копировать</button>
+            <span class="copy-status">✅ Скопировано!</span>
           </div>
-        </article>
-        {% endfor %}
-      {% else %}
-      <p class="hint">Ничего не найдено.</p>
-      {% endif %}
-    </section>
-    {% endfor %}
-  </div>
-</body>
-</html>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+    <p class="hint">Ничего не найдено.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+{% endblock %}

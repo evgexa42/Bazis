@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Bazis{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='logo_arh.png') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body data-current-user="{{ g.current_user or '' }}" data-current-role="{{ g.current_role or '' }}" {% block body_attrs %}{% endblock %}>
+  <div class="page {% block page_class %}page--wide{% endblock %}">
+    <nav class="top-menu">
+      <a href="/">📦 Мониторинг</a>
+      <a href="/clients">👥 Клиенты</a>
+      <a href="/search">🔍 Поиск</a>
+      <a href="/facades">🚪 Фасады</a>
+      <span class="top-menu__user">
+        {% if g.current_user %}
+          👤 {{ g.current_user }} ({{ g.current_role }})
+        {% else %}
+          👤 Гость
+        {% endif %}
+      </span>
+      {% if g.current_user %}
+        <a href="{{ url_for('auth.logout') }}" class="btn btn--ghost top-menu__logout">Выйти</a>
+      {% else %}
+        <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn--primary">Войти</a>
+      {% endif %}
+    </nav>
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

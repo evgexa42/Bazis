@@ -1,508 +1,175 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Системные настройки</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
-</head>
-<body data-page="settings" data-managers="{{ config_managers | join(',') }}">
-  <div class="page page--wide">
-    <nav class="top-menu">
-      <a href="/">📦 Мониторинг</a>
-      <a href="/clients">👥 Клиенты</a>
-      <a href="/search">🔍 Поиск</a>
-      <a href="/facades">🚪 Фасады</a>
-	  <span class="top-menu__user">👤 {{ current_user }} · {{ current_role }}</span>
-      <a href="{{ url_for('auth.logout') }}" class="top-menu__logout">🚪 Выйти</a>
-    </nav>
+{% extends "base.html" %}
 
-    <header class="page-header">
-      <h1>⚙️ Системные настройки</h1>
-      <p class="page-description">
-        Централизованная конфигурация приложения. Здесь можно изменить сетевые пути, IP-адрес сервера,
-        параметры Telegram и списки менеджеров и технологов. Для применения отдельных изменений может
-        потребоваться перезапуск сервиса.
-      </p>
-    </header>
+{% block title %}Системные настройки{% endblock %}
 
-    {% if status_message %}
-    <section class="notice-card notice-card--success">
-      {{ status_message }}
-    </section>
-    {% endif %}
+{% block body_attrs %}
+data-page="settings"
+data-managers="{{ config_managers | join(',') }}"
+{% endblock %}
 
-    {% if errors %}
-    <section class="notice-card notice-card--error">
-      <strong>Исправьте ошибки:</strong>
-      <ul>
-        {% for error in errors %}
-        <li>{{ error }}</li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% endif %}
+{% block content %}
+  <header class="page-header">
+    <h1>⚙️ Системные настройки</h1>
+    <p class="page-description">
+      Централизованная конфигурация приложения. Здесь можно изменить сетевые пути, IP-адрес сервера,
+      параметры Telegram и списки менеджеров и технологов. Для применения отдельных изменений может
+      потребоваться перезапуск сервиса.
+    </p>
+  </header>
 
-    <div class="tabs">
-      <button class="tab-btn is-active" data-tab="general">Основные настройки</button>
-      <button class="tab-btn" data-tab="users">Пользователи</button>
-      <button class="tab-btn" data-tab="metrics">Metrics</button>
-    </div>
+  {% if status_message %}
+  <section class="notice-card notice-card--success">
+    {{ status_message }}
+  </section>
+  {% endif %}
 
-    <section class="card tab-content is-active" data-tab-panel="general">
-      <h2 class="section-title">Конфигурация</h2>
-      <form method="POST" class="settings-form">
-        <div class="settings-grid">
-          <div class="settings-field settings-field--wide">
-            <label class="field-label" for="orders_path">Путь к папке заказов</label>
-            <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\share" value="{{ config.get('paths', {}).get('orders', '') }}">
-          </div>
+  {% if errors %}
+  <section class="notice-card notice-card--error">
+    <strong>Исправьте ошибки:</strong>
+    <ul>
+      {% for error in errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
-          <div class="settings-field settings-field--wide">
-            <label class="field-label" for="facades_dir">Папка для facades_list.txt</label>
-            <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
-          </div>
-
-          <div class="settings-field settings-field--wide">
-            <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
-            <textarea id="search_folders" name="search_folders" class="input" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
-          </div>
-
-          <div class="settings-field">
-            <label class="field-label" for="server_host">Основной IP / хост</label>
-            <input type="text" class="input" id="server_host" name="server_host" placeholder="192.168.0.10" value="{{ config.get('server', {}).get('host', '') }}">
-          </div>
-
-          <div class="settings-field">
-            <label class="field-label" for="server_port">Порт</label>
-            <input type="number" class="input" id="server_port" name="server_port" min="1" max="65535" value="{{ config.get('server', {}).get('port', 5000) }}">
-          </div>
-
-          <div class="settings-field">
-            <label class="field-label" for="telegram_token">Telegram Bot Token</label>
-            <input type="text" class="input" id="telegram_token" name="telegram_token" placeholder="000000:ABC" value="{{ config.get('telegram', {}).get('token', '') }}">
-          </div>
-
-          <div class="settings-field">
-            <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
-            <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
-          </div>
-
-          <div class="settings-field settings-field--wide">
-            <label class="field-label" for="managers">Менеджеры (по одному в строке)</label>
-            <textarea id="managers" name="managers" class="input" placeholder="Игорь">{{ managers_text }}</textarea>
-          </div>
-
-          <div class="settings-field settings-field--wide">
-            <label class="field-label" for="technologists">Технологи (маркер=имя)</label>
-            <textarea id="technologists" name="technologists" class="input" placeholder="J=Женя">{{ technologists_text }}</textarea>
-          </div>
-        </div>
-
-        <label class="field">
-          <input type="checkbox" name="debug_mode" {% if config.get('server', {}).get('debug') %}checked{% endif %}>
-          <span>Включить режим отладки Flask</span>
-        </label>
-
-        <label class="field">
-          <input type="checkbox" name="order_confirmation" {% if config.get('features', {}).get('order_confirmation') %}checked{% endif %}>
-          <span>Включить подтверждение заказов в мониторинге</span>
-        </label>
-
-        <div class="settings-actions">
-          <button type="submit" class="btn btn--primary">💾 Сохранить</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="card tab-content" data-tab-panel="users">
-      <div class="users-header">
-        <h2 class="section-title">Пользователи</h2>
-        <p class="text-muted">Управление учетными записями и ролями без выхода из настроек.</p>
-      </div>
-
-      <div id="usersMessage" class="notice-card" hidden></div>
-
-      <div class="users-table-wrapper table-scroll">
-        <table class="data-table" id="usersTable">
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Роль</th>
-              <th>Создан</th>
-              <th>Статус</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for user in users %}
-            <tr data-user-id="{{ user.id }}">
-              <td>
-                <div class="table-primary">{{ user.username }}</div>
-              </td>
-              <td>
-                <div class="role-editor">
-                  <select class="input input--compact" data-role-select>
-                    {% for role in allowed_roles %}
-                    <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>{{ role }}</option>
-                    {% endfor %}
-                  </select>
-                  <button type="button" class="btn btn--primary btn--compact" data-action="save-role">Сохранить роль</button>
-                </div>
-              </td>
-              <td><span class="table-secondary">{{ user.created_at }}</span></td>
-              <td>
-                {% if user.is_active %}
-                  <span class="status-pill status-pill--success">Активен</span>
-                {% else %}
-                  <span class="status-pill status-pill--neutral">Неактивен</span>
-                {% endif %}
-              </td>
-              <td>
-                <div class="user-actions">
-                  <button type="button" class="btn btn--outline btn--compact" data-action="toggle-reset">Сбросить пароль</button>
-                  <div class="reset-inline" hidden>
-                    <input type="password" class="input input--compact" placeholder="Новый пароль" data-reset-input>
-                    <button type="button" class="btn btn--primary btn--compact" data-action="reset-password">Обновить</button>
-                    <button type="button" class="btn btn--ghost btn--compact" data-action="cancel-reset">Отмена</button>
-                  </div>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card users-add-card">
-        <h3 class="section-subtitle">Добавить пользователя</h3>
-        <form id="addUserForm" class="users-add-form">
-          <div class="form-grid">
-            <label class="field">
-              <span class="field-label">Имя пользователя</span>
-              <input type="text" class="input" name="username" required>
-            </label>
-            <label class="field">
-              <span class="field-label">Пароль</span>
-              <input type="password" class="input" name="password" required>
-            </label>
-            <label class="field">
-              <span class="field-label">Роль</span>
-              <select class="input" name="role" required>
-                {% for role in allowed_roles %}
-                <option value="{{ role }}">{{ role }}</option>
-                {% endfor %}
-              </select>
-            </label>
-          </div>
-          <div class="settings-actions">
-            <button type="submit" class="btn btn--primary">➕ Добавить</button>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <section class="card tab-content" data-tab-panel="metrics">
-      <h2 class="section-title">Metrics</h2>
-      <div class="metrics-grid">
-        <div class="metrics-card">
-          <h3 class="section-subtitle">Server</h3>
-          <div class="metrics-row"><span>Uptime</span><span id="metric-uptime">—</span></div>
-          <div class="metrics-row"><span>Started at</span><span id="metric-started">—</span></div>
-          <div class="metrics-row"><span>Active requests</span><span id="metric-active-requests">—</span></div>
-          <div class="metrics-row"><span>Total requests</span><span id="metric-total-requests">—</span></div>
-          <div class="metrics-row"><span>RPS (avg, 60s)</span><span id="metric-rps">—</span></div>
-          <div class="metrics-row"><span>CPU %</span><span id="metric-cpu">—</span></div>
-          <div class="metrics-row"><span>RAM %</span><span id="metric-ram">—</span></div>
-          <div class="metrics-row"><span>Process RSS</span><span id="metric-rss">—</span></div>
-        </div>
-
-        <div class="metrics-card">
-          <h3 class="section-subtitle">Snapshot</h3>
-          <div class="metrics-row"><span>Version</span><span id="metric-snapshot-version">—</span></div>
-          <div class="metrics-row"><span>Orders count</span><span id="metric-snapshot-orders">—</span></div>
-          <div class="metrics-row"><span>Last update</span><span id="metric-snapshot-age">—</span></div>
-          <div class="metrics-row"><span>Last build, ms</span><span id="metric-snapshot-last">—</span></div>
-          <div class="metrics-row"><span>Avg build, ms</span><span id="metric-snapshot-avg">—</span></div>
-          <div class="metrics-row"><span>Build count</span><span id="metric-snapshot-count">—</span></div>
-        </div>
-
-        <div class="metrics-card">
-          <h3 class="section-subtitle">SSE</h3>
-          <div class="metrics-row"><span>Active clients</span><span id="metric-sse-clients">—</span></div>
-          <div class="metrics-row"><span>Last broadcast</span><span id="metric-sse-age">—</span></div>
-        </div>
-
-        <div class="metrics-card">
-          <h3 class="section-subtitle">Threads</h3>
-          <table class="metrics-table">
-            <thead><tr><th>Thread</th><th>Last heartbeat</th><th>Status</th></tr></thead>
-            <tbody id="metrics-threads"></tbody>
-          </table>
-        </div>
-
-        <div class="metrics-card">
-          <h3 class="section-subtitle">DB</h3>
-          <div class="metrics-row"><span>Size (MB)</span><span id="metric-db-size">—</span></div>
-          <div class="metrics-row"><span>Last backup</span><span id="metric-db-backup">—</span></div>
-        </div>
-
-        <div class="metrics-card">
-          <h3 class="section-subtitle">Errors</h3>
-          <div class="metrics-row"><span>Total</span><span id="metric-errors-total">—</span></div>
-          <div class="metrics-row"><span>Last 24h</span><span id="metric-errors-24h">—</span></div>
-        </div>
-      </div>
-
-      <div class="metrics-card metrics-card--wide">
-        <h3 class="section-subtitle">Endpoints performance</h3>
-        <table class="metrics-table">
-          <thead>
-            <tr>
-              <th>Endpoint</th>
-              <th>Count</th>
-              <th>Avg, ms</th>
-              <th>Last, ms</th>
-              <th>Max, ms</th>
-              <th>Last status</th>
-            </tr>
-          </thead>
-          <tbody id="metrics-endpoints"></tbody>
-        </table>
-      </div>
-
-      <div class="metrics-card metrics-card--wide">
-        <h3 class="section-subtitle">Errors log (last 10)</h3>
-        <div id="metrics-errors-list" class="metrics-errors"></div>
-      </div>
-    </section>
+  <div class="tabs">
+    <button class="tab-btn is-active" data-tab="general">Основные настройки</button>
+    <button class="tab-btn" data-tab="users">Пользователи</button>
+    <button class="tab-btn" data-tab="metrics">Metrics</button>
   </div>
 
-  <script>
-    const tabs = document.querySelectorAll('.tab-btn');
-    const panels = document.querySelectorAll('.tab-content');
-    let metricsTimer = null;
+  <section class="card tab-content is-active" data-tab-panel="general">
+    <h2 class="section-title">Конфигурация</h2>
+    <form method="POST" class="settings-form">
+      <div class="settings-grid">
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="orders_path">Путь к папке заказов</label>
+          <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\share" value="{{ config.get('paths', {}).get('orders', '') }}">
+        </div>
 
-    function switchTab(target, btn) {
-      tabs.forEach(t => t.classList.toggle('is-active', t === btn));
-      panels.forEach(panel => panel.classList.toggle('is-active', panel.dataset.tabPanel === target));
-      if (target === 'metrics') {
-        startMetricsPolling();
-      } else {
-        stopMetricsPolling();
-      }
-    }
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="facades_dir">Папка для facades_list.txt</label>
+          <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
+        </div>
 
-    tabs.forEach(btn => {
-      btn.addEventListener('click', () => switchTab(btn.dataset.tab, btn));
-    });
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
+          <textarea id="search_folders" name="search_folders" class="input" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
+        </div>
 
-    function setText(id, value) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
-    }
+        <div class="settings-field">
+          <label class="field-label" for="server_host">Основной IP / хост</label>
+          <input type="text" class="input" id="server_host" name="server_host" placeholder="192.168.0.10" value="{{ config.get('server', {}).get('host', '') }}">
+        </div>
 
-    function formatUptime(seconds) {
-      if (seconds === null || seconds === undefined) return '—';
-      const hrs = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      return `${hrs} ч ${mins} м`;
-    }
+        <div class="settings-field">
+          <label class="field-label" for="server_port">Порт</label>
+          <input type="number" class="input" id="server_port" name="server_port" min="1" max="65535" value="{{ config.get('server', {}).get('port', 5000) }}">
+        </div>
 
-    function formatMs(value) {
-      if (value === null || value === undefined) return '—';
-      return value.toFixed(1);
-    }
+        <div class="settings-field">
+          <label class="field-label" for="telegram_token">Telegram Bot Token</label>
+          <input type="text" class="input" id="telegram_token" name="telegram_token" placeholder="000000:ABC" value="{{ config.get('telegram', {}).get('token', '') }}">
+        </div>
 
-    function buildThreadsTable(threads, nowSec) {
-      const tbody = document.getElementById('metrics-threads');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-      Object.entries(threads || {})
-        .sort(([a], [b]) => a.localeCompare(b))
-        .forEach(([name, info]) => {
-          const lastTs = info?.last_heartbeat || 0;
-          const secondsAgo = lastTs ? Math.max(0, (nowSec - lastTs).toFixed(1)) : '—';
-          const alive = lastTs && nowSec - lastTs <= 5 ? 'OK' : 'DEAD';
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${name}</td>
-            <td>${secondsAgo} c назад</td>
+        <div class="settings-field">
+          <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
+          <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="managers">Менеджеры (по одному в строке)</label>
+          <textarea id="managers" name="managers" class="input" placeholder="Игорь">{{ managers_text }}</textarea>
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="technologists">Технологи (маркер=имя)</label>
+          <textarea id="technologists" name="technologists" class="input" placeholder="J=Женя">{{ technologists_text }}</textarea>
+        </div>
+      </div>
+
+      <label class="field">
+        <input type="checkbox" name="debug_mode" {% if config.get('server', {}).get('debug') %}checked{% endif %}>
+        <span>Включить режим отладки Flask</span>
+      </label>
+
+      <label class="field">
+        <input type="checkbox" name="order_confirmation" {% if config.get('features', {}).get('order_confirmation') %}checked{% endif %}>
+        <span>Включить подтверждение заказов в мониторинге</span>
+      </label>
+
+      <div class="settings-actions">
+        <button type="submit" class="btn btn--primary">💾 Сохранить</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card tab-content" data-tab-panel="users">
+    <div class="users-header">
+      <h2 class="section-title">Пользователи и роли</h2>
+      <p class="hint">Добавляйте пользователей, сбрасывайте пароли и назначайте роли. Требуется роль «admin».</p>
+    </div>
+
+    <div class="users-table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Пользователь</th>
+            <th>Роль</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
             <td>
-              <span class="status-pill ${alive === 'OK' ? 'status-pill--success' : 'status-pill--error'}">${alive}</span>
+              <form action="{{ url_for('settings.change_role') }}" method="POST" class="role-editor">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <select name="role" class="select">
+                  {% for role in allowed_roles %}
+                  <option value="{{ role }}" {% if role == user.role %}selected{% endif %}>{{ role }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn--ghost btn--small">Изменить</button>
+              </form>
             </td>
-          `;
-          tbody.appendChild(row);
-        });
-    }
+            <td>
+              <form action="{{ url_for('settings.reset_password') }}" method="POST" class="reset-form">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <input type="text" name="new_password" class="input" placeholder="Новый пароль" required>
+                <button type="submit" class="btn btn--primary btn--small">Сбросить</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    function buildEndpointsTable(perEndpoint) {
-      const tbody = document.getElementById('metrics-endpoints');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-      const entries = Object.entries(perEndpoint || {}).sort(([, a], [, b]) => (b?.count || 0) - (a?.count || 0)).slice(0, 30);
-      entries.forEach(([name, info]) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${name}</td>
-          <td>${info.count || 0}</td>
-          <td>${formatMs(info.avg_ms || 0)}</td>
-          <td>${formatMs(info.last_ms || 0)}</td>
-          <td>${formatMs(info.max_ms || 0)}</td>
-          <td>${info.last_status || 0}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
+    <section class="card">
+      <h3 class="section-title">Добавить нового пользователя</h3>
+      <form action="{{ url_for('settings.add_user') }}" method="POST" class="role-editor">
+        <input type="text" name="username" class="input" placeholder="Имя пользователя" required>
+        <input type="password" name="password" class="input" placeholder="Пароль" required>
+        <select name="role" class="select">
+          {% for role in allowed_roles %}
+          <option value="{{ role }}">{{ role }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn--primary btn--small">Добавить</button>
+      </form>
+    </section>
+  </section>
 
-    function buildErrorsList(errors) {
-      const container = document.getElementById('metrics-errors-list');
-      if (!container) return;
-      container.innerHTML = '';
-      (errors || []).slice(-10).reverse().forEach(item => {
-        const wrapper = document.createElement('details');
-        const when = item?.ts ? new Date(item.ts * 1000).toLocaleString() : '';
-        wrapper.innerHTML = `
-          <summary>${when} · ${item?.endpoint || ''} · ${item?.err || ''}</summary>
-          <pre>${item?.trace || ''}</pre>
-        `;
-        container.appendChild(wrapper);
-      });
-    }
-
-    async function loadMetrics() {
-      const metricsPanel = document.querySelector('[data-tab-panel="metrics"].is-active');
-      if (!metricsPanel) return;
-      try {
-        const response = await fetch('/api/metrics', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        if (!response.ok) return;
-        const data = await response.json();
-        const nowSec = Date.now() / 1000;
-
-        const uptime = Math.max(0, Math.round(nowSec - (data.started_at || nowSec)));
-        setText('metric-uptime', formatUptime(uptime));
-        setText('metric-started', data.started_at ? new Date(data.started_at * 1000).toLocaleString() : '—');
-        setText('metric-active-requests', data?.requests?.active ?? '—');
-        setText('metric-total-requests', data?.requests?.total ?? '—');
-        const rpsValues = data?.requests?.last_minute_rps || [];
-        const rpsAvg = rpsValues.length ? (rpsValues.reduce((a, b) => a + b, 0) / rpsValues.length).toFixed(2) : '0.00';
-        setText('metric-rps', rpsAvg);
-        setText('metric-cpu', data?.system?.cpu_percent ?? '—');
-        setText('metric-ram', data?.system?.ram_percent ?? '—');
-        setText('metric-rss', data?.system?.process_rss_mb ? `${data.system.process_rss_mb} МБ` : '—');
-
-        setText('metric-snapshot-version', data?.snapshot?.version ?? '—');
-        setText('metric-snapshot-orders', data?.snapshot?.orders_count ?? '—');
-        setText('metric-snapshot-age', data?.snapshot?.seconds_ago !== undefined ? `${data.snapshot.seconds_ago} c назад` : '—');
-        setText('metric-snapshot-last', formatMs(data?.snapshot?.last_build_ms));
-        setText('metric-snapshot-avg', formatMs(data?.snapshot?.avg_build_ms));
-        setText('metric-snapshot-count', data?.snapshot?.build_count ?? '—');
-
-        setText('metric-sse-clients', data?.sse?.active_clients ?? '—');
-        setText('metric-sse-age', data?.sse?.seconds_ago !== undefined ? `${data.sse.seconds_ago} c назад` : '—');
-
-        const dbSize = data?.db?.size_bytes ? (data.db.size_bytes / (1024 * 1024)).toFixed(2) : '—';
-        setText('metric-db-size', dbSize);
-        const backupAgo = data?.db?.last_backup_hours_ago;
-        setText('metric-db-backup', backupAgo !== null && backupAgo !== undefined ? `${backupAgo} ч назад` : '—');
-
-        setText('metric-errors-total', data?.errors?.total ?? '—');
-        setText('metric-errors-24h', data?.errors?.errors_last_24h ?? '—');
-
-        buildThreadsTable(data?.threads, nowSec);
-        buildEndpointsTable(data?.requests?.per_endpoint);
-        buildErrorsList(data?.errors?.last_items);
-      } catch (error) {
-        console.error('Metrics load failed', error);
-      }
-    }
-
-    function startMetricsPolling() {
-      if (metricsTimer) return;
-      metricsTimer = setInterval(loadMetrics, 5000);
-      loadMetrics();
-    }
-
-    function stopMetricsPolling() {
-      if (metricsTimer) {
-        clearInterval(metricsTimer);
-        metricsTimer = null;
-      }
-    }
-
-    const messageBox = document.getElementById('usersMessage');
-    function showMessage(text, isError = false) {
-      if (!messageBox) return;
-      messageBox.textContent = text;
-      messageBox.hidden = false;
-      messageBox.classList.remove('notice-card--error', 'notice-card--success');
-      messageBox.classList.add(isError ? 'notice-card--error' : 'notice-card--success');
-    }
-
-    function hideResetBlocks() {
-      document.querySelectorAll('.reset-inline').forEach(block => block.hidden = true);
-    }
-
-    document.getElementById('usersTable')?.addEventListener('click', async (event) => {
-      const action = event.target?.dataset?.action;
-      if (!action) return;
-
-      const row = event.target.closest('tr');
-      const userId = row?.dataset?.userId;
-      if (!userId) return;
-
-      if (action === 'toggle-reset') {
-        hideResetBlocks();
-        const block = row.querySelector('.reset-inline');
-        if (block) block.hidden = !block.hidden;
-        return;
-      }
-
-      if (action === 'cancel-reset') {
-        hideResetBlocks();
-        return;
-      }
-
-      if (action === 'save-role') {
-        const role = row.querySelector('[data-role-select]')?.value;
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        formData.append('role', role);
-
-        const response = await fetch('/admin/users/change_role', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const data = await response.json();
-        showMessage(data.error || 'Роль обновлена', !data.ok);
-        return;
-      }
-
-      if (action === 'reset-password') {
-        const passwordInput = row.querySelector('[data-reset-input]');
-        const newPassword = passwordInput?.value || '';
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        formData.append('new_password', newPassword);
-
-        const response = await fetch('/admin/users/reset_password', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const data = await response.json();
-        showMessage(data.error || 'Пароль обновлен', !data.ok);
-        if (data.ok && passwordInput) passwordInput.value = '';
-        hideResetBlocks();
-      }
-    });
-
-    document.getElementById('addUserForm')?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.target;
-      const formData = new FormData(form);
-      const response = await fetch('/admin/users/add', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-      const data = await response.json();
-      showMessage(data.error || 'Пользователь добавлен', !data.ok);
-      if (data.ok) {
-        form.reset();
-        window.location.reload();
-      }
-    });
-  </script>
-</body>
-</html>
+  <section class="card tab-content" data-tab-panel="metrics">
+    <h2 class="section-title">Метрики и состояние</h2>
+    <div id="metrics">
+      <p class="hint">Метрики загрузятся автоматически.</p>
+    </div>
+  </section>
+{% endblock %}

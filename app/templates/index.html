@@ -1,78 +1,68 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Мониторинг заказов</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
-  <link rel="icon" href="{{ url_for('static', filename='logo_arh.png') }}">
-</head>
-<body data-page="orders" data-managers="{{ config_managers | join(',') }}" data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}" data-current-user="{{ current_user or '' }}" data-current-role="{{ current_role or '' }}">
-  <div class="page page--wide">
-    <nav class="top-menu">
-      <a href="/">📦 Мониторинг</a>
-      <a href="/clients">👥 Клиенты</a>
-      <a href="/search">🔍 Поиск</a>
-      <a href="/facades">🚪 Фасады</a>
-    </nav>
+{% extends "base.html" %}
 
-    <header class="page-header">
-      <h1>📦 Мониторинг заказов</h1>
-      <p class="page-description">
-        Сводка по всем заказам в реальном времени. Используйте фильтры, чтобы быстро находить нужные проекты
-        и контролировать их статус.
-      </p>
-    </header>
+{% block title %}Мониторинг заказов{% endblock %}
 
-    <section id="stats" class="card stats-card"></section>
+{% block body_attrs %}
+data-page="orders"
+data-managers="{{ config_managers | join(',') }}"
+data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}"
+{% endblock %}
 
-    <section class="card controls-card">
-      <h2 class="section-title">Фильтры</h2>
-      <div class="controls-grid">
+{% block content %}
+  <header class="page-header">
+    <h1>📦 Мониторинг заказов</h1>
+    <p class="page-description">
+      Сводка по всем заказам в реальном времени. Используйте фильтры, чтобы быстро находить нужные проекты
+      и контролировать их статус.
+    </p>
+  </header>
+
+  <section id="stats" class="card stats-card"></section>
+
+  <section class="card controls-card">
+    <h2 class="section-title">Фильтры</h2>
+    <div class="controls-grid">
+      <div class="button-group">
+        <button type="button" class="btn btn--ghost" data-filter="all" onclick="setStatusFilter('all')">Все</button>
+        <button type="button" class="btn btn--ghost" data-filter="Новый" onclick="setStatusFilter('Новый')">Новые</button>
+        <button type="button" class="btn btn--ghost" data-filter="Готов" onclick="setStatusFilter('Готов')">Готовые</button>
+      </div>
+      <div class="controls-actions">
+        <label class="field" for="managerSelect">
+          <span class="field-label">Менеджер</span>
+          <select id="managerSelect" class="select" onchange="setManagerFilter()">
+            <option value="Все">Все</option>
+            {% for manager in config_managers %}
+            <option value="{{ manager }}">{{ manager }}</option>
+            {% endfor %}
+            <option value="Неизвестно">Неизвестно</option>
+          </select>
+        </label>
         <div class="button-group">
-          <button type="button" class="btn btn--ghost" data-filter="all" onclick="setStatusFilter('all')">Все</button>
-          <button type="button" class="btn btn--ghost" data-filter="Новый" onclick="setStatusFilter('Новый')">Новые</button>
-          <button type="button" class="btn btn--ghost" data-filter="Готов" onclick="setStatusFilter('Готов')">Готовые</button>
-        </div>
-        <div class="controls-actions">
-          <label class="field" for="managerSelect">
-            <span class="field-label">Менеджер</span>
-            <select id="managerSelect" class="select" onchange="setManagerFilter()">
-              <option value="Все">Все</option>
-              {% for manager in config_managers %}
-              <option value="{{ manager }}">{{ manager }}</option>
-              {% endfor %}
-              <option value="Неизвестно">Неизвестно</option>
-            </select>
-          </label>
-          <div class="button-group">
-            <button type="button" class="btn btn--ghost" data-sort="status" onclick="sortBy('status')">⇅ Статус</button>
-            <button type="button" class="btn btn--ghost" data-sort="days" onclick="sortBy('days')">⇅ Давность</button>
-          </div>
+          <button type="button" class="btn btn--ghost" data-sort="status" onclick="sortBy('status')">⇅ Статус</button>
+          <button type="button" class="btn btn--ghost" data-sort="days" onclick="sortBy('days')">⇅ Давность</button>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section class="card table-card">
-      <div class="table-scroll">
-        <table id="orders" class="data-table">
-          <thead>
-            <tr>
-              <th>Название</th>
-              <th>Менеджер</th>
-              <th>Статус</th>
-              <th>Изменено</th>
-              <th>Дней назад</th>
-              {% if order_confirmation_enabled %}
-              <th class="table-checkbox">Подтвердить</th>
-              {% endif %}
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-</body>
-</html>
+  <section class="card table-card">
+    <div class="table-scroll">
+      <table id="orders" class="data-table">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Менеджер</th>
+            <th>Статус</th>
+            <th>Изменено</th>
+            <th>Дней назад</th>
+            {% if order_confirmation_enabled %}
+            <th class="table-checkbox">Подтвердить</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

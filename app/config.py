@@ -8,7 +8,12 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 DEFAULT_CONFIG = {
-    "server": {"host": "127.0.0.1", "port": 5000, "debug": False},
+    "server": {
+        "host": "127.0.0.1",
+        "port": 5000,
+        "debug": False,
+        "secret_key": "dev-secret-key",
+    },
     "telegram": {"token": "", "chat_id": ""},
     "paths": {
         "orders": "",

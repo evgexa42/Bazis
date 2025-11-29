@@ -440,6 +440,64 @@ const OrdersPage = (() => {
   };
 })();
 
+const SettingsPage = (() => {
+  let metricsLoaded = false;
+
+  function init() {
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.tab-content');
+    if (!tabs.length || !panels.length) return;
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => activateTab(tab, tabs, panels));
+    });
+
+    const activeTab = document.querySelector('.tab-btn.is-active');
+    if (activeTab) {
+      activateTab(activeTab, tabs, panels, false);
+    }
+  }
+
+  function activateTab(tab, tabs, panels, shouldFocusMetrics = true) {
+    const target = tab.dataset.tab;
+
+    tabs.forEach(btn => btn.classList.toggle('is-active', btn === tab));
+    panels.forEach(panel => {
+      panel.classList.toggle('is-active', panel.dataset.tabPanel === target);
+    });
+
+    if (target === 'metrics' && shouldFocusMetrics) {
+      loadMetrics();
+    }
+  }
+
+  function loadMetrics() {
+    if (metricsLoaded) return;
+    const metricsContainer = document.getElementById('metrics');
+    if (!metricsContainer) return;
+
+    metricsContainer.innerHTML = '<p class="hint">Загружаем метрики...</p>';
+
+    fetch('/api/metrics')
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to load metrics');
+        return response.json();
+      })
+      .then(data => {
+        metricsLoaded = true;
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(data, null, 2);
+        metricsContainer.innerHTML = '';
+        metricsContainer.appendChild(pre);
+      })
+      .catch(() => {
+        metricsContainer.innerHTML = '<p class="notice-card notice-card--error">Не удалось загрузить метрики.</p>';
+      });
+  }
+
+  return { init };
+})();
+
 const ClientsPage = (() => {
   function init() {
     const table = document.querySelector('[data-clients-table]');
