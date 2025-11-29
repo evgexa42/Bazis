@@ -40,17 +40,8 @@ def get_visible_manager_filter(request, session):
 
     role = session.get("role")
 
-    if role in {"admin", "technologist"}:
+    if role in {"admin", "technologist", "manager"}:
         return None
-
-    if role == "manager":
-        requested_manager = (request.values.get("manager") or "").strip()
-        show_all_flag = (request.values.get("show_all") or "").strip()
-
-        if requested_manager == "Все" or show_all_flag == "1":
-            return None
-
-        return session.get("user")
 
     return None
 
@@ -361,28 +352,36 @@ def confirm_order():
 
     current_role = session.get("role")
     current_user = session.get("user")
+    folder_manager = (get_manager_from_name(folder_name) or "").strip() or "Неизвестно"
 
-    if current_role not in {"admin", "technologist", "manager"}:
-        return (jsonify({"status": "error", "message": "Требуется авторизация."}), 403)
+    allow = False
+    if current_role in {"admin", "technologist"}:
+        allow = True
+    elif current_role == "manager":
+        if folder_manager == current_user:
+            allow = True
+        elif folder_manager in {"", "Неизвестно"}:
+            allow = True
+    elif current_role:
+        allow = False
 
-    if current_role == "manager":
-        folder_manager = get_manager_from_name(folder_name)
-        if folder_manager != current_user:
-            logger.warning(
-                "[confirm_order] Менеджер %s пытался подтвердить чужой заказ %s (%s)",
-                current_user,
-                folder_name,
-                folder_manager,
-            )
-            return (
-                jsonify(
-                    {
-                        "status": "error",
-                        "message": "Недостаточно прав для подтверждения заказа.",
-                    }
-                ),
-                403,
-            )
+    if not allow:
+        logger.warning(
+            "[confirm_order] Недостаточно прав: %s (%s) попытался подтвердить заказ %s (%s)",
+            current_user,
+            current_role,
+            folder_name,
+            folder_manager,
+        )
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Недостаточно прав для подтверждения этого заказа",
+                }
+            ),
+            403,
+        )
 
     if folder_name.endswith("+"):
         return jsonify(

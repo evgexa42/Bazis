@@ -141,12 +141,8 @@ const OrdersPage = (() => {
     if (!select) return;
     const selected = select.value;
 
-    if (
-      APP_CONFIG.currentRole === 'manager' &&
-      selected !== 'Все' &&
-      selected !== APP_CONFIG.currentUser
-    ) {
-      currentManager = APP_CONFIG.currentUser || 'Все';
+    if (APP_CONFIG.currentRole === 'manager' && !APP_CONFIG.currentUser && selected !== 'Все') {
+      currentManager = 'Все';
       select.value = currentManager;
     } else {
       currentManager = selected;
@@ -236,6 +232,26 @@ const OrdersPage = (() => {
         </article>
       </div>
     `;
+  }
+
+  function canConfirm(item) {
+    const role = APP_CONFIG.currentRole;
+    const user = APP_CONFIG.currentUser || '';
+    const manager = (item.manager || 'Неизвестно').trim() || 'Неизвестно';
+
+    if (!APP_CONFIG.orderConfirmationEnabled) return false;
+
+    if (role === 'admin' || role === 'technologist') {
+      return true;
+    }
+
+    if (role === 'manager') {
+      if (manager === user) return true;
+      if (manager === 'Неизвестно') return true;
+      return false;
+    }
+
+    return false;
   }
 
   function render() {
@@ -332,7 +348,7 @@ const OrdersPage = (() => {
         const confirmTd = document.createElement('td');
         confirmTd.className = 'table-checkbox';
 
-        if (item.status === 'Готов') {
+        if (item.status === 'Готов' && canConfirm(item)) {
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
           checkbox.className = 'confirm-checkbox';
