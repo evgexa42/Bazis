@@ -9,10 +9,12 @@ from flask import (
     abort,
     current_app,
     jsonify,
+    redirect,
     render_template,
     request,
     session,
     stream_with_context,
+    url_for,
 )
 
 import app as bazis_app
@@ -24,6 +26,7 @@ from app import (
     sse_clients,
     sse_clients_lock,
 )
+from app.dal.permissions import has_permission
 from app.services.monitor import move_known_folder
 from app.services.snapshot import (
     build_orders_payload,
@@ -105,6 +108,9 @@ def index():
 
 @orders_bp.route("/facades")
 def facades_page():
+    if not has_permission(session.get("role"), "can_access_facades"):
+        return redirect(url_for("orders.index"))
+
     template_path = os.path.join(current_app.template_folder or "", "facades.html")
     if template_path and not os.path.exists(template_path):
         logger.error("Шаблон фасадов не найден: %s", template_path)
@@ -126,6 +132,9 @@ def data():
 
 @orders_bp.route("/search", methods=["GET", "POST"])
 def search_page():
+    if not has_permission(session.get("role"), "can_access_search"):
+        return redirect(url_for("orders.index"))
+
     query = request.form.get("query", "").strip()
     results = {key: [] for key in bazis_app.SEARCH_FOLDERS.keys()}
 
@@ -198,6 +207,9 @@ def events():
 
 @orders_bp.route("/facades/generate", methods=["POST"])
 def generate_facades():
+    if not has_permission(session.get("role"), "can_access_facades"):
+        return abort(403)
+
     payload = request.get_json(silent=True) or {}
     items = payload.get("items", [])
 

@@ -14,7 +14,18 @@ const APP_CONFIG = (() => {
   const currentUser = body?.dataset?.currentUser || '';
   const currentRole = body?.dataset?.currentRole || '';
 
-  return { managers, orderConfirmationEnabled, currentUser, currentRole };
+  const permissions = {
+    canAccessFacades: body?.dataset?.canAccessFacades === '1',
+    canAccessMetrics: body?.dataset?.canAccessMetrics === '1',
+    canManageUsers: body?.dataset?.canManageUsers === '1',
+    canAccessSettings: body?.dataset?.canAccessSettings === '1',
+    canAccessClients: body?.dataset?.canAccessClients === '1',
+    canAccessSearch: body?.dataset?.canAccessSearch === '1',
+    canEditPaths: body?.dataset?.canEditPaths === '1',
+    canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
+  };
+
+  return { managers, orderConfirmationEnabled, currentUser, currentRole, permissions };
 })();
 
 const OrdersPage = (() => {

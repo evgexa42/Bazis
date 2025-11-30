@@ -15,6 +15,40 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 Base = declarative_base()
 
 
+DEFAULT_ROLE_PERMISSIONS = {
+    "admin": {
+        "can_access_settings": 1,
+        "can_access_facades": 1,
+        "can_access_metrics": 1,
+        "can_access_clients": 1,
+        "can_access_search": 1,
+        "can_manage_users": 1,
+        "can_edit_paths": 1,
+        "can_toggle_order_options": 1,
+    },
+    "technologist": {
+        "can_access_settings": 1,
+        "can_access_facades": 1,
+        "can_access_metrics": 1,
+        "can_access_clients": 1,
+        "can_access_search": 1,
+        "can_manage_users": 0,
+        "can_edit_paths": 0,
+        "can_toggle_order_options": 1,
+    },
+    "manager": {
+        "can_access_settings": 0,
+        "can_access_facades": 0,
+        "can_access_metrics": 0,
+        "can_access_clients": 1,
+        "can_access_search": 1,
+        "can_manage_users": 0,
+        "can_edit_paths": 0,
+        "can_toggle_order_options": 0,
+    },
+}
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -25,6 +59,22 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(DateTime(timezone=True), onupdate=func.current_timestamp())
+
+
+class RolePermission(Base):
+    __tablename__ = "role_permissions"
+
+    role = Column(String, primary_key=True)
+
+    can_access_settings = Column(Integer, nullable=False, default=0)
+    can_access_facades = Column(Integer, nullable=False, default=0)
+    can_access_metrics = Column(Integer, nullable=False, default=0)
+    can_access_clients = Column(Integer, nullable=False, default=0)
+    can_access_search = Column(Integer, nullable=False, default=0)
+
+    can_manage_users = Column(Integer, nullable=False, default=0)
+    can_edit_paths = Column(Integer, nullable=False, default=0)
+    can_toggle_order_options = Column(Integer, nullable=False, default=0)
 
 
 class OrderEvent(Base):
@@ -52,10 +102,33 @@ def _create_default_admin() -> None:
         session.commit()
 
 
+def _ensure_default_role_permissions() -> None:
+    with SessionLocal() as session:
+        for role, perms in DEFAULT_ROLE_PERMISSIONS.items():
+            record = session.get(RolePermission, role)
+            enforced = dict(perms)
+            if role == "admin":
+                enforced["can_access_settings"] = 1
+                enforced["can_manage_users"] = 1
+
+            if not record:
+                session.add(RolePermission(role=role, **enforced))
+            else:
+                if role == "admin":
+                    record.can_access_settings = 1
+                    record.can_manage_users = 1
+                else:
+                    for field, value in enforced.items():
+                        if getattr(record, field) is None:
+                            setattr(record, field, value)
+        session.commit()
+
+
 def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
     Base.metadata.create_all(engine)
     _create_default_admin()
+    _ensure_default_role_permissions()
 
 
 __all__ = [
@@ -67,4 +140,5 @@ __all__ = [
     "init_db",
     "User",
     "OrderEvent",
+    "RolePermission",
 ]

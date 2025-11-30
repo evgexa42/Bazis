@@ -9,13 +9,31 @@
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body data-current-user="{{ g.current_user or '' }}" data-current-role="{{ g.current_role or '' }}" {% block body_attrs %}{% endblock %}>
+<body
+  data-current-user="{{ g.current_user or '' }}"
+  data-current-role="{{ g.current_role or '' }}"
+  data-can-access-facades="{{ 1 if role_perms.get('can_access_facades') else 0 }}"
+  data-can-access-metrics="{{ 1 if role_perms.get('can_access_metrics') else 0 }}"
+  data-can-manage-users="{{ 1 if role_perms.get('can_manage_users') else 0 }}"
+  data-can-access-settings="{{ 1 if role_perms.get('can_access_settings') else 0 }}"
+  data-can-access-clients="{{ 1 if role_perms.get('can_access_clients') else 0 }}"
+  data-can-access-search="{{ 1 if role_perms.get('can_access_search') else 0 }}"
+  data-can-edit-paths="{{ 1 if role_perms.get('can_edit_paths') else 0 }}"
+  data-can-toggle-order-options="{{ 1 if role_perms.get('can_toggle_order_options') else 0 }}"
+  {% block body_attrs %}{% endblock %}
+>
   <div class="page {% block page_class %}page--wide{% endblock %}">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
+      {% if role_perms.can_access_clients %}
       <a href="/clients">👥 Клиенты</a>
+      {% endif %}
+      {% if role_perms.can_access_search %}
       <a href="/search">🔍 Поиск</a>
+      {% endif %}
+      {% if role_perms.can_access_facades %}
       <a href="/facades">🚪 Фасады</a>
+      {% endif %}
       <span class="top-menu__user">
         {% if g.current_user %}
           👤 {{ g.current_user }} ({{ g.current_role }})
@@ -23,6 +41,9 @@
           👤 Гость
         {% endif %}
       </span>
+      {% if role_perms.can_access_settings %}
+        <a href="{{ url_for('settings.settings_page') }}" class="settings-link" title="Настройки">⚙</a>
+      {% endif %}
       {% if g.current_user %}
         <a href="{{ url_for('auth.logout') }}" class="btn btn--ghost top-menu__logout">Выйти</a>
       {% else %}

@@ -12,6 +12,7 @@ from flask import (
     url_for,
 )
 
+from app.dal.permissions import get_role_permissions
 from app.dal.users import verify_user_credentials
 
 auth_bp = Blueprint("auth", __name__)
@@ -49,6 +50,11 @@ def roles_required(roles: Iterable[str]):
 def load_current_user():
     g.current_user = session.get("user")
     g.current_role = session.get("role")
+
+
+@auth_bp.before_app_request
+def load_role_permissions():
+    g.role_perms = get_role_permissions(session.get("role"))
 
 
 @auth_bp.before_app_request

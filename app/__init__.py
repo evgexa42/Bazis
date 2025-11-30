@@ -492,6 +492,7 @@ def inject_config_data():
         "order_confirmation_enabled": ORDER_CONFIRMATION_ENABLED,
         "current_user": getattr(g, "current_user", None),
         "current_role": getattr(g, "current_role", None),
+        "role_perms": getattr(g, "role_perms", {}),
     }
 
 

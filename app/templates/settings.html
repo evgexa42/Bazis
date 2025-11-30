@@ -36,13 +36,21 @@ data-managers="{{ config_managers | join(',') }}"
 
   <div class="tabs">
     <button class="tab-btn is-active" data-tab="general">Основные настройки</button>
+    {% if role_perms.can_manage_users %}
     <button class="tab-btn" data-tab="users">Пользователи</button>
+    {% endif %}
+    {% if role_perms.can_access_metrics %}
     <button class="tab-btn" data-tab="metrics">Metrics</button>
+    {% endif %}
+    {% if role_perms.can_manage_users %}
+    <button class="tab-btn" data-tab="roles">Роли и права</button>
+    {% endif %}
   </div>
 
   <section class="card tab-content is-active" data-tab-panel="general">
     <h2 class="section-title">Конфигурация</h2>
     <form method="POST" class="settings-form">
+      {% if role_perms.can_edit_paths %}
       <div class="settings-grid">
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="orders_path">Путь к папке заказов</label>
@@ -78,7 +86,15 @@ data-managers="{{ config_managers | join(',') }}"
           <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
           <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
         </div>
+      </div>
 
+      <label class="field">
+        <input type="checkbox" name="debug_mode" {% if config.get('server', {}).get('debug') %}checked{% endif %}>
+        <span>Включить режим отладки Flask</span>
+      </label>
+      {% endif %}
+
+      <div class="settings-grid">
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="managers">Менеджеры (по одному в строке)</label>
           <textarea id="managers" name="managers" class="input" placeholder="Игорь">{{ managers_text }}</textarea>
@@ -90,15 +106,12 @@ data-managers="{{ config_managers | join(',') }}"
         </div>
       </div>
 
-      <label class="field">
-        <input type="checkbox" name="debug_mode" {% if config.get('server', {}).get('debug') %}checked{% endif %}>
-        <span>Включить режим отладки Flask</span>
-      </label>
-
+      {% if role_perms.can_toggle_order_options %}
       <label class="field">
         <input type="checkbox" name="order_confirmation" {% if config.get('features', {}).get('order_confirmation') %}checked{% endif %}>
         <span>Включить подтверждение заказов в мониторинге</span>
       </label>
+      {% endif %}
 
       <div class="settings-actions">
         <button type="submit" class="btn btn--primary">💾 Сохранить</button>
@@ -106,10 +119,11 @@ data-managers="{{ config_managers | join(',') }}"
     </form>
   </section>
 
+  {% if role_perms.can_manage_users %}
   <section class="card tab-content" data-tab-panel="users">
     <div class="users-header">
       <h2 class="section-title">Пользователи и роли</h2>
-      <p class="hint">Добавляйте пользователей, сбрасывайте пароли и назначайте роли. Требуется роль «admin».</p>
+      <p class="hint">Добавляйте пользователей, сбрасывайте пароли и назначайте роли. Доступно только с правом управления пользователями.</p>
     </div>
 
     <div class="users-table-wrapper">
@@ -164,8 +178,10 @@ data-managers="{{ config_managers | join(',') }}"
         <button type="submit" class="btn btn--primary btn--small">Добавить</button>
       </form>
     </section>
-  </section>
+   </section>
+  {% endif %}
 
+  {% if role_perms.can_access_metrics %}
   <section class="card tab-content" data-tab-panel="metrics">
     <div class="users-header">
       <div>
@@ -247,4 +263,58 @@ data-managers="{{ config_managers | join(',') }}"
       <div id="metrics-errors-list" class="metrics-errors"></div>
     </div>
   </section>
+  {% endif %}
+
+  {% if role_perms.can_manage_users %}
+  {% set perm_labels = {
+    'can_access_settings': 'Настройки',
+    'can_access_facades': 'Фасады',
+    'can_access_metrics': 'Метрики',
+    'can_access_clients': 'Клиенты',
+    'can_access_search': 'Поиск',
+    'can_manage_users': 'Управление пользователями',
+    'can_edit_paths': 'Изменение путей/конфига',
+    'can_toggle_order_options': 'Подтверждение заказов'
+  } %}
+  <section class="card tab-content" data-tab-panel="roles">
+    <div class="users-header">
+      <div>
+        <h2 class="section-title">Роли и права</h2>
+        <p class="hint">Включайте или выключайте доступ к разделам и настройкам для каждой роли. Для администратора доступ к настройкам и управлению пользователями всегда включен.</p>
+      </div>
+      <span class="text-muted">Права применяются сразу после сохранения.</span>
+    </div>
+
+    <form action="{{ url_for('settings.update_role_permissions') }}" method="POST" class="role-editor">
+      <div class="table-wrapper">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>Роль</th>
+              {% for field in permission_fields %}
+              <th>{{ perm_labels.get(field, field) }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for role, perms in role_permissions | dictsort %}
+            <tr>
+              <td>{{ role }}</td>
+              {% for field in permission_fields %}
+              <td class="text-center">
+                <input type="checkbox" name="roles[{{ role }}][{{ field }}]" value="1" {% if perms.get(field) %}checked{% endif %}>
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="settings-actions">
+        <button type="submit" class="btn btn--primary">💾 Сохранить права</button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
 {% endblock %}
