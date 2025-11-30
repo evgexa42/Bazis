@@ -130,7 +130,7 @@ data-managers="{{ config_managers | join(',') }}"
     </div>
 
     <div class="notice-card notice-card--success is-hidden" data-password-notice>
-      <strong>Пароль сброшен.</strong>
+      <strong>Пароль изменён.</strong>
       <div class="password-notice__text" data-password-text></div>
     </div>
 
@@ -190,7 +190,7 @@ data-managers="{{ config_managers | join(',') }}"
               <div class="action-buttons" data-view>
                 <button class="btn btn--ghost btn--small" data-action="edit">Редактировать</button>
                 <button class="btn btn--danger btn--small" data-action="delete">Удалить</button>
-                <button class="btn btn--primary btn--small" data-action="reset">Сбросить пароль</button>
+                <button class="btn btn--primary btn--small" data-action="reset">Изменить пароль</button>
               </div>
               <div class="action-buttons is-hidden" data-edit>
                 <button class="btn btn--primary btn--small" data-action="save">💾 Сохранить</button>
@@ -205,7 +205,7 @@ data-managers="{{ config_managers | join(',') }}"
 
     <section class="card card--subtle">
       <h3 class="section-title">Добавить нового пользователя</h3>
-      <p class="hint">Создайте учётную запись и назначьте роль. Пароль можно сразу выдать или позже сбросить.</p>
+      <p class="hint">Создайте учётную запись и назначьте роль. Пароль можно сразу выдать или позже изменить.</p>
       <form action="{{ url_for('settings.add_user') }}" method="POST" class="role-editor add-user-form">
         <input type="text" name="username" class="input" placeholder="Имя пользователя" required>
         <input type="password" name="password" class="input" placeholder="Пароль" required>

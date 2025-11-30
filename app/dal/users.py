@@ -144,10 +144,9 @@ def delete_user(user_id: int) -> Dict[str, str]:
         if user.role == "admin" and user.is_active:
             admin_count = _count_admins(session)
             if admin_count <= 1:
-                return {"ok": False, "error": "Нельзя удалить или заблокировать последнего администратора."}
+                return {"ok": False, "error": "Нельзя удалить последнего активного администратора."}
 
-        user.is_active = False
-        session.add(user)
+        session.delete(user)
         return {"ok": True}
 
 

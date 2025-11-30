@@ -685,7 +685,7 @@ const UsersTable = (() => {
         deleteRow(row);
         break;
       case 'reset':
-        resetPassword(row);
+        changePassword(row);
         break;
       default:
         break;
@@ -761,16 +761,23 @@ const UsersTable = (() => {
       .catch(error => alert(error.message));
   }
 
-  function resetPassword(row) {
+  function changePassword(row) {
     const id = Number(row.dataset.userId || 0);
     const username = row.dataset.username || '';
 
-    if (!confirm(`Сбросить пароль для "${username}"?`)) return;
+    const newPassword = prompt(`Введите новый пароль для "${username}":`);
+    if (newPassword === null) return;
 
-    postJson('/settings/users/reset_password', { id })
+    const trimmedPassword = newPassword.trim();
+    if (!trimmedPassword) {
+      alert('Пароль не может быть пустым.');
+      return;
+    }
+
+    postJson('/settings/users/reset_password', { id, new_password: trimmedPassword })
       .then(payload => {
-        if (payload?.status !== 'ok') throw new Error(payload?.message || 'Не удалось сбросить пароль.');
-        showPasswordNotice(username, payload.password);
+        if (payload?.status !== 'ok') throw new Error(payload?.message || 'Не удалось изменить пароль.');
+        showPasswordNotice(username, payload.password || trimmedPassword);
       })
       .catch(error => alert(error.message));
   }

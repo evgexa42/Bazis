@@ -16,7 +16,6 @@ from app.dal.users import (
     create_user,
     delete_user,
     get_all_users,
-    reset_user_password_random,
     reset_user_password,
     update_user,
     update_user_role,
@@ -209,7 +208,7 @@ def delete_user_account():
 
 @settings_bp.route("/settings/users/reset_password", methods=["POST"])
 @login_required
-def reset_user_password_random_route():
+def change_user_password():
     _ensure_can_manage_users()
 
     payload = _json_data()
@@ -218,10 +217,14 @@ def reset_user_password_random_route():
     except (TypeError, ValueError):
         return jsonify({"status": "error", "message": "Неверный идентификатор пользователя."}), 400
 
-    result = reset_user_password_random(user_id, session.get("user"))
+    new_password = (payload.get("new_password") or "").strip()
+    if not new_password:
+        return jsonify({"status": "error", "message": "Пароль не может быть пустым."}), 400
+
+    result = reset_user_password(user_id, new_password, session.get("user"))
     status_code = 200 if result.get("ok") else 400
     if result.get("ok"):
-        body = {"status": "ok", "password": result.get("password")}
+        body = {"status": "ok", "password": new_password}
     else:
         body = {"status": "error", "message": result.get("error")}
     return jsonify(body), status_code
