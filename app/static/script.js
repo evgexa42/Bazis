@@ -656,6 +656,173 @@ const SettingsPage = (() => {
   return { init };
 })();
 
+const UsersTable = (() => {
+  function init() {
+    const table = document.querySelector('[data-users-table]');
+    if (!table) return;
+
+    table.addEventListener('click', handleAction);
+  }
+
+  function handleAction(event) {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+
+    const row = button.closest('tr');
+    if (!row) return;
+
+    switch (button.dataset.action) {
+      case 'edit':
+        toggleEdit(row, true);
+        break;
+      case 'cancel':
+        resetRow(row);
+        break;
+      case 'save':
+        saveRow(row);
+        break;
+      case 'delete':
+        deleteRow(row);
+        break;
+      case 'reset':
+        resetPassword(row);
+        break;
+      default:
+        break;
+    }
+  }
+
+  function toggleEdit(row, editing) {
+    row.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('is-hidden', editing));
+    row.querySelectorAll('[data-edit]').forEach(el => el.classList.toggle('is-hidden', !editing));
+
+    if (editing) {
+      const input = row.querySelector('.edit-username');
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+  }
+
+  function resetRow(row) {
+    const username = row.dataset.username || '';
+    const role = row.dataset.role || '';
+    const isActive = row.dataset.active === '1';
+
+    const nameInput = row.querySelector('.edit-username');
+    const roleSelect = row.querySelector('.edit-role');
+    const activeCheckbox = row.querySelector('.edit-active');
+
+    if (nameInput) nameInput.value = username;
+    if (roleSelect) roleSelect.value = role;
+    if (activeCheckbox) activeCheckbox.checked = isActive;
+
+    toggleEdit(row, false);
+  }
+
+  function saveRow(row) {
+    const id = Number(row.dataset.userId || 0);
+    const usernameInput = row.querySelector('.edit-username');
+    const roleSelect = row.querySelector('.edit-role');
+    const activeCheckbox = row.querySelector('.edit-active');
+
+    if (!usernameInput || !roleSelect || !activeCheckbox) return;
+
+    const username = usernameInput.value.trim();
+    const role = roleSelect.value;
+    const isActive = !!activeCheckbox.checked;
+
+    if (!username) {
+      alert('Имя пользователя не может быть пустым.');
+      return;
+    }
+
+    postJson('/settings/users/update', { id, username, role, is_active: isActive })
+      .then(payload => {
+        if (payload?.status !== 'ok') throw new Error(payload?.message || 'Не удалось сохранить пользователя.');
+        updateRowView(row, { username, role, isActive });
+        toggleEdit(row, false);
+      })
+      .catch(error => alert(error.message));
+  }
+
+  function deleteRow(row) {
+    const id = Number(row.dataset.userId || 0);
+    const username = row.dataset.username || '';
+
+    if (!confirm(`Удалить пользователя "${username}"?`)) return;
+
+    postJson('/settings/users/delete', { id })
+      .then(payload => {
+        if (payload?.status !== 'ok') throw new Error(payload?.message || 'Не удалось удалить пользователя.');
+        row.remove();
+      })
+      .catch(error => alert(error.message));
+  }
+
+  function resetPassword(row) {
+    const id = Number(row.dataset.userId || 0);
+    const username = row.dataset.username || '';
+
+    if (!confirm(`Сбросить пароль для "${username}"?`)) return;
+
+    postJson('/settings/users/reset_password', { id })
+      .then(payload => {
+        if (payload?.status !== 'ok') throw new Error(payload?.message || 'Не удалось сбросить пароль.');
+        showPasswordNotice(username, payload.password);
+      })
+      .catch(error => alert(error.message));
+  }
+
+  function updateRowView(row, { username, role, isActive }) {
+    row.dataset.username = username;
+    row.dataset.role = role;
+    row.dataset.active = isActive ? '1' : '0';
+
+    const nameCell = row.querySelector('.user-cell');
+    const roleBadge = row.querySelector('.role-badge');
+    const statusContainer = row.querySelector('[data-view] .status-pill')?.parentElement;
+
+    if (nameCell) nameCell.textContent = username;
+    if (roleBadge) roleBadge.textContent = role;
+
+    const statusPill = document.createElement('span');
+    statusPill.className = `status-pill ${isActive ? 'status-pill--success' : 'status-pill--neutral'}`;
+    statusPill.textContent = isActive ? 'Активен' : 'Заблокирован';
+
+    if (statusContainer) {
+      statusContainer.innerHTML = '';
+      statusContainer.appendChild(statusPill);
+    }
+  }
+
+  function postJson(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify(body)
+    }).then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Запрос завершился с ошибкой.');
+      }
+      return payload;
+    });
+  }
+
+  function showPasswordNotice(username, password) {
+    const box = document.querySelector('[data-password-notice]');
+    const text = document.querySelector('[data-password-text]');
+    if (!box || !text) return;
+
+    text.textContent = `Новый пароль для ${username}: ${password}`;
+    box.classList.remove('is-hidden');
+  }
+
+  return { init };
+})();
+
 const ClientsPage = (() => {
   function init() {
     const table = document.querySelector('[data-clients-table]');
@@ -1005,4 +1172,5 @@ document.addEventListener('DOMContentLoaded', () => {
   SearchPage.init();
   FacadesPage.init();
   SettingsPage.init();
+  UsersTable.init();
 });

@@ -298,6 +298,13 @@ select:focus {
   flex: 0 0 auto;
 }
 
+.input--compact,
+.select--compact {
+  padding: 8px 10px;
+  min-width: 180px;
+  height: auto;
+}
+
 .settings-form {
   display: flex;
   flex-direction: column;
@@ -622,6 +629,40 @@ select:focus {
 .action-buttons {
   display: flex;
   gap: 8px;
+}
+
+.users-table-wrapper {
+  margin: 12px 0 16px;
+  overflow-x: auto;
+}
+
+.users-table .user-cell {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.users-table .role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card--subtle {
+  background: rgba(241, 245, 249, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.7);
+}
+
+.password-notice__text {
+  margin-top: 6px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .is-hidden {
@@ -1059,19 +1100,10 @@ code {
   margin-bottom: 12px;
 }
 
-.users-table-wrapper {
-  margin-bottom: 16px;
-}
-
 .role-editor {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.input--compact {
-  padding: 8px 10px;
-  height: auto;
 }
 
 .user-actions {
@@ -1103,4 +1135,99 @@ code {
 
 .notice-card {
   border-radius: 14px;
+}
+
+.checkbox-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.checkbox-row input[type="checkbox"] {
+  margin-top: 2px;
+}
+
+.checkbox-row__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.checkbox-row__label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.checkbox-row__desc {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.role-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.role-card {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  padding: 18px 18px 8px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.8) 0%, #fff 100%);
+  box-shadow: 0 12px 32px -26px rgba(15, 23, 42, 0.35);
+}
+
+.role-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.role-card__title {
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.role-card__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.role-block {
+  padding: 12px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.role-block:first-of-type {
+  border-top: 0;
+}
+
+.role-block__title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.role-block__grid {
+  display: grid;
+  gap: 10px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }

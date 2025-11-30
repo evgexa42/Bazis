@@ -14,8 +14,11 @@ from app.dal.permissions import (
 from app.dal.users import (
     ALLOWED_ROLES,
     create_user,
+    delete_user,
     get_all_users,
+    reset_user_password_random,
     reset_user_password,
+    update_user,
     update_user_role,
 )
 from app import metrics, metrics_lock, ts_ago
@@ -140,6 +143,88 @@ def settings_page():
         role_permissions=get_all_role_permissions(),
         permission_fields=list(PERMISSION_FIELDS),
     )
+
+
+@settings_bp.route("/settings/users", methods=["GET"])
+@login_required
+def users_settings_page():
+    if not has_permission(session.get("role"), "can_manage_users"):
+        abort(403)
+
+    return settings_page()
+
+
+def _ensure_can_manage_users() -> None:
+    current_role = session.get("role")
+    if not (
+        has_permission(current_role, "can_manage_users")
+        and has_permission(current_role, "can_access_settings")
+    ):
+        abort(403)
+
+
+def _json_data() -> dict:
+    if request.is_json:
+        return request.get_json(silent=True) or {}
+    return request.form.to_dict()
+
+
+@settings_bp.route("/settings/users/update", methods=["POST"])
+@login_required
+def update_user_info():
+    _ensure_can_manage_users()
+
+    payload = _json_data()
+    try:
+        user_id = int(payload.get("id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Неверный идентификатор пользователя."}), 400
+
+    username = payload.get("username", "")
+    role = payload.get("role", "")
+    is_active = payload.get("is_active", True)
+
+    result = update_user(user_id, username, role, is_active)
+    status_code = 200 if result.get("ok") else 400
+    body = {"status": "ok"} if result.get("ok") else {"status": "error", "message": result.get("error")}
+    return jsonify(body), status_code
+
+
+@settings_bp.route("/settings/users/delete", methods=["POST"])
+@login_required
+def delete_user_account():
+    _ensure_can_manage_users()
+
+    payload = _json_data()
+    try:
+        user_id = int(payload.get("id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Неверный идентификатор пользователя."}), 400
+
+    result = delete_user(user_id)
+    status_code = 200 if result.get("ok") else 400
+    body = {"status": "ok"} if result.get("ok") else {"status": "error", "message": result.get("error")}
+    return jsonify(body), status_code
+
+
+@settings_bp.route("/settings/users/reset_password", methods=["POST"])
+@login_required
+def reset_user_password_random_route():
+    _ensure_can_manage_users()
+
+    payload = _json_data()
+    try:
+        user_id = int(payload.get("id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Неверный идентификатор пользователя."}), 400
+
+    result = reset_user_password_random(user_id, session.get("user"))
+    status_code = 200 if result.get("ok") else 400
+    if result.get("ok"):
+        body = {"status": "ok", "password": result.get("password")}
+    else:
+        body = {"status": "error", "message": result.get("error")}
+    return jsonify(body), status_code
 
 
 @settings_bp.route("/settings/roles/save", methods=["POST"])

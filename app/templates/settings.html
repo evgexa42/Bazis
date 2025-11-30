@@ -122,42 +122,80 @@ data-managers="{{ config_managers | join(',') }}"
   {% if role_perms.can_manage_users %}
   <section class="card tab-content" data-tab-panel="users">
     <div class="users-header">
-      <h2 class="section-title">Пользователи и роли</h2>
-      <p class="hint">Добавляйте пользователей, сбрасывайте пароли и назначайте роли. Доступно только с правом управления пользователями.</p>
+      <div>
+        <h2 class="section-title">Пользователи и роли</h2>
+        <p class="hint">Редактируйте логины, роли, статус и пароли. Все действия доступны только администраторам.</p>
+      </div>
+      <span class="text-muted">Все изменения применяются мгновенно</span>
+    </div>
+
+    <div class="notice-card notice-card--success is-hidden" data-password-notice>
+      <strong>Пароль сброшен.</strong>
+      <div class="password-notice__text" data-password-text></div>
     </div>
 
     <div class="users-table-wrapper">
-      <table class="data-table">
+      <table class="data-table users-table" data-users-table>
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Пользователь</th>
+            <th>Логин</th>
             <th>Роль</th>
+            <th>Статус</th>
+            <th>Создан</th>
             <th>Действия</th>
           </tr>
         </thead>
         <tbody>
           {% for user in users %}
-          <tr>
-            <td>{{ user.id }}</td>
-            <td>{{ user.username }}</td>
+          <tr data-user-id="{{ user.id }}" data-username="{{ user.username }}" data-role="{{ user.role }}" data-active="{{ 1 if user.is_active else 0 }}">
             <td>
-              <form action="{{ url_for('settings.change_role') }}" method="POST" class="role-editor">
-                <input type="hidden" name="user_id" value="{{ user.id }}">
-                <select name="role" class="select">
+              <div data-view class="user-cell">{{ user.username }}</div>
+              <div data-edit class="is-hidden">
+                <input type="text" class="input input--compact edit-username" value="{{ user.username }}" autocomplete="off">
+              </div>
+            </td>
+            <td>
+              <div data-view class="role-badge">{{ user.role }}</div>
+              <div data-edit class="is-hidden">
+                <select class="select select--compact edit-role">
                   {% for role in allowed_roles %}
                   <option value="{{ role }}" {% if role == user.role %}selected{% endif %}>{{ role }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" class="btn btn--ghost btn--small">Изменить</button>
-              </form>
+              </div>
             </td>
             <td>
-              <form action="{{ url_for('settings.reset_password') }}" method="POST" class="reset-form">
-                <input type="hidden" name="user_id" value="{{ user.id }}">
-                <input type="text" name="new_password" class="input" placeholder="Новый пароль" required>
-                <button type="submit" class="btn btn--primary btn--small">Сбросить</button>
-              </form>
+              <div data-view>
+                {% if user.is_active %}
+                  <span class="status-pill status-pill--success">Активен</span>
+                {% else %}
+                  <span class="status-pill status-pill--neutral">Заблокирован</span>
+                {% endif %}
+              </div>
+              <label data-edit class="checkbox-row is-hidden">
+                <input type="checkbox" class="edit-active" {% if user.is_active %}checked{% endif %}>
+                <span>Активен</span>
+              </label>
+            </td>
+            <td>
+              <div class="table-secondary">
+                {% if user.created_at %}
+                  {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="action-buttons" data-view>
+                <button class="btn btn--ghost btn--small" data-action="edit">Редактировать</button>
+                <button class="btn btn--danger btn--small" data-action="delete">Удалить</button>
+                <button class="btn btn--primary btn--small" data-action="reset">Сбросить пароль</button>
+              </div>
+              <div class="action-buttons is-hidden" data-edit>
+                <button class="btn btn--primary btn--small" data-action="save">💾 Сохранить</button>
+                <button class="btn btn--ghost btn--small" data-action="cancel">Отмена</button>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -165,9 +203,10 @@ data-managers="{{ config_managers | join(',') }}"
       </table>
     </div>
 
-    <section class="card">
+    <section class="card card--subtle">
       <h3 class="section-title">Добавить нового пользователя</h3>
-      <form action="{{ url_for('settings.add_user') }}" method="POST" class="role-editor">
+      <p class="hint">Создайте учётную запись и назначьте роль. Пароль можно сразу выдать или позже сбросить.</p>
+      <form action="{{ url_for('settings.add_user') }}" method="POST" class="role-editor add-user-form">
         <input type="text" name="username" class="input" placeholder="Имя пользователя" required>
         <input type="password" name="password" class="input" placeholder="Пароль" required>
         <select name="role" class="select">
@@ -178,7 +217,7 @@ data-managers="{{ config_managers | join(',') }}"
         <button type="submit" class="btn btn--primary btn--small">Добавить</button>
       </form>
     </section>
-   </section>
+  </section>
   {% endif %}
 
   {% if role_perms.can_access_metrics %}
@@ -266,49 +305,72 @@ data-managers="{{ config_managers | join(',') }}"
   {% endif %}
 
   {% if role_perms.can_manage_users %}
-  {% set perm_labels = {
-    'can_access_settings': 'Настройки',
-    'can_access_facades': 'Фасады',
-    'can_access_metrics': 'Метрики',
-    'can_access_clients': 'Клиенты',
-    'can_access_search': 'Поиск',
-    'can_manage_users': 'Управление пользователями',
-    'can_edit_paths': 'Изменение путей/конфига',
-    'can_toggle_order_options': 'Подтверждение заказов'
+  {% set permission_groups = [
+    (
+      'Доступ к разделам',
+      [
+        ('can_access_settings', 'Доступ к разделу «Настройки» (шестерёнка)', 'Позволяет открывать экран системных настроек.'),
+        ('can_access_facades', 'Доступ к разделу «Фасады»', 'Просмотр и управление списком фасадов.'),
+        ('can_access_metrics', 'Доступ к разделу «Метрики»', 'Просмотр состояния сервера и статистики.'),
+        ('can_access_clients', 'Доступ к разделу «Клиенты»', 'Работа со справочником клиентов.'),
+        ('can_access_search', 'Доступ к разделу «Поиск»', 'Поиск заказов и путей в базе.'),
+      ]
+    ),
+    (
+      'Административные права',
+      [
+        ('can_manage_users', 'Может управлять пользователями', 'Создание, редактирование и деактивация учётных записей.'),
+        ('can_edit_paths', 'Может менять пути/папки и конфиг', 'Изменение путей, сетевых настроек и токенов.'),
+        ('can_toggle_order_options', 'Может менять настройки подтверждения заказов', 'Включение и выключение подтверждения заказов.'),
+      ]
+    )
+  ] %}
+  {% set role_titles = {
+    'admin': 'Администратор',
+    'manager': 'Менеджер',
+    'technologist': 'Технолог'
   } %}
   <section class="card tab-content" data-tab-panel="roles">
     <div class="users-header">
       <div>
         <h2 class="section-title">Роли и права</h2>
-        <p class="hint">Включайте или выключайте доступ к разделам и настройкам для каждой роли. Для администратора доступ к настройкам и управлению пользователями всегда включен.</p>
+        <p class="hint">Карточки ролей с понятными подписями. Критичные права администратора защищены от выключения.</p>
       </div>
-      <span class="text-muted">Права применяются сразу после сохранения.</span>
+      <span class="text-muted">Изменения сохраняются одной кнопкой.</span>
     </div>
 
-    <form action="{{ url_for('settings.update_role_permissions') }}" method="POST" class="role-editor">
-      <div class="table-wrapper">
-        <table class="users-table">
-          <thead>
-            <tr>
-              <th>Роль</th>
-              {% for field in permission_fields %}
-              <th>{{ perm_labels.get(field, field) }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for role, perms in role_permissions | dictsort %}
-            <tr>
-              <td>{{ role }}</td>
-              {% for field in permission_fields %}
-              <td class="text-center">
-                <input type="checkbox" name="roles[{{ role }}][{{ field }}]" value="1" {% if perms.get(field) %}checked{% endif %}>
-              </td>
-              {% endfor %}
-            </tr>
+    <form action="{{ url_for('settings.update_role_permissions') }}" method="POST" class="role-editor role-cards-form">
+      <div class="role-grid">
+        {% for role, perms in role_permissions | dictsort %}
+        <article class="role-card">
+          <header class="role-card__header">
+            <div>
+              <span class="role-badge">{{ role }}</span>
+              <span class="role-card__title">{{ role_titles.get(role, role|capitalize) }}</span>
+            </div>
+            <p class="role-card__hint">Настройте доступы ниже</p>
+          </header>
+
+          <div class="role-card__body">
+            {% for group_title, fields in permission_groups %}
+            <div class="role-block">
+              <h3 class="role-block__title">{{ group_title }}</h3>
+              <div class="role-block__grid">
+                {% for field, label, desc in fields %}
+                <label class="checkbox-row">
+                  <input type="checkbox" name="roles[{{ role }}][{{ field }}]" value="1" {% if perms.get(field) %}checked{% endif %}>
+                  <div class="checkbox-row__content">
+                    <span class="checkbox-row__label">{{ label }}</span>
+                    <span class="checkbox-row__desc">{{ desc }}</span>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
             {% endfor %}
-          </tbody>
-        </table>
+          </div>
+        </article>
+        {% endfor %}
       </div>
 
       <div class="settings-actions">
