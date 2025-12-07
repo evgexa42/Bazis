@@ -7,6 +7,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 import app as bazis_app
+import app.config as app_config
 from app import heartbeat, measure_time
 from app.services import telegram as telegram_service
 from app.services.snapshot import remove_order, upsert_order
@@ -26,8 +27,8 @@ def _norm_abs(p: str) -> str:
     return os.path.normcase(os.path.abspath(p))
 
 def _get_watch_roots() -> set[str]:
-    # корень берём тот же, на котором висит observer:
-    root = bazis_app.WATCHED_PATH or bazis_app.FOLDER_PATH
+    # корень берём тот же, на котором висит observer (читаем из config модуля)
+    root = app_config.WATCHED_PATH or app_config.FOLDER_PATH
     if not root:
         return set()
     return {_norm_real(root), _norm_abs(root)}
@@ -158,11 +159,11 @@ def start_observer_once():
         return
     observer_started = True
 
-    if not bazis_app.FOLDER_PATH:
+    if not app_config.FOLDER_PATH:
         logger.warning("[observer] Путь к папке заказов не настроен. Мониторинг не запущен.")
         return
 
-    logger.info("[observer] Запуск мониторинга папки заказов: %s", bazis_app.FOLDER_PATH)
+    logger.info("[observer] Запуск мониторинга папки заказов: %s", app_config.FOLDER_PATH)
     handler = OrderFolderHandler()
     observer = Observer()
 
@@ -170,7 +171,7 @@ def start_observer_once():
     global WATCH_ROOTS
     WATCH_ROOTS = _get_watch_roots()
 
-    observer.schedule(handler, bazis_app.FOLDER_PATH, recursive=False)
+    observer.schedule(handler, app_config.FOLDER_PATH, recursive=False)
 
     observer.start()
 
@@ -194,13 +195,13 @@ def initialize_known_state():
     from app.services.telegram import cleanup_missing_messages, ensure_message_for_folder
     from app.services.telegram import delete_telegram_message, order_key_from_name, should_notify
 
-    if not bazis_app.FOLDER_PATH or not os.path.isdir(bazis_app.FOLDER_PATH):
-        logger.warning("[init] Путь не найден: %s", bazis_app.FOLDER_PATH)
+    if not app_config.FOLDER_PATH or not os.path.isdir(app_config.FOLDER_PATH):
+        logger.warning("[init] Путь не найден: %s", app_config.FOLDER_PATH)
         return
 
     actual_folders = []
     try:
-        with os.scandir(bazis_app.FOLDER_PATH) as it:
+        with os.scandir(app_config.FOLDER_PATH) as it:
             for entry in it:
                 if not entry.is_dir():
                     continue

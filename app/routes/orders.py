@@ -18,6 +18,7 @@ from flask import (
 )
 
 import app as bazis_app
+import app.config as app_config
 from app import (
     SSEClient,
     get_manager_from_name,
@@ -76,9 +77,9 @@ def _prepare_event_for_client(event: dict, visible_manager, requested_manager):
         list(folders), visible_manager, requested_manager
     )
 
-    manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
+    manager_stats = {name: 0 for name in app_config.MANAGER_NAMES}
     manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
-    tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
+    tech_stats = {name: 0 for name in app_config.TECHNOLOGIST_MARKERS.values()}
     tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
 
     for folder in filtered_folders:
@@ -136,7 +137,7 @@ def search_page():
         return redirect(url_for("orders.index"))
 
     query = request.form.get("query", "").strip()
-    results = {key: [] for key in bazis_app.SEARCH_FOLDERS.keys()}
+    results = {key: [] for key in app_config.SEARCH_FOLDERS.keys()}
 
     if query:
         logger.info("[search] Запрос поиска: %s", query)
@@ -160,7 +161,7 @@ def search_page():
         results = filtered_results
 
     return render_template(
-        "search.html", query=query, results=results, SEARCH_FOLDERS=bazis_app.SEARCH_FOLDERS
+        "search.html", query=query, results=results, SEARCH_FOLDERS=app_config.SEARCH_FOLDERS
     )
 
 
@@ -280,7 +281,7 @@ def generate_facades():
             400,
         )
 
-    target_dir = os.path.dirname(bazis_app.FACADES_FILE)
+    target_dir = os.path.dirname(app_config.FACADES_FILE)
     if target_dir:
         try:
             os.makedirs(target_dir, exist_ok=True)
@@ -296,7 +297,7 @@ def generate_facades():
             )
 
     try:
-        with open(bazis_app.FACADES_FILE, "w", encoding="utf-8") as file:
+        with open(app_config.FACADES_FILE, "w", encoding="utf-8") as file:
             file.write("# position(optional) height width count side hinges\n")
             for line in lines:
                 file.write(line + "\n")
@@ -309,9 +310,9 @@ def generate_facades():
     return jsonify(
         {
             "status": "ok",
-            "file": os.path.basename(bazis_app.FACADES_FILE),
-            "folder": bazis_app.FACADES_DIR
-            or os.path.dirname(os.path.abspath(bazis_app.FACADES_FILE)),
+            "file": os.path.basename(app_config.FACADES_FILE),
+            "folder": app_config.FACADES_DIR
+            or os.path.dirname(os.path.abspath(app_config.FACADES_FILE)),
         }
     )
 
@@ -335,14 +336,14 @@ def open_folder():
 @orders_bp.route("/confirm_order", methods=["POST"])
 @measure_time("confirm_order")
 def confirm_order():
-    if not bazis_app.ORDER_CONFIRMATION_ENABLED:
+    if not app_config.ORDER_CONFIRMATION_ENABLED:
         logger.warning("[confirm_order] Попытка подтверждения при выключенной функции")
         return (
             jsonify({"status": "error", "message": "Подтверждение заказов отключено."}),
             400,
         )
 
-    if not bazis_app.FOLDER_PATH or not os.path.isdir(bazis_app.FOLDER_PATH):
+    if not app_config.FOLDER_PATH or not os.path.isdir(app_config.FOLDER_PATH):
         return (
             jsonify({"status": "error", "message": "Путь к папке заказов не настроен."}),
             500,
@@ -357,7 +358,7 @@ def confirm_order():
             400,
         )
 
-    current_path = os.path.join(bazis_app.FOLDER_PATH, folder_name)
+    current_path = os.path.join(app_config.FOLDER_PATH, folder_name)
     if not os.path.isdir(current_path):
         return jsonify({"status": "error", "message": "Заказ не найден."}), 404
 
@@ -416,7 +417,7 @@ def confirm_order():
         )
 
     new_name = f"{folder_name} +"
-    new_path = os.path.join(bazis_app.FOLDER_PATH, new_name)
+    new_path = os.path.join(app_config.FOLDER_PATH, new_name)
     if os.path.exists(new_path):
         logger.warning("[confirm_order] Папка уже существует: %s", new_path)
         return (

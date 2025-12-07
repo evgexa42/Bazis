@@ -9,6 +9,7 @@ from time import perf_counter
 from typing import Dict, List, Optional, Set, Tuple
 
 import app as bazis_app
+import app.config as app_config
 from app import get_manager_from_name, heartbeat, logger, measure_time, sse_broadcast
 from app.dal.db import DB_PATH
 from app.services import telegram as telegram_service
@@ -43,7 +44,7 @@ def parse_folder_entry(
     if folder_name in telegram_service.IGNORED_FOLDERS:
         return None
 
-    folder_path = os.path.join(bazis_app.FOLDER_PATH or "", folder_name)
+    folder_path = os.path.join(app_config.FOLDER_PATH or "", folder_name)
     try:
         mtime_ts = stat_mtime if stat_mtime is not None else os.path.getmtime(folder_path)
     except OSError:
@@ -106,14 +107,14 @@ def _apply_snapshot(new_snapshot: List[Dict]) -> bool:
 @measure_time("build_orders_snapshot")
 def build_orders_snapshot():
     t0 = perf_counter()
-    if not bazis_app.FOLDER_PATH or not os.path.isdir(bazis_app.FOLDER_PATH):
+    if not app_config.FOLDER_PATH or not os.path.isdir(app_config.FOLDER_PATH):
         return []
 
     now_ts = time.time()
     folder_data: List[Dict] = []
 
     try:
-        with os.scandir(bazis_app.FOLDER_PATH) as it:
+        with os.scandir(app_config.FOLDER_PATH) as it:
             for entry in it:
                 if not entry.is_dir():
                     continue
@@ -151,9 +152,9 @@ def refresh_orders_snapshot(force: bool = False):
         applied_snapshot = list(bazis_app.orders_snapshot)
 
     if changed:
-        manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
+        manager_stats = {name: 0 for name in app_config.MANAGER_NAMES}
         manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
-        tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
+        tech_stats = {name: 0 for name in app_config.TECHNOLOGIST_MARKERS.values()}
         tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
 
         for folder in applied_snapshot:
@@ -250,14 +251,14 @@ def build_orders_payload(visible_manager=None, requested_manager="Все"):
     folders, _ = _apply_manager_filter(folders, visible_manager, requested_manager)
 
     total_orders = len(folders)
-    manager_stats = {name: 0 for name in bazis_app.MANAGER_NAMES}
+    manager_stats = {name: 0 for name in app_config.MANAGER_NAMES}
     manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
     for folder in folders:
         manager_name = folder.get("manager") or "Неизвестно"
         manager_stats.setdefault(manager_name, 0)
         manager_stats[manager_name] += 1
 
-    tech_stats = {name: 0 for name in bazis_app.TECHNOLOGIST_MARKERS.values()}
+    tech_stats = {name: 0 for name in app_config.TECHNOLOGIST_MARKERS.values()}
     tech_stats["Неизвестно"] = tech_stats.get("Неизвестно", 0)
     for folder in folders:
         technologist_name = folder.get("technologist") or "Неизвестно"
@@ -346,7 +347,7 @@ def refresh_search_index(full: bool = False):
         all_rows: List[Tuple] = []
         cleanup_batches: List[Tuple[str, str, Set[str]]] = []
 
-        for base_key, base_folder in bazis_app.SEARCH_FOLDERS.items():
+        for base_key, base_folder in app_config.SEARCH_FOLDERS.items():
             if not base_folder:
                 continue
             for month in search_months:
@@ -429,7 +430,7 @@ def refresh_search_index(full: bool = False):
 def search_in_index(query: str):
     cleaned_query, month_filters = _extract_month_filters(query)
     normalized_query = (cleaned_query or "").strip().lower()
-    keys = list(bazis_app.SEARCH_FOLDERS.keys())
+    keys = list(app_config.SEARCH_FOLDERS.keys())
     results = {key: [] for key in keys}
     fallback_key = "Результаты" if not results else "Прочее"
     results.setdefault(fallback_key, [])
@@ -486,7 +487,7 @@ def get_recent_months(months_back: Optional[int] = None) -> List[str]:
     now = datetime.now()
     months: List[str] = []
 
-    months_count = months_back if months_back is not None else bazis_app.SEARCH_MONTHS
+    months_count = months_back if months_back is not None else app_config.SEARCH_MONTHS
     try:
         months_count = max(1, min(12, int(months_count)))
     except (TypeError, ValueError):

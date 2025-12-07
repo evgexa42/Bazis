@@ -6,6 +6,7 @@ from typing import List, Optional
 from telegram import Bot
 
 import app as bazis_app
+import app.config as app_config
 from app import get_manager_from_name, logger
 from app.dal.database import load_messages as load_messages_from_db
 from app.dal.database import replace_messages as replace_messages_in_db
@@ -87,16 +88,16 @@ def save_messages(msgs: List[dict]) -> None:
 
 
 def folder_has_ready_marker(folder_name: str) -> bool:
-    if not bazis_app.TECHNOLOGIST_MARKERS:
+    if not app_config.TECHNOLOGIST_MARKERS:
         return False
-    for marker in bazis_app.TECHNOLOGIST_MARKERS:
+    for marker in app_config.TECHNOLOGIST_MARKERS:
         if f"[{marker}]" in folder_name:
             return True
     return False
 
 
 def technologist_from_folder(folder_name: str) -> str:
-    for marker, name in bazis_app.TECHNOLOGIST_MARKERS.items():
+    for marker, name in app_config.TECHNOLOGIST_MARKERS.items():
         if f"[{marker}]" in folder_name:
             return name
     return "Неизвестно"
@@ -127,15 +128,15 @@ def build_order_message(folder_name: str) -> str:
 
 def send_telegram_message(msg: str, folder_name: str) -> None:
     global messages
-    if bot is None or not bazis_app.CHAT_ID:
+    if bot is None or not app_config.CHAT_ID:
         logger.warning("[TG] Бот не настроен. Сообщение не отправлено для %s", folder_name)
         return
     try:
-        sent = bot.send_message(chat_id=bazis_app.CHAT_ID, text=msg)
+        sent = bot.send_message(chat_id=app_config.CHAT_ID, text=msg)
         entry = {
             "folder": folder_name,
             "order_key": order_key_from_name(folder_name),
-            "chat_id": bazis_app.CHAT_ID,
+            "chat_id": app_config.CHAT_ID,
             "message_id": sent.message_id,
         }
         with messages_lock:

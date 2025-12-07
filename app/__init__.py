@@ -153,54 +153,6 @@ def measure_time(name=None, bucket="per_endpoint"):
 
 from app import config as app_config  # noqa: E402
 
-CONFIG = app_config.CONFIG
-ORDER_CONFIRMATION_ENABLED = app_config.ORDER_CONFIRMATION_ENABLED
-SEARCH_MONTHS = app_config.SEARCH_MONTHS
-
-FOLDER_PATH = app_config.FOLDER_PATH
-FACADES_DIR = app_config.FACADES_DIR
-FACADES_FILE = app_config.FACADES_FILE
-WATCHED_PATH = app_config.WATCHED_PATH
-WATCHED_PATH_NORM = app_config.WATCHED_PATH_NORM
-TELEGRAM_TOKEN = app_config.TELEGRAM_TOKEN
-CHAT_ID = app_config.CHAT_ID
-SERVER_HOST = app_config.SERVER_HOST
-SERVER_PORT = app_config.SERVER_PORT
-DEBUG_MODE = app_config.DEBUG_MODE
-SEARCH_FOLDERS = app_config.SEARCH_FOLDERS
-MANAGER_NAMES = app_config.MANAGER_NAMES
-TECHNOLOGIST_MARKERS = app_config.TECHNOLOGIST_MARKERS
-save_config = app_config.save_config
-load_config = app_config.load_config
-
-
-def _sync_config_from_module():
-    global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
-    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
-    global ORDER_CONFIRMATION_ENABLED, SEARCH_FOLDERS, SEARCH_MONTHS
-
-    FOLDER_PATH = app_config.FOLDER_PATH
-    FACADES_DIR = app_config.FACADES_DIR
-    FACADES_FILE = app_config.FACADES_FILE
-    WATCHED_PATH = app_config.WATCHED_PATH
-    WATCHED_PATH_NORM = app_config.WATCHED_PATH_NORM
-    TELEGRAM_TOKEN = app_config.TELEGRAM_TOKEN
-    CHAT_ID = app_config.CHAT_ID
-    SERVER_HOST = app_config.SERVER_HOST
-    SERVER_PORT = app_config.SERVER_PORT
-    DEBUG_MODE = app_config.DEBUG_MODE
-    ORDER_CONFIRMATION_ENABLED = app_config.ORDER_CONFIRMATION_ENABLED
-    SEARCH_FOLDERS = app_config.SEARCH_FOLDERS
-    SEARCH_MONTHS = app_config.SEARCH_MONTHS
-
-
-def apply_config(config):
-    app_config.apply_config(config)
-    _sync_config_from_module()
-
-
-_sync_config_from_module()
-
 
 def build_clients_lookup(clients_data):
     return {name.lower(): manager for name, manager in clients_data.items()}
@@ -407,18 +359,18 @@ def get_secret_key():
     if env_key:
         return env_key
 
-    server_config = CONFIG.get("server", {}) if isinstance(CONFIG, dict) else {}
+    server_config = app_config.CONFIG.get("server", {}) if isinstance(app_config.CONFIG, dict) else {}
     config_key = server_config.get("secret_key")
     if config_key and config_key != "dev-secret-key":
         return config_key
 
     generated_key = secrets.token_hex(32)
     try:
-        if isinstance(CONFIG, dict):
-            server_section = CONFIG.setdefault("server", {})
+        if isinstance(app_config.CONFIG, dict):
+            server_section = app_config.CONFIG.setdefault("server", {})
             if server_section.get("secret_key") in {None, "", "dev-secret-key"}:
                 server_section["secret_key"] = generated_key
-                save_config(CONFIG)
+                app_config.save_config(app_config.CONFIG)
     except Exception as exc:  # pragma: no cover - логирование побочного эффекта
         logger.warning(
             "[security] Не удалось сохранить сгенерированный SECRET_KEY, используется временное значение.",
@@ -517,9 +469,10 @@ MONTHS_RO = {
 @app.context_processor
 def inject_config_data():
     return {
-        "config_managers": MANAGER_NAMES,
-        "config_facades_dir": FACADES_DIR,
-        "order_confirmation_enabled": ORDER_CONFIRMATION_ENABLED,
+        # читаем конфиг напрямую из app.config, чтобы не терять обновления
+        "config_managers": app_config.MANAGER_NAMES,
+        "config_facades_dir": app_config.FACADES_DIR,
+        "order_confirmation_enabled": app_config.ORDER_CONFIRMATION_ENABLED,
         "current_user": getattr(g, "current_user", None),
         "current_role": getattr(g, "current_role", None),
         "role_perms": getattr(g, "role_perms", {}),
@@ -545,8 +498,9 @@ def register_blueprints(flask_app: Flask):
 register_blueprints(app)
 
 
-if TELEGRAM_TOKEN:
-    telegram_service.init_bot(TELEGRAM_TOKEN)
+if app_config.TELEGRAM_TOKEN:
+    # читаем свежий токен напрямую из конфигурации
+    telegram_service.init_bot(app_config.TELEGRAM_TOKEN)
 else:
     logger.warning("[telegram] TELEGRAM_TOKEN не задан, бот не инициализирован.")
 telegram_service.load_messages_storage(MESSAGES_FILE)
@@ -582,19 +536,7 @@ def handle_unexpected_error(error):
 __all__ = [
     "app",
     "logger",
-    "CONFIG",
-    "apply_config",
-    "save_config",
-    "MANAGER_NAMES",
-    "TECHNOLOGIST_MARKERS",
-    "FOLDER_PATH",
-    "WATCHED_PATH",
-    "WATCHED_PATH_NORM",
-    "FACADES_DIR",
-    "FACADES_FILE",
-    "CHAT_ID",
-    "TELEGRAM_TOKEN",
-    "SERVER_PORT",
+    "app_config",
     "clients",
     "clients_lock",
     "refresh_clients_lookup_locked",
@@ -612,8 +554,6 @@ __all__ = [
     "sse_broadcast",
     "order_index_updated_at",
     "order_index_lock",
-    "SEARCH_FOLDERS",
-    "ORDER_CONFIRMATION_ENABLED",
     "MESSAGES_FILE",
     "metrics",
     "metrics_lock",
