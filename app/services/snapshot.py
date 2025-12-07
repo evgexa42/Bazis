@@ -279,6 +279,7 @@ def build_orders_payload(visible_manager=None, requested_manager="Все"):
 def get_sqlite_connection(retries: int = 3, retry_delay: float = 0.25):
     last_error: Optional[Exception] = None
     for attempt in range(retries):
+        conn: Optional[sqlite3.Connection] = None  # гарантируем определение на случай исключений
         try:
             conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
             cur = conn.cursor()
@@ -291,7 +292,8 @@ def get_sqlite_connection(retries: int = 3, retry_delay: float = 0.25):
         except sqlite3.OperationalError as exc:
             last_error = exc
             try:
-                conn.close()
+                if conn:
+                    conn.close()
             except Exception:
                 pass
             time.sleep(retry_delay)
