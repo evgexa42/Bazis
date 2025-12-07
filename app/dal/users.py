@@ -1,15 +1,16 @@
 import hashlib
 import secrets
 import string
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.dal.db import SessionLocal, User
+from app.dal.db import DEFAULT_ROLE_PERMISSIONS, SessionLocal, User
+from app.dal.permissions import list_roles
 
-ALLOWED_ROLES = {"admin", "technologist", "manager"}
+DEFAULT_ROLES = set(DEFAULT_ROLE_PERMISSIONS.keys())
 
 
 def _user_to_dict(user: User) -> Dict:
@@ -29,6 +30,21 @@ def _count_admins(session) -> int:
     ).scalar_one()
 
 
+def _error(code: str, message: str) -> Dict[str, str]:
+    return {"ok": False, "error_code": code, "message": message}
+
+
+def _allowed_roles() -> Set[str]:
+    try:
+        names = set(list_roles())
+        if not names:
+            return set(DEFAULT_ROLES)
+        return names
+    except Exception:
+        # Не ломаем поток из-за проблем с таблицей ролей
+        return set(DEFAULT_ROLES)
+
+
 def _bool(value) -> bool:
     if isinstance(value, bool):
         return value
@@ -43,6 +59,10 @@ def get_all_users() -> List[Dict]:
         return [_user_to_dict(row) for row in rows]
 
 
+def get_allowed_roles() -> Set[str]:
+    return _allowed_roles()
+
+
 def get_user_by_username(username: str) -> Optional[Dict]:
     if not username:
         return None
@@ -54,11 +74,12 @@ def get_user_by_username(username: str) -> Optional[Dict]:
 
 def create_user(username: str, password: str, role: str) -> Dict[str, str]:
     username = (username or "").strip()
-    role = (role or "").strip()
+    role = (role or "").strip().lower()
     if not username or not password:
-        return {"ok": False, "error": "Имя пользователя и пароль обязательны."}
-    if role not in ALLOWED_ROLES:
-        return {"ok": False, "error": "Недопустимая роль."}
+        return _error("validation", "Имя пользователя и пароль обязательны.")
+
+    if role not in _allowed_roles():
+        return _error("invalid_role", "Недопустимая роль.")
 
     password_hash = generate_password_hash(password)
 
@@ -67,22 +88,24 @@ def create_user(username: str, password: str, role: str) -> Dict[str, str]:
             session.add(User(username=username, password_hash=password_hash, role=role, is_active=True))
         return {"ok": True}
     except IntegrityError:
-        return {"ok": False, "error": "Пользователь с таким именем уже существует."}
+        return _error("username_taken", "Пользователь с таким именем уже существует.")
 
 
 def update_user_role(user_id: int, role: str) -> Dict[str, str]:
-    if role not in ALLOWED_ROLES:
-        return {"ok": False, "error": "Недопустимая роль."}
+    role = (role or "").strip().lower()
+
+    if role not in _allowed_roles():
+        return _error("invalid_role", "Недопустимая роль.")
 
     with SessionLocal.begin() as session:
         user = session.get(User, user_id)
         if not user:
-            return {"ok": False, "error": "Пользователь не найден."}
+            return _error("not_found", "Пользователь не найден.")
 
         if user.role == "admin" and role != "admin":
             admin_count = _count_admins(session)
             if admin_count <= 1:
-                return {"ok": False, "error": "Нельзя изменить роль последнего администратора."}
+                return _error("admin_guard", "Нельзя изменить роль последнего администратора.")
 
         user.role = role
         return {"ok": True}
@@ -90,24 +113,26 @@ def update_user_role(user_id: int, role: str) -> Dict[str, str]:
 
 def update_user(user_id: int, username: str, role: str, is_active: bool) -> Dict[str, str]:
     username = (username or "").strip()
-    role = (role or "").strip()
+    role = (role or "").strip().lower()
     is_active = _bool(is_active)
 
     if not username:
-        return {"ok": False, "error": "Имя пользователя не может быть пустым."}
-    if role not in ALLOWED_ROLES:
-        return {"ok": False, "error": "Недопустимая роль."}
+        return _error("validation", "Имя пользователя не может быть пустым.")
+    if role not in _allowed_roles():
+        return _error("invalid_role", "Недопустимая роль.")
 
     try:
         with SessionLocal.begin() as session:
             user = session.get(User, user_id)
             if not user:
-                return {"ok": False, "error": "Пользователь не найден."}
+                return _error("not_found", "Пользователь не найден.")
 
             if user.role == "admin" and (role != "admin" or not is_active):
                 admin_count = _count_admins(session)
                 if admin_count <= 1:
-                    return {"ok": False, "error": "Нельзя изменить последнего активного администратора."}
+                    return _error(
+                        "admin_guard", "Нельзя изменить последнего активного администратора."
+                    )
 
             user.username = username
             user.role = role
@@ -116,19 +141,21 @@ def update_user(user_id: int, username: str, role: str, is_active: bool) -> Dict
             session.add(user)
         return {"ok": True}
     except IntegrityError:
-        return {"ok": False, "error": "Пользователь с таким именем уже существует."}
+        return _error("username_taken", "Пользователь с таким именем уже существует.")
 
 
 def delete_user(user_id: int) -> Dict[str, str]:
     with SessionLocal.begin() as session:
         user = session.get(User, user_id)
         if not user:
-            return {"ok": False, "error": "Пользователь не найден."}
+            return _error("not_found", "Пользователь не найден.")
 
         if user.role == "admin" and user.is_active:
             admin_count = _count_admins(session)
             if admin_count <= 1:
-                return {"ok": False, "error": "Нельзя удалить последнего активного администратора."}
+                return _error(
+                    "admin_guard", "Нельзя удалить последнего активного администратора."
+                )
 
         session.delete(user)
         return {"ok": True}
@@ -197,10 +224,10 @@ def verify_user_credentials(username: str, password: str) -> Optional[Dict]:
 
 
 __all__ = [
-    "ALLOWED_ROLES",
     "create_user",
     "delete_user",
     "generate_random_password",
+    "get_allowed_roles",
     "get_all_users",
     "get_user_by_username",
     "reset_user_password_random",

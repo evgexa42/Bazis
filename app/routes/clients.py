@@ -1,17 +1,17 @@
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, g, jsonify, redirect, render_template, request, url_for
 
 from app import clients, clients_lock, reload_clients_from_db
 from app.dal.database import add_client as add_client_db
 from app.dal.database import delete_client as delete_client_db
 from app.dal.database import update_client as update_client_db
-from app.dal.permissions import has_permission, permissions_required
+from app.dal.permissions import permissions_required
 
 clients_bp = Blueprint("clients", __name__)
 
 
 @clients_bp.route("/clients")
 def clients_page():
-    if not has_permission(session.get("role"), "can_access_clients"):
+    if not getattr(g, "role_perms", {}).get("can_access_clients"):
         return redirect(url_for("orders.index"))
 
     with clients_lock:

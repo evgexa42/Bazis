@@ -363,6 +363,42 @@ data-managers="{{ config_managers | join(',') }}"
       <span class="text-muted">Изменения сохраняются одной кнопкой.</span>
     </div>
 
+    <div class="role-grid">
+      <article class="role-card">
+        <header class="role-card__header">
+          <div>
+            <span class="role-card__title">Добавить новую роль</span>
+            <p class="role-card__hint">Укажите имя и включите базовые права.</p>
+          </div>
+        </header>
+        <form action="{{ url_for('settings.create_role_entry') }}" method="POST" class="role-card__body">
+          <div class="role-block">
+            <label class="field-label" for="role_name">Название роли</label>
+            <input type="text" id="role_name" name="role_name" class="input" placeholder="например, auditor" required>
+          </div>
+          {% for group_title, fields in permission_groups %}
+          <div class="role-block">
+            <h3 class="role-block__title">{{ group_title }}</h3>
+            <div class="role-block__grid">
+              {% for field, label, desc in fields %}
+              <label class="checkbox-row">
+                <input type="checkbox" name="new_role[{{ field }}]" value="1">
+                <div class="checkbox-row__content">
+                  <span class="checkbox-row__label">{{ label }}</span>
+                  <span class="checkbox-row__desc">{{ desc }}</span>
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+          <div class="settings-actions">
+            <button type="submit" class="btn btn--secondary">➕ Добавить роль</button>
+          </div>
+        </form>
+      </article>
+    </div>
+
     <form action="{{ url_for('settings.update_role_permissions') }}" method="POST" class="role-editor role-cards-form">
       <div class="role-grid">
         {% for role, perms in role_permissions | dictsort %}
@@ -372,7 +408,18 @@ data-managers="{{ config_managers | join(',') }}"
               <span class="role-badge">{{ role }}</span>
               <span class="role-card__title">{{ role_titles.get(role, role|capitalize) }}</span>
             </div>
-            <p class="role-card__hint">Настройте доступы ниже</p>
+            <div class="role-card__actions">
+              <input type="hidden" name="role_names[]" value="{{ role }}">
+              {% if role not in protected_roles %}
+                {% if role in role_usage %}
+                  <button type="button" class="btn btn--ghost" disabled>Используется</button>
+                {% else %}
+                  <button type="submit" class="btn btn--ghost" formaction="{{ url_for('settings.delete_role_entry', role=role) }}" formmethod="post" formnovalidate onclick="return confirm('Удалить роль «{{ role }}»?')">Удалить</button>
+                {% endif %}
+              {% else %}
+                <span class="role-card__hint">Системная роль</span>
+              {% endif %}
+            </div>
           </header>
 
           <div class="role-card__body">

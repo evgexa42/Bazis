@@ -165,29 +165,20 @@ def build_clients_lc(clients_data):
 
 
 def load_clients():
-    default_clients = {}
     try:
-        db_clients = get_all_clients()
-        if db_clients:
-            return db_clients
+        return get_all_clients()
     except Exception as exc:
         logger.exception("[clients] Не удалось загрузить клиентов из БД", exc_info=exc)
+        return {}
 
-    if os.path.exists(CLIENTS_FILE):
-        try:
-            data = load_json_file(CLIENTS_FILE)
-            if isinstance(data, dict):
-                replace_clients(data)
-                return data
-        except Exception as exc:
-            logger.exception("[clients] Не удалось прочитать clients.json", exc_info=exc)
-        return default_clients
 
-    try:
-        replace_clients(default_clients)
-    except Exception as exc:
-        logger.exception("[clients] Не удалось создать таблицу клиентов", exc_info=exc)
-    return default_clients
+def import_clients_from_json(json_path: str = CLIENTS_FILE) -> dict:
+    """Разовая миграция клиентов из JSON в БД."""
+    data = load_json_file(json_path)
+    if isinstance(data, dict):
+        replace_clients(data)
+        return data
+    return {}
 
 
 def save_clients(data):

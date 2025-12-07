@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from flask import (
     Blueprint,
-    abort,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -23,17 +23,19 @@ from app.config import (
     apply_config,
     save_config,
 )
+from app.dal.db import DEFAULT_ROLE_PERMISSIONS
 from app.dal.permissions import (
     PERMISSION_FIELDS,
+    create_role,
+    delete_role,
     get_all_role_permissions,
-    has_permission,
     permissions_required,
     save_role_permissions,
 )
 from app.dal.users import (
-    ALLOWED_ROLES,
     create_user,
     delete_user,
+    get_allowed_roles,
     get_all_users,
     reset_user_password,
     update_user,
@@ -52,8 +54,8 @@ logger = logging.getLogger("bazis")
 def settings_page():
     global CONFIG
 
-    current_role = session.get("role")
-    if not has_permission(current_role, "can_access_settings"):
+    role_perms = getattr(g, "role_perms", {})
+    if not role_perms.get("can_access_settings"):
         return redirect(url_for("orders.index"))
 
     status_message = None
@@ -61,6 +63,13 @@ def settings_page():
     config_warnings = list(CONFIG_WARNINGS)
     needs_restart = False
     monitor_restart_required = False
+
+    flashed_status = session.pop("settings_status", None)
+    flashed_errors = session.pop("settings_errors", [])
+    if flashed_status:
+        status_message = flashed_status
+    if flashed_errors:
+        errors.extend(flashed_errors)
 
     if request.method == "POST":
         def parse_list(value: str) -> list[str]:
@@ -93,7 +102,7 @@ def settings_page():
 
         updated["technologists"] = parse_mapping(technologists_raw)
 
-        if has_permission(current_role, "can_edit_paths"):
+        if role_perms.get("can_edit_paths"):
             orders_path = request.form.get("orders_path", "").strip()
             facades_dir = request.form.get("facades_dir", "").strip()
             search_raw = request.form.get("search_folders", "")
@@ -126,7 +135,7 @@ def settings_page():
             telegram_cfg["token"] = telegram_token
             telegram_cfg["chat_id"] = telegram_chat
 
-        if has_permission(current_role, "can_toggle_order_options"):
+        if role_perms.get("can_toggle_order_options"):
             features_config = updated.setdefault("features", {})
             if not isinstance(features_config, dict):
                 features_config = {}
@@ -173,6 +182,7 @@ def settings_page():
     search_text = "\n".join(f"{title}={path}" for title, path in SEARCH_FOLDERS.items())
 
     users = get_all_users()
+    available_roles = sorted(get_allowed_roles())
 
     return render_template(
         "settings.html",
@@ -186,10 +196,12 @@ def settings_page():
         monitor_restart_required=monitor_restart_required,
         errors=errors,
         users=users,
-        allowed_roles=sorted(ALLOWED_ROLES),
+        allowed_roles=available_roles,
         current_user=session.get("user"),
         role_permissions=get_all_role_permissions(),
         permission_fields=list(PERMISSION_FIELDS),
+        protected_roles=set(DEFAULT_ROLE_PERMISSIONS.keys()),
+        role_usage={user["role"] for user in users},
     )
 
 
@@ -204,6 +216,18 @@ def _json_data() -> dict:
     if request.is_json:
         return request.get_json(silent=True) or {}
     return request.form.to_dict()
+
+
+def _build_response(result: dict):
+    if result.get("ok"):
+        return {"status": "ok"}, 200
+
+    message = result.get("message") or result.get("error") or "Запрос не выполнен."
+    code = result.get("error_code") or result.get("code")
+    payload = {"status": "error", "message": message}
+    if code:
+        payload["code"] = code
+    return payload, 400
 
 
 @settings_bp.route("/settings/users/update", methods=["POST"])
@@ -221,8 +245,7 @@ def update_user_info():
     is_active = payload.get("is_active", True)
 
     result = update_user(user_id, username, role, is_active)
-    status_code = 200 if result.get("ok") else 400
-    body = {"status": "ok"} if result.get("ok") else {"status": "error", "message": result.get("error")}
+    body, status_code = _build_response(result)
     return jsonify(body), status_code
 
 
@@ -237,8 +260,7 @@ def delete_user_account():
         return jsonify({"status": "error", "message": "Неверный идентификатор пользователя."}), 400
 
     result = delete_user(user_id)
-    status_code = 200 if result.get("ok") else 400
-    body = {"status": "ok"} if result.get("ok") else {"status": "error", "message": result.get("error")}
+    body, status_code = _build_response(result)
     return jsonify(body), status_code
 
 
@@ -257,7 +279,6 @@ def change_user_password():
         return jsonify({"status": "error", "message": "Пароль не может быть пустым."}), 400
 
     result = reset_user_password(user_id, new_password, session.get("user"))
-    status_code = 200 if result.get("ok") else 400
     if result.get("ok"):
         body = {"status": "ok", "password": new_password}
         logger.info(
@@ -265,8 +286,9 @@ def change_user_password():
             user_id,
             session.get("user"),
         )
-    else:
-        body = {"status": "error", "message": result.get("error")}
+        return jsonify(body), 200
+
+    body, status_code = _build_response(result)
     return jsonify(body), status_code
 
 
@@ -274,9 +296,12 @@ def change_user_password():
 @login_required
 @permissions_required("can_access_settings", "can_manage_users")
 def update_role_permissions():
+    role_names = {name.strip().lower() for name in request.form.getlist("role_names[]") if name}
+    if not role_names:
+        role_names = set(get_all_role_permissions().keys())
 
     updates = {}
-    for role in ALLOWED_ROLES:
+    for role in role_names:
         perms = {}
         for field in PERMISSION_FIELDS:
             key = f"roles[{role}][{field}]"
@@ -289,6 +314,48 @@ def update_role_permissions():
 
     save_role_permissions(updates)
     logger.info("[settings] Права ролей обновлены пользователем %s", session.get("user"))
+    session["settings_status"] = "Права ролей обновлены."
+
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/settings/roles/create", methods=["POST"])
+@login_required
+@permissions_required("can_access_settings", "can_manage_users")
+def create_role_entry():
+    role_name = (request.form.get("role_name") or "").strip()
+    perms = {
+        field: 1 if request.form.get(f"new_role[{field}]") else 0 for field in PERMISSION_FIELDS
+    }
+
+    result = create_role(role_name, perms)
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        body, status_code = _build_response(result)
+        return jsonify(body), status_code
+
+    if result.get("ok"):
+        session["settings_status"] = f"Роль «{result.get('role', role_name)}» создана."
+    else:
+        session["settings_errors"] = [result.get("message")]
+
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/settings/roles/<role>/delete", methods=["POST"])
+@login_required
+@permissions_required("can_access_settings", "can_manage_users")
+def delete_role_entry(role: str):
+    normalized = (role or "").strip().lower()
+    result = delete_role(normalized)
+
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        body, status_code = _build_response(result)
+        return jsonify(body), status_code
+
+    if result.get("ok"):
+        session["settings_status"] = f"Роль «{normalized}» удалена."
+    else:
+        session["settings_errors"] = [result.get("message")]
 
     return redirect(url_for("settings.settings_page"))
 
@@ -327,9 +394,14 @@ def add_user():
     role = request.form.get("role", "")
 
     result = create_user(username, password, role)
-    status_code = 200 if result.get("ok") else 400
     if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify(result), status_code
+        body, status_code = _build_response(result)
+        return jsonify(body), status_code
+
+    if result.get("ok"):
+        session["settings_status"] = "Пользователь создан."
+    else:
+        session["settings_errors"] = [result.get("message")]
     return redirect(url_for("settings.settings_page"))
 
 
@@ -345,9 +417,13 @@ def change_role():
     role = request.form.get("role", "")
 
     result = update_user_role(user_id, role)
-    status_code = 200 if result.get("ok") else 400
     if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify(result), status_code
+        body, status_code = _build_response(result)
+        return jsonify(body), status_code
+    if result.get("ok"):
+        session["settings_status"] = "Роль пользователя обновлена."
+    else:
+        session["settings_errors"] = [result.get("message")]
     return redirect(url_for("settings.settings_page"))
 
 
@@ -363,7 +439,6 @@ def reset_password():
 
     new_password = request.form.get("new_password", "")
     result = reset_user_password(user_id, new_password, session.get("user"))
-    status_code = 200 if result.get("ok") else 400
     if result.get("ok"):
         logger.info(
             "[security] Пароль пользователя id=%s сброшен администратором %s",
@@ -371,5 +446,10 @@ def reset_password():
             session.get("user"),
         )
     if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify(result), status_code
+        body, status_code = _build_response(result)
+        return jsonify(body), status_code
+    if result.get("ok"):
+        session["settings_status"] = "Пароль пользователя обновлён."
+    else:
+        session["settings_errors"] = [result.get("error") or result.get("message")]
     return redirect(url_for("settings.settings_page"))

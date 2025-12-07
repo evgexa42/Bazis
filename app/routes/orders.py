@@ -8,6 +8,7 @@ from flask import (
     Response,
     abort,
     current_app,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -27,7 +28,7 @@ from app import (
     sse_clients,
     sse_clients_lock,
 )
-from app.dal.permissions import has_permission, permissions_required
+from app.dal.permissions import permissions_required
 from app.services.monitor import move_known_folder
 from app.services.snapshot import (
     build_orders_payload,
@@ -109,7 +110,7 @@ def index():
 
 @orders_bp.route("/facades")
 def facades_page():
-    if not has_permission(session.get("role"), "can_access_facades"):
+    if not getattr(g, "role_perms", {}).get("can_access_facades"):
         return redirect(url_for("orders.index"))
 
     template_path = os.path.join(current_app.template_folder or "", "facades.html")
@@ -133,7 +134,7 @@ def data():
 
 @orders_bp.route("/search", methods=["GET", "POST"])
 def search_page():
-    if not has_permission(session.get("role"), "can_access_search"):
+    if not getattr(g, "role_perms", {}).get("can_access_search"):
         return redirect(url_for("orders.index"))
 
     query = request.form.get("query", "").strip()
