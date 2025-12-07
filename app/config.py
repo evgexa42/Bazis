@@ -22,6 +22,7 @@ DEFAULT_CONFIG = {
     },
     "managers": [],
     "technologists": {},
+    "search": {"months": 6},
     "features": {
         "order_confirmation": False,
     },
@@ -43,6 +44,7 @@ SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 5000
 DEBUG_MODE = False
 SEARCH_FOLDERS = {}
+SEARCH_MONTHS = DEFAULT_CONFIG["search"]["months"]
 MANAGER_NAMES = []
 TECHNOLOGIST_MARKERS = {}
 
@@ -81,7 +83,7 @@ def save_config(config):
 def apply_config(config):
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
-    global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS
+    global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED
 
     server = config.get("server", {})
@@ -110,6 +112,13 @@ def apply_config(config):
 
     search_folders = paths.get("search")
     SEARCH_FOLDERS = search_folders if isinstance(search_folders, dict) else {}
+
+    search_cfg = config.get("search", {}) if isinstance(config.get("search"), dict) else {}
+    try:
+        months_value = int(search_cfg.get("months", DEFAULT_CONFIG["search"]["months"]))
+        SEARCH_MONTHS = max(1, min(12, months_value))
+    except (TypeError, ValueError):
+        SEARCH_MONTHS = DEFAULT_CONFIG["search"]["months"]
 
     MANAGER_NAMES[:] = [name.strip() for name in config.get("managers", []) if name.strip()]
 
@@ -150,6 +159,7 @@ __all__ = [
     "SERVER_HOST",
     "DEBUG_MODE",
     "SEARCH_FOLDERS",
+    "SEARCH_MONTHS",
     "ORDER_CONFIRMATION_ENABLED",
     "apply_config",
     "save_config",

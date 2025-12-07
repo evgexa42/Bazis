@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -424,7 +425,8 @@ def refresh_search_index(full: bool = False):
 
 @measure_time("search")
 def search_in_index(query: str):
-    normalized_query = (query or "").strip().lower()
+    cleaned_query, month_filters = _extract_month_filters(query)
+    normalized_query = (cleaned_query or "").strip().lower()
     keys = list(bazis_app.SEARCH_FOLDERS.keys())
     results = {key: [] for key in keys}
     fallback_key = "Результаты" if not results else "Прочее"
@@ -436,10 +438,20 @@ def search_in_index(query: str):
     conn = get_sqlite_connection()
     ensure_search_table(conn)
     cur = conn.cursor()
-    rows = cur.execute(
-        "SELECT base_key, name, manager, path FROM search_index WHERE name_lc LIKE ? ORDER BY mtime_ts DESC",
-        (f"%{normalized_query}%",),
-    ).fetchall()
+    sql = (
+        "SELECT base_key, name, manager, path FROM search_index "
+        "WHERE name_lc LIKE ?"
+    )
+    params: List[str] = [f"%{normalized_query}%"]
+
+    if month_filters:
+        placeholders = ",".join("?" for _ in month_filters)
+        sql += f" AND month IN ({placeholders})"
+        params.extend(month_filters)
+
+    sql += " ORDER BY mtime_ts DESC"
+
+    rows = cur.execute(sql, params).fetchall()
     conn.close()
 
     for base_key, name, manager, path in rows:
@@ -450,13 +462,10 @@ def search_in_index(query: str):
     return results
 
 
-def background_snapshot_updater(interval: float = 180.0):
+def background_snapshot_updater(interval: float = 900.0):
     while True:
         try:
-            snapshot = build_orders_snapshot()
-            changed = _apply_snapshot(snapshot)
-            if changed:
-                sse_broadcast(build_orders_payload())
+            refresh_orders_snapshot(force=False)
             refresh_search_index()
         except Exception as exc:
             logger.exception("[snapshot] Ошибка фонового обновления", exc_info=exc)
@@ -464,16 +473,52 @@ def background_snapshot_updater(interval: float = 180.0):
         time.sleep(interval)
 
 
-def get_recent_months():
-    now = datetime.now()
-    year = now.year
-    months = []
+def _month_label(month_num: int, year: int) -> str:
+    normalized_month = month_num % 12 or 12
+    if month_num <= 0:
+        year -= 1
+    return f"{MONTHS_RO[normalized_month]} {year}"
 
-    for i in range(2):
-        month_num = now.month - i
-        if month_num <= 0:
-            month_num += 12
-            year -= 1
-        months.append(f"{MONTHS_RO[month_num]} {year}")
+
+def get_recent_months(months_back: Optional[int] = None) -> List[str]:
+    now = datetime.now()
+    months: List[str] = []
+
+    months_count = months_back if months_back is not None else bazis_app.SEARCH_MONTHS
+    try:
+        months_count = max(1, min(12, int(months_count)))
+    except (TypeError, ValueError):
+        months_count = 2
+
+    base_index = now.year * 12 + (now.month - 1)
+
+    for offset in range(months_count):
+        idx = base_index - offset
+        month_num = idx % 12 + 1
+        months.append(_month_label(month_num, idx // 12))
 
     return months
+
+
+def _extract_month_filters(query: str) -> Tuple[str, List[str]]:
+    if not query:
+        return "", []
+
+    month_filters: List[str] = []
+    normalized_query = query.strip()
+    now = datetime.now()
+
+    for match in re.findall(r"-(\d{1,2})\b", normalized_query):
+        try:
+            month_num = int(match)
+        except (TypeError, ValueError):
+            continue
+        if month_num not in MONTHS_RO:
+            continue
+        year = now.year if month_num <= now.month else now.year - 1
+        month_filters.append(f"{MONTHS_RO[month_num]} {year}")
+
+    cleaned_query = re.sub(r"-(\d{1,2})\b", "", normalized_query).strip()
+
+    unique_filters = list(dict.fromkeys(month_filters))
+    return cleaned_query, unique_filters

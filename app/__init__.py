@@ -153,6 +153,7 @@ from app import config as app_config  # noqa: E402
 
 CONFIG = app_config.CONFIG
 ORDER_CONFIRMATION_ENABLED = app_config.ORDER_CONFIRMATION_ENABLED
+SEARCH_MONTHS = app_config.SEARCH_MONTHS
 
 FOLDER_PATH = app_config.FOLDER_PATH
 FACADES_DIR = app_config.FACADES_DIR
@@ -174,7 +175,7 @@ load_config = app_config.load_config
 def _sync_config_from_module():
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
-    global ORDER_CONFIRMATION_ENABLED, SEARCH_FOLDERS
+    global ORDER_CONFIRMATION_ENABLED, SEARCH_FOLDERS, SEARCH_MONTHS
 
     FOLDER_PATH = app_config.FOLDER_PATH
     FACADES_DIR = app_config.FACADES_DIR
@@ -188,6 +189,7 @@ def _sync_config_from_module():
     DEBUG_MODE = app_config.DEBUG_MODE
     ORDER_CONFIRMATION_ENABLED = app_config.ORDER_CONFIRMATION_ENABLED
     SEARCH_FOLDERS = app_config.SEARCH_FOLDERS
+    SEARCH_MONTHS = app_config.SEARCH_MONTHS
 
 
 def apply_config(config):
@@ -322,7 +324,7 @@ orders_snapshot_lock = threading.Lock()
 last_snapshot_update = 0.0
 orders_version = 0
 last_snapshot_ts = 0.0
-SNAPSHOT_TTL = 3.0
+SNAPSHOT_TTL = 12.0
 sse_clients = set()
 sse_clients_lock = threading.Lock()
 
