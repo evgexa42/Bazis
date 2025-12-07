@@ -92,6 +92,12 @@ metrics = {
 rps_state = {"sec": None, "count": 0}
 
 
+def _prune_old_errors_locked(cutoff: float) -> None:
+    # поддерживаем окно ошибок ровно на 24 часа
+    while metrics["errors"]["last_24h"] and metrics["errors"]["last_24h"][0] < cutoff:
+        metrics["errors"]["last_24h"].popleft()
+
+
 def setup_logging():
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -218,8 +224,7 @@ def refresh_db_metrics():
 def cleanup_error_window():
     cutoff = time.time() - 24 * 3600
     with metrics_lock:
-        while metrics["errors"]["last_24h"] and metrics["errors"]["last_24h"][0] < cutoff:
-            metrics["errors"]["last_24h"].popleft()
+        _prune_old_errors_locked(cutoff)
 
 
 def collect_system_metrics():
@@ -510,6 +515,8 @@ def handle_unexpected_error(error):
     tb = traceback.format_exc(limit=5)
 
     with metrics_lock:
+        cutoff = ts - 24 * 3600
+        _prune_old_errors_locked(cutoff)
         metrics["errors"]["total"] += 1
         metrics["errors"]["last_24h"].append(ts)
         metrics["errors"]["last_items"].append(

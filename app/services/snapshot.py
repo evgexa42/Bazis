@@ -74,11 +74,11 @@ def parse_folder_entry(
         "order_number": order_number,
 }
 
-INDEX_TTL = 60.0
+INDEX_TTL = 300.0
 _index_lock = threading.Lock()
 
 
-def _apply_snapshot(new_snapshot: List[Dict]) -> bool:
+def _apply_snapshot(new_snapshot: List[Dict]) -> tuple[bool, List[Dict], int, float]:
     now = time.time()
     new_snapshot = list(new_snapshot)
     new_snapshot.sort(key=lambda x: x.get("mtime_ts", 0.0), reverse=True)
@@ -89,11 +89,17 @@ def _apply_snapshot(new_snapshot: List[Dict]) -> bool:
         if new_snapshot == bazis_app.orders_snapshot:
             bazis_app.last_snapshot_update = now
             bazis_app.last_snapshot_ts = now
-            return False
+            version = bazis_app.orders_version
+            last_ts = bazis_app.last_snapshot_ts
+            applied_snapshot = list(bazis_app.orders_snapshot)
+            return False, applied_snapshot, version, last_ts
         bazis_app.orders_snapshot = new_snapshot
         bazis_app.orders_version += 1
         bazis_app.last_snapshot_update = now
         bazis_app.last_snapshot_ts = now
+        version = bazis_app.orders_version
+        last_ts = bazis_app.last_snapshot_ts
+        applied_snapshot = list(bazis_app.orders_snapshot)
 
     with bazis_app.metrics_lock:
         snap = bazis_app.metrics["snapshot"]
@@ -101,7 +107,7 @@ def _apply_snapshot(new_snapshot: List[Dict]) -> bool:
         snap["last_update_ts"] = now
         snap["orders_count"] = len(new_snapshot)
 
-    return True
+    return True, applied_snapshot, version, last_ts
 
 
 @measure_time("build_orders_snapshot")
@@ -146,10 +152,7 @@ def refresh_orders_snapshot(force: bool = False):
                 return list(bazis_app.orders_snapshot)
 
     snapshot = build_orders_snapshot()
-    changed = _apply_snapshot(snapshot)
-    # всегда возвращаем применённый (отсортированный) снапшот, а не сырой build_orders_snapshot
-    with bazis_app.orders_snapshot_lock:
-        applied_snapshot = list(bazis_app.orders_snapshot)
+    changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
 
     if changed:
         manager_stats = {name: 0 for name in app_config.MANAGER_NAMES}
@@ -173,8 +176,8 @@ def refresh_orders_snapshot(force: bool = False):
             "total": len(applied_snapshot),
             "managers": manager_stats,
             "technologists": tech_stats,
-            "version": bazis_app.orders_version,
-            "last_snapshot_ts": bazis_app.last_snapshot_ts,
+            "version": version,
+            "last_snapshot_ts": last_snapshot_ts,
         })
 
     return applied_snapshot
@@ -189,7 +192,7 @@ def get_orders_snapshot(ttl: float = bazis_app.SNAPSHOT_TTL):
     return refresh_orders_snapshot(force=True)
 
 
-def _merge_order(entry: dict) -> bool:
+def _merge_order(entry: dict) -> tuple[bool, List[Dict], int, float]:
     # атомарно читаем+меняем snapshot под одним локом
     with bazis_app.orders_snapshot_lock:
         snapshot = list(bazis_app.orders_snapshot)
@@ -197,7 +200,7 @@ def _merge_order(entry: dict) -> bool:
         for idx, item in enumerate(snapshot):
             if item.get("name") == entry.get("name"):
                 if item == entry:
-                    return False
+                    return False, list(bazis_app.orders_snapshot), bazis_app.orders_version, bazis_app.last_snapshot_ts
                 snapshot[idx] = entry
                 break
         else:
@@ -211,9 +214,14 @@ def upsert_order(folder_name: str) -> bool:
     if not parsed:
         return remove_order(folder_name)
 
-    changed = _merge_order(parsed)
+    changed, applied_snapshot, version, last_snapshot_ts = _merge_order(parsed)
     if changed:
-        sse_broadcast(build_orders_payload())
+        payload = build_orders_payload(
+            folders=applied_snapshot,
+            version=version,
+            last_snapshot_ts=last_snapshot_ts,
+        )
+        sse_broadcast(payload)
     return changed
 
 
@@ -225,9 +233,14 @@ def remove_order(folder_name: str) -> bool:
             if item.get("name") != folder_name
         ]
 
-    changed = _apply_snapshot(snapshot)
+    changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
     if changed:
-        sse_broadcast(build_orders_payload())
+        payload = build_orders_payload(
+            folders=applied_snapshot,
+            version=version,
+            last_snapshot_ts=last_snapshot_ts,
+        )
+        sse_broadcast(payload)
     return changed
 
 
@@ -246,8 +259,13 @@ def _apply_manager_filter(folders, visible_manager, requested_manager):
     return folders, applied_manager_filter
 
 
-def build_orders_payload(visible_manager=None, requested_manager="Все"):
-    folders = get_orders_snapshot(ttl=bazis_app.SNAPSHOT_TTL)
+def build_orders_payload(visible_manager=None, requested_manager="Все", folders=None, version=None, last_snapshot_ts=None):
+    if folders is None:
+        folders = get_orders_snapshot(ttl=bazis_app.SNAPSHOT_TTL)
+    if version is None or last_snapshot_ts is None:
+        with bazis_app.orders_snapshot_lock:
+            version = bazis_app.orders_version if version is None else version
+            last_snapshot_ts = bazis_app.last_snapshot_ts if last_snapshot_ts is None else last_snapshot_ts
     folders, _ = _apply_manager_filter(folders, visible_manager, requested_manager)
 
     total_orders = len(folders)
@@ -272,8 +290,8 @@ def build_orders_payload(visible_manager=None, requested_manager="Все"):
         "total": total_orders,
         "managers": manager_stats,
         "technologists": tech_stats,
-        "version": bazis_app.orders_version,
-        "last_snapshot_ts": bazis_app.last_snapshot_ts,
+        "version": version,
+        "last_snapshot_ts": last_snapshot_ts,
     }
 
 

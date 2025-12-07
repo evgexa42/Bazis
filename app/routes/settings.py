@@ -1,5 +1,6 @@
 
 import logging
+import time
 from copy import deepcopy
 
 from flask import (
@@ -379,7 +380,10 @@ def api_metrics():
         if not data.get("db", {}).get("last_backup_ts")
         else round(ts_ago(data["db"]["last_backup_ts"]) / 3600, 2)
     )
-    data["errors"]["errors_last_24h"] = len(data.get("errors", {}).get("last_24h", []))
+    cutoff = time.time() - 24 * 3600
+    data["errors"]["errors_last_24h"] = sum(
+        1 for ts in data.get("errors", {}).get("last_24h", []) if ts > cutoff
+    )
 
     return jsonify(data)
 
