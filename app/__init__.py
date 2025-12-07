@@ -394,6 +394,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=False,
 )
+app.config.from_mapping(app_config.CONFIG)
 
 app.logger.handlers = []
 app.logger.setLevel(logging.INFO)

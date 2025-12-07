@@ -2,10 +2,27 @@
 import logging
 from copy import deepcopy
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    abort,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 import app.config as app_config
-from app.config import CONFIG, MANAGER_NAMES, SEARCH_FOLDERS, TECHNOLOGIST_MARKERS, apply_config, save_config
+from app.config import (
+    CONFIG,
+    CONFIG_WARNINGS,
+    MANAGER_NAMES,
+    SEARCH_FOLDERS,
+    TECHNOLOGIST_MARKERS,
+    apply_config,
+    save_config,
+)
 from app.dal.permissions import (
     PERMISSION_FIELDS,
     get_all_role_permissions,
@@ -41,12 +58,15 @@ def settings_page():
 
     status_message = None
     errors = []
+    config_warnings = list(CONFIG_WARNINGS)
+    needs_restart = False
+    monitor_restart_required = False
 
     if request.method == "POST":
-        def parse_list(value):
+        def parse_list(value: str) -> list[str]:
             return [item.strip() for item in value.splitlines() if item.strip()]
 
-        def parse_mapping(value):
+        def parse_mapping(value: str) -> dict:
             mapping = {}
             for line in value.splitlines():
                 if "=" not in line:
@@ -59,41 +79,11 @@ def settings_page():
             return mapping
 
         updated = deepcopy(CONFIG)
+        old_config = deepcopy(CONFIG)
         telegram_token = updated.get("telegram", {}).get("token", "")
 
         managers_raw = request.form.get("managers", "")
         technologists_raw = request.form.get("technologists", "")
-
-        if has_permission(current_role, "can_edit_paths"):
-            orders_path = request.form.get("orders_path", "").strip()
-            facades_dir = request.form.get("facades_dir", "").strip()
-            search_raw = request.form.get("search_folders", "")
-
-            server_host = request.form.get("server_host", "").strip()
-            server_port = request.form.get("server_port", "").strip()
-            debug_mode = request.form.get("debug_mode") == "on"
-
-            telegram_token = request.form.get("telegram_token", "").strip()
-            telegram_chat = request.form.get("telegram_chat_id", "").strip()
-
-            if orders_path:
-                updated.setdefault("paths", {})["orders"] = orders_path
-            if facades_dir:
-                updated.setdefault("paths", {})["facades_dir"] = facades_dir
-            updated.setdefault("paths", {})["search"] = parse_mapping(search_raw)
-
-            server_config = updated.setdefault("server", {})
-            if server_host:
-                server_config["host"] = server_host
-            if server_port:
-                try:
-                    server_config["port"] = int(server_port)
-                except (TypeError, ValueError):
-                    errors.append("Порт должен быть числом.")
-            server_config["debug"] = debug_mode
-
-            updated.setdefault("telegram", {})["token"] = telegram_token
-            updated.setdefault("telegram", {})["chat_id"] = telegram_chat
 
         managers_list = parse_list(managers_raw)
         if managers_list:
@@ -101,8 +91,40 @@ def settings_page():
         else:
             errors.append("Список менеджеров не может быть пустым.")
 
-        technologists_map = parse_mapping(technologists_raw)
-        updated["technologists"] = technologists_map
+        updated["technologists"] = parse_mapping(technologists_raw)
+
+        if has_permission(current_role, "can_edit_paths"):
+            orders_path = request.form.get("orders_path", "").strip()
+            facades_dir = request.form.get("facades_dir", "").strip()
+            search_raw = request.form.get("search_folders", "")
+
+            server_host = request.form.get("server_host", "").strip()
+            server_port_raw = request.form.get("server_port", "").strip()
+            debug_mode = request.form.get("debug_mode") == "on"
+
+            telegram_token = request.form.get("telegram_token", "").strip()
+            telegram_chat = request.form.get("telegram_chat_id", "").strip()
+
+            paths_cfg = updated.setdefault("paths", {})
+            if orders_path:
+                paths_cfg["orders"] = orders_path
+            if facades_dir:
+                paths_cfg["facades_dir"] = facades_dir
+            paths_cfg["search"] = parse_mapping(search_raw)
+
+            server_config = updated.setdefault("server", {})
+            if server_host:
+                server_config["host"] = server_host
+            if server_port_raw:
+                try:
+                    server_config["port"] = int(server_port_raw)
+                except (TypeError, ValueError):
+                    errors.append("Порт должен быть числом.")
+            server_config["debug"] = debug_mode
+
+            telegram_cfg = updated.setdefault("telegram", {})
+            telegram_cfg["token"] = telegram_token
+            telegram_cfg["chat_id"] = telegram_chat
 
         if has_permission(current_role, "can_toggle_order_options"):
             features_config = updated.setdefault("features", {})
@@ -117,12 +139,32 @@ def settings_page():
             save_config(updated)
             CONFIG.clear()
             CONFIG.update(updated)
-            apply_config(CONFIG)
-            telegram_service.init_bot(telegram_token)
+            apply_results = apply_config(CONFIG)
+            config_warnings = apply_results or []
+            telegram_service.init_bot(app_config.TELEGRAM_TOKEN)
             logger.info("[settings] Настройки обновлены пользователем %s", session.get("user"))
-            status_message = (
-                "Настройки сохранены. Некоторые изменения вступят в силу после перезапуска приложения."
-            )
+
+            paths_changed = old_config.get("paths", {}) != updated.get("paths", {})
+            server_changed = {
+                "host": old_config.get("server", {}).get("host"),
+                "port": old_config.get("server", {}).get("port"),
+                "debug": old_config.get("server", {}).get("debug"),
+            } != {
+                "host": updated.get("server", {}).get("host"),
+                "port": updated.get("server", {}).get("port"),
+                "debug": updated.get("server", {}).get("debug"),
+            }
+
+            monitor_restart_required = paths_changed
+            needs_restart = server_changed
+            status_parts = ["Настройки сохранены."]
+            if monitor_restart_required:
+                status_parts.append(
+                    "Пути изменены — перезапустите файловый мониторинг, чтобы применить обновления."
+                )
+            if needs_restart:
+                status_parts.append("Параметры сервера изменены — требуется ручной рестарт.")
+            status_message = " ".join(status_parts)
 
     managers_text = "\n".join(MANAGER_NAMES)
     technologists_text = "\n".join(
@@ -139,6 +181,9 @@ def settings_page():
         technologists_text=technologists_text,
         search_text=search_text,
         status_message=status_message,
+        config_warnings=config_warnings,
+        needs_restart=needs_restart,
+        monitor_restart_required=monitor_restart_required,
         errors=errors,
         users=users,
         allowed_roles=sorted(ALLOWED_ROLES),

@@ -2,6 +2,8 @@ import logging
 import os
 from copy import deepcopy
 
+from flask import current_app, has_app_context
+
 from app.dal.json_store import load_json_file, save_json_atomic
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -29,8 +31,9 @@ DEFAULT_CONFIG = {
 
 logger = logging.getLogger("bazis")
 
-# Текущее состояние конфигурации (обновляется apply_config)
 CONFIG: dict = {}
+CONFIG_WARNINGS: list[str] = []
+
 ORDER_CONFIRMATION_ENABLED = False
 
 FOLDER_PATH = ""
@@ -61,9 +64,11 @@ def deep_merge(base, extra):
 
 def _parse_str_list(value) -> list[str]:
     """Гарантирует список строк без пустых значений."""
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
 
 
 def _parse_str_dict(value) -> dict:
@@ -75,6 +80,23 @@ def _parse_str_dict(value) -> dict:
         for key, val in value.items()
         if str(key).strip() and str(val).strip()
     }
+
+
+def _parse_mapping_from_lines(value: str) -> dict:
+    """Преобразует многострочный текст формата key=value в словарь."""
+    mapping: dict[str, str] = {}
+    if not isinstance(value, str):
+        return mapping
+
+    for line in value.splitlines():
+        if "=" not in line:
+            continue
+        key, raw_val = line.split("=", 1)
+        key = key.strip()
+        raw_val = raw_val.strip()
+        if key and raw_val:
+            mapping[key] = raw_val
+    return mapping
 
 
 def _parse_bool(value, default=False) -> bool:
@@ -100,6 +122,46 @@ def _parse_months(value) -> int:
     return max(1, min(12, months_value))
 
 
+def _parse_managers(value) -> list[str]:
+    return _parse_str_list(value)
+
+
+def _parse_technologists(value) -> dict:
+    return _parse_str_dict(value)
+
+
+def _parse_search_folders(value) -> dict:
+    if isinstance(value, dict):
+        return _parse_str_dict(value)
+    if isinstance(value, str):
+        return _parse_mapping_from_lines(value)
+    if isinstance(value, list):
+        # поддержка форматов ["name=path", {"name": "path"}]
+        folders: dict[str, str] = {}
+        for item in value:
+            if isinstance(item, str):
+                folders.update(_parse_mapping_from_lines(item))
+            elif isinstance(item, dict):
+                folders.update(_parse_str_dict(item))
+        return folders
+    return {}
+
+
+def _parse_paths_config(value: dict) -> dict:
+    if not isinstance(value, dict):
+        value = {}
+
+    orders_path = str(value.get("orders") or "").strip()
+    facades_dir = str(value.get("facades_dir") or "").strip()
+    search_folders = _parse_search_folders(value.get("search"))
+
+    return {
+        "orders": orders_path,
+        "facades_dir": facades_dir,
+        "search": search_folders,
+    }
+
+
 def _ensure_complete_config(raw_config: dict) -> dict:
     """Применяет значения по умолчанию и нормализует типы."""
     merged = deep_merge(deepcopy(DEFAULT_CONFIG), raw_config if isinstance(raw_config, dict) else {})
@@ -115,12 +177,11 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged["telegram"]["chat_id"] = str(merged["telegram"].get("chat_id") or "").strip()
 
     merged.setdefault("paths", {})
-    merged["paths"]["orders"] = str(merged["paths"].get("orders") or "").strip()
-    merged["paths"]["facades_dir"] = str(merged["paths"].get("facades_dir") or "").strip()
-    merged["paths"]["search"] = _parse_str_dict(merged["paths"].get("search"))
+    parsed_paths = _parse_paths_config(merged["paths"])
+    merged["paths"].update(parsed_paths)
 
-    merged["managers"] = _parse_str_list(merged.get("managers"))
-    merged["technologists"] = _parse_str_dict(merged.get("technologists"))
+    merged["managers"] = _parse_managers(merged.get("managers"))
+    merged["technologists"] = _parse_technologists(merged.get("technologists"))
 
     merged.setdefault("search", {})
     merged["search"]["months"] = _parse_months(merged["search"].get("months"))
@@ -161,11 +222,13 @@ def apply_config(config):
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
-    global ORDER_CONFIRMATION_ENABLED
+    global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS
 
     normalized = _ensure_complete_config(config)
     CONFIG.clear()
     CONFIG.update(normalized)
+
+    warnings: list[str] = []
 
     server = normalized["server"]
     telegram_cfg = normalized["telegram"]
@@ -175,7 +238,7 @@ def apply_config(config):
     SERVER_PORT = _parse_int(server["port"], DEFAULT_CONFIG["server"]["port"])
     DEBUG_MODE = _parse_bool(server.get("debug"), DEFAULT_CONFIG["server"]["debug"])
 
-    TELEGRAM_TOKEN = telegram_cfg.get("token", "")
+    TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", telegram_cfg.get("token", ""))
     CHAT_ID = str(telegram_cfg.get("chat_id", "")).strip()
 
     FOLDER_PATH = paths.get("orders") or ""
@@ -200,12 +263,38 @@ def apply_config(config):
 
     ORDER_CONFIRMATION_ENABLED = bool(normalized.get("features", {}).get("order_confirmation"))
 
+    if FOLDER_PATH and not os.path.exists(FOLDER_PATH):
+        warning = f"Путь к заказам '{FOLDER_PATH}' не найден"
+        warnings.append(warning)
+        logger.warning("[config] %s", warning)
+    if FACADES_DIR and not os.path.exists(FACADES_DIR):
+        warning = f"Папка для facades_list.txt '{FACADES_DIR}' не найдена"
+        warnings.append(warning)
+        logger.warning("[config] %s", warning)
+    for name, folder in SEARCH_FOLDERS.items():
+        if folder and not os.path.exists(folder):
+            warning = f"Путь поиска '{name}' -> '{folder}' недоступен"
+            warnings.append(warning)
+            logger.warning("[config] %s", warning)
+
+    if has_app_context():
+        try:
+            current_app.config.from_mapping(CONFIG)
+        except Exception as exc:  # pragma: no cover - защитное логирование
+            logger.warning("[config] Не удалось синхронизировать Flask config", exc_info=exc)
+
+    CONFIG_WARNINGS.clear()
+    CONFIG_WARNINGS.extend(warnings)
+
+    return warnings
+
 
 CONFIG = load_config()
 apply_config(CONFIG)
 
 __all__ = [
-    "CONFIG",
+    "CONFIG", 
+    "CONFIG_WARNINGS",
     "DEFAULT_CONFIG",
     "CONFIG_FILE",
     "MANAGER_NAMES",

@@ -34,6 +34,30 @@ data-managers="{{ config_managers | join(',') }}"
   </section>
   {% endif %}
 
+  {% if config_warnings %}
+  <section class="notice-card notice-card--warning">
+    <strong>Предупреждения:</strong>
+    <ul>
+      {% for warning in config_warnings %}
+      <li>{{ warning }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if needs_restart or monitor_restart_required %}
+  <section class="notice-card notice-card--info">
+    <ul>
+      {% if monitor_restart_required %}
+      <li>Пути обновлены — перезапустите файловый мониторинг, чтобы применить изменения.</li>
+      {% endif %}
+      {% if needs_restart %}
+      <li>Изменились параметры сервера. Требуется ручной рестарт приложения.</li>
+      {% endif %}
+    </ul>
+  </section>
+  {% endif %}
+
   <div class="tabs">
     <button class="tab-btn is-active" data-tab="general">Основные настройки</button>
     {% if role_perms.can_manage_users %}
