@@ -39,12 +39,12 @@ from app.services.telegram import folder_has_ready_marker, update_message_for_fo
 
 
 def get_visible_manager_filter(request, session):
-    """Определяет, нужно ли ограничить менеджера для текущего запроса."""
+    """Возвращает фильтр менеджера для текущего запроса.
 
-    role = session.get("role")
-
-    if role in {"admin", "technologist", "manager"}:
-        return None
+    На данный момент все роли видят полный список заказов, поэтому функция
+    всегда возвращает ``None``. Логика фильтрации может быть добавлена позже,
+    если появится бизнес-требование ограничивать видимость заказов.
+    """
 
     return None
 

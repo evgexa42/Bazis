@@ -1,7 +1,6 @@
 import hashlib
 import secrets
 import string
-from contextlib import contextmanager
 from typing import Dict, List, Optional
 
 from sqlalchemy import func, select
@@ -11,19 +10,6 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.dal.db import SessionLocal, User
 
 ALLOWED_ROLES = {"admin", "technologist", "manager"}
-
-
-@contextmanager
-def session_scope():
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 def _user_to_dict(user: User) -> Dict:
@@ -52,7 +38,7 @@ def _bool(value) -> bool:
 
 
 def get_all_users() -> List[Dict]:
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         rows = session.execute(select(User).order_by(User.id.asc())).scalars().all()
         return [_user_to_dict(row) for row in rows]
 
@@ -61,7 +47,7 @@ def get_user_by_username(username: str) -> Optional[Dict]:
     if not username:
         return None
 
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
         return _user_to_dict(user) | {"password_hash": user.password_hash} if user else None
 
@@ -76,20 +62,19 @@ def create_user(username: str, password: str, role: str) -> Dict[str, str]:
 
     password_hash = generate_password_hash(password)
 
-    with session_scope() as session:
-        try:
+    try:
+        with SessionLocal.begin() as session:
             session.add(User(username=username, password_hash=password_hash, role=role, is_active=True))
-            return {"ok": True}
-        except IntegrityError:
-            session.rollback()
-            return {"ok": False, "error": "Пользователь с таким именем уже существует."}
+        return {"ok": True}
+    except IntegrityError:
+        return {"ok": False, "error": "Пользователь с таким именем уже существует."}
 
 
 def update_user_role(user_id: int, role: str) -> Dict[str, str]:
     if role not in ALLOWED_ROLES:
         return {"ok": False, "error": "Недопустимая роль."}
 
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         user = session.get(User, user_id)
         if not user:
             return {"ok": False, "error": "Пользователь не найден."}
@@ -113,30 +98,29 @@ def update_user(user_id: int, username: str, role: str, is_active: bool) -> Dict
     if role not in ALLOWED_ROLES:
         return {"ok": False, "error": "Недопустимая роль."}
 
-    with session_scope() as session:
-        user = session.get(User, user_id)
-        if not user:
-            return {"ok": False, "error": "Пользователь не найден."}
+    try:
+        with SessionLocal.begin() as session:
+            user = session.get(User, user_id)
+            if not user:
+                return {"ok": False, "error": "Пользователь не найден."}
 
-        if user.role == "admin" and (role != "admin" or not is_active):
-            admin_count = _count_admins(session)
-            if admin_count <= 1:
-                return {"ok": False, "error": "Нельзя изменить последнего активного администратора."}
+            if user.role == "admin" and (role != "admin" or not is_active):
+                admin_count = _count_admins(session)
+                if admin_count <= 1:
+                    return {"ok": False, "error": "Нельзя изменить последнего активного администратора."}
 
-        user.username = username
-        user.role = role
-        user.is_active = is_active
+            user.username = username
+            user.role = role
+            user.is_active = is_active
 
-        try:
             session.add(user)
-            return {"ok": True}
-        except IntegrityError:
-            session.rollback()
-            return {"ok": False, "error": "Пользователь с таким именем уже существует."}
+        return {"ok": True}
+    except IntegrityError:
+        return {"ok": False, "error": "Пользователь с таким именем уже существует."}
 
 
 def delete_user(user_id: int) -> Dict[str, str]:
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         user = session.get(User, user_id)
         if not user:
             return {"ok": False, "error": "Пользователь не найден."}
@@ -159,16 +143,10 @@ def generate_random_password() -> str:
 def reset_user_password_random(user_id: int, current_username: str) -> Dict[str, str]:
     new_password = generate_random_password()
 
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         user = session.get(User, user_id)
         if not user:
             return {"ok": False, "error": "Пользователь не найден."}
-
-        if user.username == current_username:
-            return {
-                "ok": False,
-                "error": "Нельзя сбросить пароль своей учетной записи без подтверждения.",
-            }
 
         user.password_hash = generate_password_hash(new_password)
         session.add(user)
@@ -177,21 +155,15 @@ def reset_user_password_random(user_id: int, current_username: str) -> Dict[str,
 
 
 def reset_user_password(user_id: int, new_password: str, current_username: str) -> Dict[str, str]:
-    if not new_password:
+    if not new_password or not new_password.strip():
         return {"ok": False, "error": "Пароль не может быть пустым."}
 
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         user = session.get(User, user_id)
         if not user:
             return {"ok": False, "error": "Пользователь не найден."}
 
-        if user.username == current_username:
-            return {
-                "ok": False,
-                "error": "Нельзя сбросить пароль своей учетной записи без подтверждения.",
-            }
-
-        user.password_hash = generate_password_hash(new_password)
+        user.password_hash = generate_password_hash(new_password.strip())
         return {"ok": True}
 
 
@@ -199,7 +171,7 @@ def verify_user_credentials(username: str, password: str) -> Optional[Dict]:
     if not username or not password:
         return None
 
-    with session_scope() as session:
+    with SessionLocal.begin() as session:
         user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
         if not user or not user.is_active:
             return None

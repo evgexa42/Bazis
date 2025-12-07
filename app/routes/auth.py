@@ -1,5 +1,6 @@
 from functools import wraps
 from typing import Callable, Iterable, Optional
+from urllib.parse import urlparse
 
 from flask import (
     Blueprint,
@@ -65,8 +66,14 @@ def enforce_login():
         return
 
     if not session.get("user"):
-        next_url = request.full_path if request.query_string else request.path
-        next_url = next_url.rstrip("?")
+        next_url = request.path
+        if request.query_string:
+            try:
+                query = request.query_string.decode("utf-8", errors="ignore")
+                if query:
+                    next_url = f"{next_url}?{query}"
+            except Exception:
+                next_url = request.path
         return redirect(url_for("auth.login", next=next_url))
 
 
@@ -82,6 +89,16 @@ def login():
             session["user"] = user["username"]
             session["role"] = user["role"]
             next_url = request.args.get("next") or url_for("orders.index")
+            parsed = urlparse(next_url)
+            if parsed.scheme or parsed.netloc:
+                next_url = url_for("orders.index")
+            elif not parsed.path.startswith("/"):
+                next_url = url_for("orders.index")
+            else:
+                path = parsed.path or url_for("orders.index")
+                if parsed.query:
+                    path = f"{path}?{parsed.query}"
+                next_url = path
             return redirect(next_url)
         error = "Неверное имя пользователя или пароль."
 

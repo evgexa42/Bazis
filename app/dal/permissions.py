@@ -29,7 +29,7 @@ def get_role_permissions(role: str) -> Dict[str, int]:
     if not role:
         return dict(_EMPTY_PERMISSIONS)
 
-    with SessionLocal() as session:
+    with SessionLocal.begin() as session:
         record = session.execute(
             select(RolePermission).where(RolePermission.role == role)
         ).scalar_one_or_none()
@@ -42,7 +42,7 @@ def get_role_permissions(role: str) -> Dict[str, int]:
 
 def get_all_role_permissions() -> Dict[str, Dict[str, int]]:
     permissions: Dict[str, Dict[str, int]] = {}
-    with SessionLocal() as session:
+    with SessionLocal.begin() as session:
         rows = session.execute(select(RolePermission)).scalars().all()
         for row in rows:
             permissions[row.role] = {field: int(getattr(row, field) or 0) for field in PERMISSION_FIELDS}

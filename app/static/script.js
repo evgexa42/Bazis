@@ -890,14 +890,23 @@ const ClientsPage = (() => {
       return;
     }
 
-    if (!confirm('Сохранить изменения?')) return;
+      if (!confirm('Сохранить изменения?')) return;
 
-    fetch('/update_client', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_name: oldName, new_name: newName, new_manager: newManager })
-    }).then(() => window.location.reload());
-  }
+      fetch('/update_client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_name: oldName, new_name: newName, new_manager: newManager })
+      })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || (data && data.status !== 'ok')) {
+            alert((data && data.message) || 'Не удалось обновить клиента.');
+            return;
+          }
+          window.location.reload();
+        })
+        .catch(() => alert('Не удалось обновить клиента.'));
+    }
 
   function deleteClient(row) {
     const client = row.dataset.client;
@@ -905,12 +914,21 @@ const ClientsPage = (() => {
 
     if (!confirm(`Удалить клиента "${client}"?`)) return;
 
-    fetch('/delete_client', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: client })
-    }).then(() => window.location.reload());
-  }
+      fetch('/delete_client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: client })
+      })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || (data && data.status !== 'ok')) {
+            alert((data && data.message) || 'Не удалось удалить клиента.');
+            return;
+          }
+          window.location.reload();
+        })
+        .catch(() => alert('Не удалось удалить клиента.'));
+    }
 
   return { init };
 })();
@@ -1180,4 +1198,94 @@ document.addEventListener('DOMContentLoaded', () => {
   FacadesPage.init();
   SettingsPage.init();
   UsersTable.init();
+});
+
+const ClientsTable = (() => {
+
+  function init() {
+    const table = document.querySelector('[data-clients-table]');
+    if (!table) return;
+
+    table.addEventListener('click', handleClick);
+  }
+
+  function handleClick(e) {
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    if (e.target.closest('[data-edit-btn]')) {
+      switchToEdit(row);
+    } 
+    else if (e.target.closest('[data-delete-btn]')) {
+      deleteClient(row);
+    }
+    else if (e.target.closest('[data-save-btn]')) {
+      saveClient(row);
+    }
+    else if (e.target.closest('[data-cancel-btn]')) {
+      cancelEdit(row);
+    }
+  }
+
+  function switchToEdit(row) {
+    row.querySelectorAll('[data-view]').forEach(el => el.classList.add('is-hidden'));
+    row.querySelectorAll('[data-edit]').forEach(el => el.classList.remove('is-hidden'));
+  }
+
+  function cancelEdit(row) {
+    row.querySelectorAll('[data-edit]').forEach(el => el.classList.add('is-hidden'));
+    row.querySelectorAll('[data-view]').forEach(el => el.classList.remove('is-hidden'));
+  }
+
+  function saveClient(row) {
+    const oldName = row.dataset.client;
+    const newName = row.querySelector('.edit-name').value.trim();
+    const newManager = row.querySelector('.edit-manager').value.trim();
+
+    fetch('/update_client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        old_name: oldName,
+        new_name: newName,
+        manager: newManager
+      })
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (res.status === 'ok') {
+          row.dataset.client = newName;
+          row.querySelector('[data-view]').textContent = newName;
+          location.reload();
+        } else {
+          alert(res.message || 'Ошибка сохранения');
+        }
+      });
+  }
+
+  function deleteClient(row) {
+    const name = row.dataset.client;
+    if (!confirm(`Удалить клиента "${name}"?`)) return;
+
+    fetch('/delete_client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (res.status === 'ok') {
+          row.remove();
+        } else {
+          alert(res.message || 'Не удалось удалить');
+        }
+      });
+  }
+
+  return { init };
+
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+  ClientsTable.init();
 });

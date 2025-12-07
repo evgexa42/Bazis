@@ -44,9 +44,13 @@ def update_client():
     new_name = data.get("new_name")
     new_manager = data.get("new_manager")
 
+    updated = False
     with clients_lock:
-        if update_client_db(old_name, new_name, new_manager):
+        updated = update_client_db(old_name, new_name, new_manager)
+        if updated:
             reload_clients_from_db()
+    if not updated:
+        return jsonify({"status": "error", "message": "Клиент не найден."}), 404
 
     return jsonify({"status": "ok"})
 
@@ -59,8 +63,13 @@ def delete_client():
     data = request.get_json()
     name = data.get("name")
 
+    deleted = False
     with clients_lock:
-        if delete_client_db(name):
+        deleted = delete_client_db(name)
+        if deleted:
             reload_clients_from_db()
+
+    if not deleted:
+        return jsonify({"status": "error", "message": "Клиент не найден."}), 404
 
     return jsonify({"status": "ok"})

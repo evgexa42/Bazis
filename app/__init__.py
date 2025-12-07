@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import queue
+import secrets
 import threading
 import time
 import traceback
@@ -388,13 +389,26 @@ def get_secret_key():
 
     server_config = CONFIG.get("server", {}) if isinstance(CONFIG, dict) else {}
     config_key = server_config.get("secret_key")
-    if config_key:
+    if config_key and config_key != "dev-secret-key":
         return config_key
 
+    generated_key = secrets.token_hex(32)
+    try:
+        if isinstance(CONFIG, dict):
+            server_section = CONFIG.setdefault("server", {})
+            if server_section.get("secret_key") in {None, "", "dev-secret-key"}:
+                server_section["secret_key"] = generated_key
+                save_config(CONFIG)
+    except Exception as exc:  # pragma: no cover - логирование побочного эффекта
+        logger.warning(
+            "[security] Не удалось сохранить сгенерированный SECRET_KEY, используется временное значение.",
+            exc_info=exc,
+        )
+
     logger.warning(
-        "[security] SECRET_KEY не задан в окружении или config.json, используется значение по умолчанию."
+        "[security] SECRET_KEY не задан или использовался dev-secret-key, сгенерирован временный ключ."
     )
-    return "dev-secret-key"
+    return generated_key
 
 
 app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
@@ -409,10 +423,6 @@ app.config.update(
     SESSION_COOKIE_SECURE=False,
 )
 
-if secret_key == "dev-secret-key":
-    logger.warning(
-        "[security] Используется дефолтный SECRET_KEY, задайте переменную окружения или config.json."
-    )
 app.logger.handlers = []
 app.logger.setLevel(logging.INFO)
 for h in logger.handlers:
@@ -548,7 +558,8 @@ def handle_unexpected_error(error):
         return error
 
     logger.exception("[exception] Неперехваченное исключение", exc_info=error)
-    return render_template("error.html", error=str(error)), 500
+    generic_message = "Произошла внутренняя ошибка. Попробуйте позже или обратитесь к администратору."
+    return render_template("error.html", message=generic_message, code=500), 500
 
 
 __all__ = [

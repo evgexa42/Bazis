@@ -92,18 +92,17 @@ class OrderEvent(Base):
 
 
 def _create_default_admin() -> None:
-    with SessionLocal() as session:
+    with SessionLocal.begin() as session:
         existing = session.execute(select(User)).first()
         if existing:
             return
 
         password_hash = generate_password_hash("admin123")
         session.add(User(username="admin", password_hash=password_hash, role="admin", is_active=True))
-        session.commit()
 
 
 def _ensure_default_role_permissions() -> None:
-    with SessionLocal() as session:
+    with SessionLocal.begin() as session:
         for role, perms in DEFAULT_ROLE_PERMISSIONS.items():
             record = session.get(RolePermission, role)
             enforced = dict(perms)
@@ -121,11 +120,13 @@ def _ensure_default_role_permissions() -> None:
                     for field, value in enforced.items():
                         if getattr(record, field) is None:
                             setattr(record, field, value)
-        session.commit()
 
 
 def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
+    # Регистрируем все модели, зависящие от Base, перед созданием таблиц
+    import app.dal.database  # noqa: F401
+
     Base.metadata.create_all(engine)
     _create_default_admin()
     _ensure_default_role_permissions()
