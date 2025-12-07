@@ -4,7 +4,7 @@ from app import clients, clients_lock, reload_clients_from_db
 from app.dal.database import add_client as add_client_db
 from app.dal.database import delete_client as delete_client_db
 from app.dal.database import update_client as update_client_db
-from app.dal.permissions import has_permission
+from app.dal.permissions import has_permission, permissions_required
 
 clients_bp = Blueprint("clients", __name__)
 
@@ -20,9 +20,8 @@ def clients_page():
 
 
 @clients_bp.route("/add_client", methods=["POST"])
+@permissions_required("can_access_clients")
 def add_client():
-    if not has_permission(session.get("role"), "can_access_clients"):
-        return abort(403)
 
     client_name = (request.form.get("client") or "").strip()
     manager = request.form.get("manager")
@@ -35,9 +34,8 @@ def add_client():
 
 
 @clients_bp.route("/update_client", methods=["POST"])
+@permissions_required("can_access_clients")
 def update_client():
-    if not has_permission(session.get("role"), "can_access_clients"):
-        return abort(403)
 
     data = request.get_json()
     old_name = data.get("old_name")
@@ -56,9 +54,8 @@ def update_client():
 
 
 @clients_bp.route("/delete_client", methods=["POST"])
+@permissions_required("can_access_clients")
 def delete_client():
-    if not has_permission(session.get("role"), "can_access_clients"):
-        return abort(403)
 
     data = request.get_json()
     name = data.get("name")

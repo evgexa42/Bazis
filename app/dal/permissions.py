@@ -1,4 +1,7 @@
+from functools import wraps
 from typing import Dict, Iterable
+
+from flask import abort, session
 
 from sqlalchemy import select
 
@@ -74,10 +77,26 @@ def has_permission(role: str, perm: str) -> bool:
     return bool(perms.get(perm, 0))
 
 
+def permissions_required(*perms: str):
+    def decorator(view):
+        @wraps(view)
+        def wrapper(*args, **kwargs):
+            role = session.get("role")
+            for perm in perms:
+                if not has_permission(role, perm):
+                    abort(403)
+            return view(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 __all__ = [
     "get_role_permissions",
     "get_all_role_permissions",
     "save_role_permissions",
     "has_permission",
+    "permissions_required",
     "PERMISSION_FIELDS",
 ]

@@ -34,6 +34,8 @@ LOG_DIR = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
 metrics_lock = Lock()
+metrics_worker_started = False
+snapshot_updater_started = False
 metrics = {
     "started_at": time.time(),
     "requests": {
@@ -314,6 +316,22 @@ def metrics_background_worker():
         time.sleep(5)
 
 
+def start_metrics_worker_once():
+    global metrics_worker_started
+    if metrics_worker_started:
+        return
+    metrics_worker_started = True
+    threading.Thread(target=metrics_background_worker, daemon=True).start()
+
+
+def start_snapshot_updater_once():
+    global snapshot_updater_started
+    if snapshot_updater_started:
+        return
+    snapshot_updater_started = True
+    threading.Thread(target=snapshot_service.background_snapshot_updater, daemon=True).start()
+
+
 clients = load_clients()
 clients_lookup = build_clients_lookup(clients)
 clients_lock = threading.Lock()
@@ -515,7 +533,6 @@ from app.routes.auth import auth_bp
 from app.routes.clients import clients_bp
 from app.routes.orders import orders_bp
 from app.routes.settings import settings_bp
-from app.routes.telegram_api import telegram_api_bp
 
 
 def register_blueprints(flask_app: Flask):
@@ -523,7 +540,6 @@ def register_blueprints(flask_app: Flask):
     flask_app.register_blueprint(orders_bp)
     flask_app.register_blueprint(clients_bp)
     flask_app.register_blueprint(settings_bp)
-    flask_app.register_blueprint(telegram_api_bp)
 
 
 register_blueprints(app)
@@ -534,9 +550,8 @@ if TELEGRAM_TOKEN:
 else:
     logger.warning("[telegram] TELEGRAM_TOKEN не задан, бот не инициализирован.")
 telegram_service.load_messages_storage(MESSAGES_FILE)
-
-threading.Thread(target=snapshot_service.background_snapshot_updater, daemon=True).start()
-threading.Thread(target=metrics_background_worker, daemon=True).start()
+start_snapshot_updater_once()
+start_metrics_worker_once()
 snapshot_service.refresh_orders_snapshot(force=True)
 monitor_service.initialize_known_state()
 monitor_service.start_observer_once()

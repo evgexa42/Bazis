@@ -1,4 +1,5 @@
 
+import logging
 from copy import deepcopy
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
@@ -9,6 +10,7 @@ from app.dal.permissions import (
     PERMISSION_FIELDS,
     get_all_role_permissions,
     has_permission,
+    permissions_required,
     save_role_permissions,
 )
 from app.dal.users import (
@@ -25,6 +27,7 @@ from app.routes.auth import login_required
 from app.services import telegram as telegram_service
 
 settings_bp = Blueprint("settings", __name__)
+logger = logging.getLogger("bazis")
 
 
 @settings_bp.route("/settings", methods=["GET", "POST"])
@@ -116,6 +119,7 @@ def settings_page():
             CONFIG.update(updated)
             apply_config(CONFIG)
             telegram_service.init_bot(telegram_token)
+            logger.info("[settings] Настройки обновлены пользователем %s", session.get("user"))
             status_message = (
                 "Настройки сохранены. Некоторые изменения вступят в силу после перезапуска приложения."
             )
@@ -146,20 +150,9 @@ def settings_page():
 
 @settings_bp.route("/settings/users", methods=["GET"])
 @login_required
+@permissions_required("can_manage_users")
 def users_settings_page():
-    if not has_permission(session.get("role"), "can_manage_users"):
-        abort(403)
-
     return settings_page()
-
-
-def _ensure_can_manage_users() -> None:
-    current_role = session.get("role")
-    if not (
-        has_permission(current_role, "can_manage_users")
-        and has_permission(current_role, "can_access_settings")
-    ):
-        abort(403)
 
 
 def _json_data() -> dict:
@@ -170,9 +163,8 @@ def _json_data() -> dict:
 
 @settings_bp.route("/settings/users/update", methods=["POST"])
 @login_required
+@permissions_required("can_manage_users", "can_access_settings")
 def update_user_info():
-    _ensure_can_manage_users()
-
     payload = _json_data()
     try:
         user_id = int(payload.get("id", 0))
@@ -191,9 +183,8 @@ def update_user_info():
 
 @settings_bp.route("/settings/users/delete", methods=["POST"])
 @login_required
+@permissions_required("can_manage_users", "can_access_settings")
 def delete_user_account():
-    _ensure_can_manage_users()
-
     payload = _json_data()
     try:
         user_id = int(payload.get("id", 0))
@@ -208,9 +199,8 @@ def delete_user_account():
 
 @settings_bp.route("/settings/users/reset_password", methods=["POST"])
 @login_required
+@permissions_required("can_manage_users", "can_access_settings")
 def change_user_password():
-    _ensure_can_manage_users()
-
     payload = _json_data()
     try:
         user_id = int(payload.get("id", 0))
@@ -225,6 +215,11 @@ def change_user_password():
     status_code = 200 if result.get("ok") else 400
     if result.get("ok"):
         body = {"status": "ok", "password": new_password}
+        logger.info(
+            "[security] Пароль пользователя id=%s сброшен администратором %s",
+            user_id,
+            session.get("user"),
+        )
     else:
         body = {"status": "error", "message": result.get("error")}
     return jsonify(body), status_code
@@ -232,13 +227,8 @@ def change_user_password():
 
 @settings_bp.route("/settings/roles/save", methods=["POST"])
 @login_required
+@permissions_required("can_access_settings", "can_manage_users")
 def update_role_permissions():
-    current_role = session.get("role")
-    if not (
-        has_permission(current_role, "can_access_settings")
-        and has_permission(current_role, "can_manage_users")
-    ):
-        abort(403)
 
     updates = {}
     for role in ALLOWED_ROLES:
@@ -253,16 +243,15 @@ def update_role_permissions():
     updates["admin"]["can_manage_users"] = 1
 
     save_role_permissions(updates)
+    logger.info("[settings] Права ролей обновлены пользователем %s", session.get("user"))
 
     return redirect(url_for("settings.settings_page"))
 
 
 @settings_bp.route("/api/metrics", methods=["GET"])
 @login_required
+@permissions_required("can_access_metrics")
 def api_metrics():
-    current_role = session.get("role")
-    if not has_permission(current_role, "can_access_metrics"):
-        abort(403)
 
     with metrics_lock:
         data = deepcopy(metrics)
@@ -285,9 +274,8 @@ def api_metrics():
 
 @settings_bp.route("/admin/users/add", methods=["POST"])
 @login_required
+@permissions_required("can_manage_users")
 def add_user():
-    if not has_permission(session.get("role"), "can_manage_users"):
-        abort(403)
 
     username = request.form.get("username", "")
     password = request.form.get("password", "")
@@ -302,9 +290,8 @@ def add_user():
 
 @settings_bp.route("/admin/users/change_role", methods=["POST"])
 @login_required
+@permissions_required("can_manage_users")
 def change_role():
-    if not has_permission(session.get("role"), "can_manage_users"):
-        abort(403)
 
     try:
         user_id = int(request.form.get("user_id", "0"))
@@ -321,9 +308,8 @@ def change_role():
 
 @settings_bp.route("/admin/users/reset_password", methods=["POST"])
 @login_required
+@permissions_required("can_manage_users")
 def reset_password():
-    if not has_permission(session.get("role"), "can_manage_users"):
-        abort(403)
 
     try:
         user_id = int(request.form.get("user_id", "0"))
@@ -333,6 +319,12 @@ def reset_password():
     new_password = request.form.get("new_password", "")
     result = reset_user_password(user_id, new_password, session.get("user"))
     status_code = 200 if result.get("ok") else 400
+    if result.get("ok"):
+        logger.info(
+            "[security] Пароль пользователя id=%s сброшен администратором %s",
+            user_id,
+            session.get("user"),
+        )
     if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify(result), status_code
     return redirect(url_for("settings.settings_page"))

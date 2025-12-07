@@ -12,11 +12,13 @@ from flask import (
     session,
     url_for,
 )
+import logging
 
 from app.dal.permissions import get_role_permissions
 from app.dal.users import verify_user_credentials
 
 auth_bp = Blueprint("auth", __name__)
+logger = logging.getLogger("bazis")
 
 PUBLIC_ENDPOINTS = {"auth.login", "static", "orders.ping"}
 
@@ -88,6 +90,7 @@ def login():
             session.permanent = True
             session["user"] = user["username"]
             session["role"] = user["role"]
+            logger.info("[auth] Успешный вход пользователя: %s", username)
             next_url = request.args.get("next") or url_for("orders.index")
             parsed = urlparse(next_url)
             if parsed.scheme or parsed.netloc:
@@ -100,6 +103,7 @@ def login():
                     path = f"{path}?{parsed.query}"
                 next_url = path
             return redirect(next_url)
+        logger.warning("[auth] Неуспешная попытка входа для пользователя: %s", username)
         error = "Неверное имя пользователя или пароль."
 
     return render_template("login.html", error=error)
@@ -107,6 +111,7 @@ def login():
 
 @auth_bp.route("/logout")
 def logout():
+    logger.info("[auth] Пользователь вышел: %s", session.get("user"))
     session.clear()
     return redirect(url_for("auth.login"))
 
