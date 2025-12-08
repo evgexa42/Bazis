@@ -326,11 +326,29 @@ def ping():
 @orders_bp.route("/open_folder", methods=["POST"])
 def open_folder():
     folder_path = request.form.get("path")
-    if folder_path and os.path.exists(folder_path):
-        try:
-            os.startfile(folder_path)
-        except Exception as exc:
-            logger.exception("Ошибка открытия папки %s", folder_path, exc_info=exc)
+    if not folder_path:
+        return jsonify({"status": "error", "message": "Путь не указан"}), 400
+
+    if not os.path.exists(folder_path):
+        return jsonify({"status": "error", "message": "Путь не найден"}), 404
+
+    start_fn = getattr(os, "startfile", None)
+    if start_fn is None:
+        logger.warning("[open_folder] os.startfile недоступен для %s", folder_path)
+        return (
+            jsonify({"status": "error", "message": "Открытие папки не поддерживается"}),
+            501,
+        )
+
+    try:
+        start_fn(folder_path)
+    except Exception as exc:
+        logger.exception("Ошибка открытия папки %s", folder_path, exc_info=exc)
+        return (
+            jsonify({"status": "error", "message": "Не удалось открыть папку"}),
+            500,
+        )
+
     return ("", 204)
 
 

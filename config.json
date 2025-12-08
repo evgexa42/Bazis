@@ -2,11 +2,16 @@
   "server": {
     "host": "192.168.100.114",
     "port": 5000,
-    "debug": false
+    "debug": true,
+    "secret_key": "801f9789e27ee55847dad3d6d6fbe117843f0e59c9f42a6a4b3a8e3b7b5e0993"
   },
   "telegram": {
     "token": "8367286754:AAGg6IlGCR7Cqz1gukXQuNvByImFp37Z17U",
-    "chat_id": "703087159"
+    "chat_id": "703087159",
+    "ignored_folders": [
+      "Архив",
+      "2025"
+    ]
   },
   "paths": {
     "orders": "\\\\SERVER\\homag\\ПРИСАДКА КЛИЕНТА",
@@ -25,6 +30,9 @@
   "technologists": {
     "J": "Женя",
     "I": "Игорь"
+  },
+  "search": {
+    "months": 6
   },
   "features": {
     "order_confirmation": true

@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
         "debug": False,
         "secret_key": "dev-secret-key",
     },
-    "telegram": {"token": "", "chat_id": ""},
+    "telegram": {"token": "", "chat_id": "", "ignored_folders": ["Архив", "2025"]},
     "paths": {
         "orders": "",
         "facades_dir": "",
@@ -43,6 +43,7 @@ WATCHED_PATH = ""
 WATCHED_PATH_NORM = ""
 TELEGRAM_TOKEN = ""
 CHAT_ID = ""
+TELEGRAM_IGNORED_FOLDERS: list[str] = []
 SERVER_HOST = DEFAULT_CONFIG["server"]["host"]
 SERVER_PORT = DEFAULT_CONFIG["server"]["port"]
 DEBUG_MODE = DEFAULT_CONFIG["server"]["debug"]
@@ -130,6 +131,13 @@ def _parse_technologists(value) -> dict:
     return _parse_str_dict(value)
 
 
+def _parse_telegram_ignored(value) -> list[str]:
+    parsed = _parse_str_list(value)
+    if parsed or value is None:
+        return parsed or DEFAULT_CONFIG["telegram"]["ignored_folders"]
+    return []
+
+
 def _parse_search_folders(value) -> dict:
     if isinstance(value, dict):
         return _parse_str_dict(value)
@@ -175,6 +183,9 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged.setdefault("telegram", {})
     merged["telegram"]["token"] = str(merged["telegram"].get("token") or "").strip()
     merged["telegram"]["chat_id"] = str(merged["telegram"].get("chat_id") or "").strip()
+    merged["telegram"]["ignored_folders"] = _parse_telegram_ignored(
+        merged["telegram"].get("ignored_folders")
+    )
 
     merged.setdefault("paths", {})
     parsed_paths = _parse_paths_config(merged["paths"])
@@ -240,6 +251,7 @@ def apply_config(config):
 
     TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", telegram_cfg.get("token", ""))
     CHAT_ID = str(telegram_cfg.get("chat_id", "")).strip()
+    TELEGRAM_IGNORED_FOLDERS[:] = telegram_cfg.get("ignored_folders", [])
 
     FOLDER_PATH = paths.get("orders") or ""
     FACADES_DIR = paths.get("facades_dir") or ""
@@ -306,6 +318,7 @@ __all__ = [
     "FACADES_FILE",
     "CHAT_ID",
     "TELEGRAM_TOKEN",
+    "TELEGRAM_IGNORED_FOLDERS",
     "SERVER_PORT",
     "SERVER_HOST",
     "DEBUG_MODE",

@@ -41,7 +41,7 @@ def _format_modified(ts_value: float) -> str:
 def parse_folder_entry(
     folder_name: str, stat_mtime: Optional[float] = None, now_ts: Optional[float] = None
 ):
-    if folder_name in telegram_service.IGNORED_FOLDERS:
+    if telegram_service.is_folder_ignored(folder_name):
         return None
 
     folder_path = os.path.join(app_config.FOLDER_PATH or "", folder_name)

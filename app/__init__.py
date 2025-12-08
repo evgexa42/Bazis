@@ -28,7 +28,6 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
-MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
 
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
@@ -495,12 +494,8 @@ def register_blueprints(flask_app: Flask):
 register_blueprints(app)
 
 
-if app_config.TELEGRAM_TOKEN:
-    # читаем свежий токен напрямую из конфигурации
-    telegram_service.init_bot(app_config.TELEGRAM_TOKEN)
-else:
-    logger.warning("[telegram] TELEGRAM_TOKEN не задан, бот не инициализирован.")
-telegram_service.load_messages_storage(MESSAGES_FILE)
+telegram_service.init_bot(app_config.TELEGRAM_TOKEN)
+telegram_service.load_messages_storage()
 start_snapshot_updater_once()
 start_metrics_worker_once()
 snapshot_service.refresh_orders_snapshot(force=True)
@@ -553,7 +548,6 @@ __all__ = [
     "sse_broadcast",
     "order_index_updated_at",
     "order_index_lock",
-    "MESSAGES_FILE",
     "metrics",
     "metrics_lock",
     "measure_time",

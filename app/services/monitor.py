@@ -206,7 +206,7 @@ def initialize_known_state():
                 if not entry.is_dir():
                     continue
                 name = entry.name
-                if name in telegram_service.IGNORED_FOLDERS:
+                if telegram_service.is_folder_ignored(name):
                     continue
                 actual_folders.append(name)
     except Exception as exc:

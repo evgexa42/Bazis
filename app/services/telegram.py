@@ -15,9 +15,25 @@ bot: Optional[Bot] = None
 messages: List[dict] = []
 messages_lock = threading.Lock()
 tg_queue: "queue.Queue[tuple]" = queue.Queue(maxsize=1000)
+_disabled_warning_logged = False
+
+
+def _telegram_configured() -> bool:
+    return bot is not None and bool(app_config.CHAT_ID)
+
+
+def _log_disabled_once() -> None:
+    global _disabled_warning_logged
+    if _disabled_warning_logged:
+        return
+    _disabled_warning_logged = True
+    logger.warning("[TG] Бот не настроен: пропускаем задачи отправки.")
 
 
 def enqueue(fn, *args, **kwargs) -> None:
+    if not _telegram_configured():
+        _log_disabled_once()
+        return
     try:
         tg_queue.put_nowait((fn, args, kwargs))
     except queue.Full:
@@ -47,17 +63,17 @@ def start_worker_once():
         threading.Thread(target=_worker, daemon=True).start()
         _worker_started = True
 
-IGNORED_FOLDERS = {"Архив", "2025"}
-
-
 def init_bot(token: str) -> None:
-    global bot
-    bot = Bot(token=token) if token else None
-    start_worker_once()
+    global bot, _disabled_warning_logged
+    _disabled_warning_logged = False
+    if token and app_config.CHAT_ID:
+        bot = Bot(token=token)
+        start_worker_once()
+    else:
+        bot = None
 
 
-def load_messages_storage(path: Optional[str] = None) -> None:
-    del path  # compatibility
+def load_messages_storage() -> None:
     global messages
 
     stored = load_messages_from_db(level="telegram")
@@ -103,10 +119,19 @@ def technologist_from_folder(folder_name: str) -> str:
     return "Неизвестно"
 
 
+def _ignored_folders() -> set[str]:
+    # защита от пустых и дублирующихся значений в конфиге
+    return {name for name in app_config.TELEGRAM_IGNORED_FOLDERS if name}
+
+
+def is_folder_ignored(folder_name: str) -> bool:
+    return folder_name in _ignored_folders()
+
+
 def should_notify(folder_name: str) -> bool:
     if not folder_name or folder_name.startswith("."):
         return False
-    if folder_name in IGNORED_FOLDERS:
+    if is_folder_ignored(folder_name):
         return False
     if not any(char.isdigit() for char in folder_name) or " " not in folder_name:
         return False
@@ -128,8 +153,8 @@ def build_order_message(folder_name: str) -> str:
 
 def send_telegram_message(msg: str, folder_name: str) -> None:
     global messages
-    if bot is None or not app_config.CHAT_ID:
-        logger.warning("[TG] Бот не настроен. Сообщение не отправлено для %s", folder_name)
+    if not _telegram_configured():
+        _log_disabled_once()
         return
     try:
         sent = bot.send_message(chat_id=app_config.CHAT_ID, text=msg)
@@ -154,6 +179,10 @@ def send_telegram_message(msg: str, folder_name: str) -> None:
 
 def delete_telegram_message(folder_name: str) -> None:
     global messages
+    if not messages:
+        return
+    if not _telegram_configured():
+        return
     key = order_key_from_name(folder_name)
     with messages_lock:
         candidates = [
@@ -215,7 +244,7 @@ def update_message_for_folder(old_name: str, new_name: str) -> bool:
         return False
 
     new_text = build_order_message(new_name)
-    if bot is None:
+    if not _telegram_configured():
         return False
 
     try:
@@ -236,6 +265,9 @@ def update_message_for_folder(old_name: str, new_name: str) -> bool:
 
 
 def handle_moved_notification(old_name: str, new_name: str, already_known: bool) -> None:
+    if not _telegram_configured():
+        return
+
     if folder_has_ready_marker(new_name):
         delete_telegram_message(new_name)
         return
@@ -248,6 +280,9 @@ def handle_moved_notification(old_name: str, new_name: str, already_known: bool)
 
 
 def ensure_message_for_folder(folder_name: str) -> None:
+    if not _telegram_configured():
+        return
+
     if not should_notify(folder_name):
         return
 
@@ -271,6 +306,10 @@ def ensure_message_for_folder(folder_name: str) -> None:
 
 def cleanup_missing_messages(existing_keys) -> None:
     global messages
+    if not messages:
+        return
+    if not _telegram_configured():
+        return
     with messages_lock:
         current_messages = list(messages)
 
