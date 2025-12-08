@@ -28,6 +28,58 @@ const APP_CONFIG = (() => {
   return { managers, orderConfirmationEnabled, currentUser, currentRole, permissions };
 })();
 
+const ConfirmDialog = (() => {
+  let dialog;
+  let messageBox;
+  let resolver = null;
+
+  function ensureDialog() {
+    if (dialog) return;
+
+    dialog = document.createElement('div');
+    dialog.className = 'confirm-overlay';
+    dialog.innerHTML = `
+      <div class="confirm-modal" role="dialog" aria-modal="true">
+        <p class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn--primary" data-confirm-yes>Подтвердить</button>
+          <button type="button" class="btn btn--ghost" data-confirm-no>Отмена</button>
+        </div>
+      </div>
+    `;
+
+    messageBox = dialog.querySelector('.confirm-message');
+    dialog.addEventListener('click', event => {
+      if (event.target.dataset.confirmYes !== undefined) {
+        resolve(true);
+      } else if (event.target.dataset.confirmNo !== undefined || event.target === dialog) {
+        resolve(false);
+      }
+    });
+
+    document.body.appendChild(dialog);
+  }
+
+  function resolve(result) {
+    dialog?.classList.remove('is-visible');
+    if (resolver) {
+      resolver(result);
+      resolver = null;
+    }
+  }
+
+  function confirm(message) {
+    ensureDialog();
+    if (messageBox) messageBox.textContent = message || 'Вы уверены?';
+    dialog.classList.add('is-visible');
+    return new Promise(res => {
+      resolver = res;
+    });
+  }
+
+  return { confirm };
+})();
+
 const OrdersPage = (() => {
   let allData = [];
   let currentStatus = 'all';
@@ -367,7 +419,9 @@ const OrdersPage = (() => {
           const orderLabel = getOrderLabel(item);
           const ariaLabel = orderLabel ? `Подтвердить заказ ${orderLabel}` : 'Подтвердить заказ';
           checkbox.setAttribute('aria-label', ariaLabel);
-          checkbox.addEventListener('change', () => handleOrderConfirmation(item, checkbox));
+          checkbox.addEventListener('change', async () => {
+            await handleOrderConfirmation(item, checkbox);
+          });
           confirmTd.appendChild(checkbox);
         } else if (item.status === 'Подтвержден') {
           const orderLabel = getOrderLabel(item);
@@ -424,10 +478,11 @@ const OrdersPage = (() => {
     return label || item?.name || '';
   }
 
-  function handleOrderConfirmation(item, checkbox) {
+  async function handleOrderConfirmation(item, checkbox) {
     const orderLabel = getOrderLabel(item);
     const message = orderLabel ? `Подтвердить заказ ${orderLabel}?` : 'Подтвердить заказ?';
-    if (!window.confirm(message)) {
+    const approved = await ConfirmDialog.confirm(message);
+    if (!approved) {
       checkbox.checked = false;
       return;
     }
@@ -664,7 +719,7 @@ const UsersTable = (() => {
     table.addEventListener('click', handleAction);
   }
 
-  function handleAction(event) {
+  async function handleAction(event) {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
 
@@ -682,7 +737,7 @@ const UsersTable = (() => {
         saveRow(row);
         break;
       case 'delete':
-        deleteRow(row);
+        await deleteRow(row);
         break;
       case 'reset':
         changePassword(row);
@@ -747,11 +802,12 @@ const UsersTable = (() => {
       .catch(error => alert(error.message));
   }
 
-  function deleteRow(row) {
+  async function deleteRow(row) {
     const id = Number(row.dataset.userId || 0);
     const username = row.dataset.username || '';
 
-    if (!confirm(`Удалить пользователя "${username}"?`)) return;
+    const approved = await ConfirmDialog.confirm(`Удалить пользователя "${username}"?`);
+    if (!approved) return;
 
     postJson('/settings/users/delete', { id })
       .then(payload => {
@@ -838,7 +894,7 @@ const ClientsPage = (() => {
     table.addEventListener('click', handleAction);
   }
 
-  function handleAction(event) {
+  async function handleAction(event) {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
 
@@ -852,10 +908,10 @@ const ClientsPage = (() => {
         toggleEdit(row, true);
         break;
       case 'save':
-        saveClient(row);
+        await saveClient(row);
         break;
       case 'delete':
-        deleteClient(row);
+        await deleteClient(row);
         break;
       default:
         break;
@@ -875,7 +931,7 @@ const ClientsPage = (() => {
     }
   }
 
-  function saveClient(row) {
+  async function saveClient(row) {
     const oldName = row.dataset.client;
     const nameInput = row.querySelector('.edit-name');
     const managerSelect = row.querySelector('.edit-manager');
@@ -890,45 +946,47 @@ const ClientsPage = (() => {
       return;
     }
 
-      if (!confirm('Сохранить изменения?')) return;
+    const approved = await ConfirmDialog.confirm('Сохранить изменения?');
+    if (!approved) return;
 
-      fetch('/update_client', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ old_name: oldName, new_name: newName, new_manager: newManager })
+    fetch('/update_client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name: oldName, new_name: newName, new_manager: newManager })
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || (data && data.status !== 'ok')) {
+          alert((data && data.message) || 'Не удалось обновить клиента.');
+          return;
+        }
+        window.location.reload();
       })
-        .then(async (response) => {
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || (data && data.status !== 'ok')) {
-            alert((data && data.message) || 'Не удалось обновить клиента.');
-            return;
-          }
-          window.location.reload();
-        })
-        .catch(() => alert('Не удалось обновить клиента.'));
-    }
+      .catch(() => alert('Не удалось обновить клиента.'));
+  }
 
-  function deleteClient(row) {
+  async function deleteClient(row) {
     const client = row.dataset.client;
     if (!client) return;
 
-    if (!confirm(`Удалить клиента "${client}"?`)) return;
+    const approved = await ConfirmDialog.confirm(`Удалить клиента "${client}"?`);
+    if (!approved) return;
 
-      fetch('/delete_client', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: client })
+    fetch('/delete_client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: client })
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || (data && data.status !== 'ok')) {
+          alert((data && data.message) || 'Не удалось удалить клиента.');
+          return;
+        }
+        window.location.reload();
       })
-        .then(async (response) => {
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || (data && data.status !== 'ok')) {
-            alert((data && data.message) || 'Не удалось удалить клиента.');
-            return;
-          }
-          window.location.reload();
-        })
-        .catch(() => alert('Не удалось удалить клиента.'));
-    }
+      .catch(() => alert('Не удалось удалить клиента.'));
+  }
 
   return { init };
 })();
@@ -938,6 +996,11 @@ const SearchPage = (() => {
     document.querySelectorAll('[data-copy-path]').forEach(button => {
       button.addEventListener('click', () => copyPath(button));
     });
+
+    const periodSelect = document.getElementById('period');
+    if (periodSelect && periodSelect.form) {
+      periodSelect.addEventListener('change', () => periodSelect.form.submit());
+    }
   }
 
   function copyPath(button) {
@@ -1263,9 +1326,10 @@ const ClientsTable = (() => {
       });
   }
 
-  function deleteClient(row) {
+  async function deleteClient(row) {
     const name = row.dataset.client;
-    if (!confirm(`Удалить клиента "${name}"?`)) return;
+    const approved = await ConfirmDialog.confirm(`Удалить клиента "${name}"?`);
+    if (!approved) return;
 
     fetch('/delete_client', {
       method: 'POST',

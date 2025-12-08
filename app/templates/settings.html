@@ -19,7 +19,7 @@ data-managers="{{ config_managers | join(',') }}"
 
   {% if status_message %}
   <section class="notice-card notice-card--success">
-    {{ status_message }}
+    {{ status_message | safe }}
   </section>
   {% endif %}
 

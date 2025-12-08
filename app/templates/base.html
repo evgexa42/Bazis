@@ -34,6 +34,9 @@
       {% if role_perms.can_access_facades %}
       <a href="/facades">🚪 Фасады</a>
       {% endif %}
+	  {% if role_perms.can_access_settings %}
+      <a href="/journal">📜 Журнал</a>
+      {% endif %}
       <span class="top-menu__user">
         {% if g.current_user %}
           👤 {{ g.current_user }} ({{ g.current_role }})

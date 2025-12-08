@@ -1231,3 +1231,42 @@ code {
   gap: 10px 14px;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
+/* Confirmation modal */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.confirm-overlay.is-visible {
+  display: flex;
+}
+
+.confirm-modal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  max-width: 420px;
+  width: 90%;
+}
+
+.confirm-message {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn--ghost.btn--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

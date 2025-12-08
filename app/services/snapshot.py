@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Set, Tuple
 import app as bazis_app
 import app.config as app_config
 from app import get_manager_from_name, heartbeat, logger, measure_time, sse_broadcast
+from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
 from app.services import telegram as telegram_service
 from app.services.telegram import folder_has_ready_marker, technologist_from_folder
@@ -192,21 +193,30 @@ def get_orders_snapshot(ttl: float = bazis_app.SNAPSHOT_TTL):
     return refresh_orders_snapshot(force=True)
 
 
-def _merge_order(entry: dict) -> tuple[bool, List[Dict], int, float]:
+def _merge_order(entry: dict) -> tuple[bool, List[Dict], int, float, bool]:
     # атомарно читаем+меняем snapshot под одним локом
     with bazis_app.orders_snapshot_lock:
         snapshot = list(bazis_app.orders_snapshot)
+        existed = False
 
         for idx, item in enumerate(snapshot):
             if item.get("name") == entry.get("name"):
+                existed = True
                 if item == entry:
-                    return False, list(bazis_app.orders_snapshot), bazis_app.orders_version, bazis_app.last_snapshot_ts
+                    return (
+                        False,
+                        list(bazis_app.orders_snapshot),
+                        bazis_app.orders_version,
+                        bazis_app.last_snapshot_ts,
+                        existed,
+                    )
                 snapshot[idx] = entry
                 break
         else:
             snapshot.append(entry)
 
-    return _apply_snapshot(snapshot)
+    changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
+    return changed, applied_snapshot, version, last_snapshot_ts, existed
 
 
 def upsert_order(folder_name: str) -> bool:
@@ -214,7 +224,7 @@ def upsert_order(folder_name: str) -> bool:
     if not parsed:
         return remove_order(folder_name)
 
-    changed, applied_snapshot, version, last_snapshot_ts = _merge_order(parsed)
+    changed, applied_snapshot, version, last_snapshot_ts, existed = _merge_order(parsed)
     if changed:
         payload = build_orders_payload(
             folders=applied_snapshot,
@@ -222,6 +232,13 @@ def upsert_order(folder_name: str) -> bool:
             last_snapshot_ts=last_snapshot_ts,
         )
         sse_broadcast(payload)
+        if not existed:
+            log_order_event(
+                "create",
+                order_name=folder_name,
+                manager=parsed.get("manager"),
+                new_value=parsed.get("status"),
+            )
     return changed
 
 
@@ -232,6 +249,10 @@ def remove_order(folder_name: str) -> bool:
             item for item in bazis_app.orders_snapshot
             if item.get("name") != folder_name
         ]
+        removed_item = next(
+            (item for item in bazis_app.orders_snapshot if item.get("name") == folder_name),
+            None,
+        )
 
     changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
     if changed:
@@ -241,6 +262,12 @@ def remove_order(folder_name: str) -> bool:
             last_snapshot_ts=last_snapshot_ts,
         )
         sse_broadcast(payload)
+        log_order_event(
+            "delete",
+            order_name=folder_name,
+            manager=(removed_item or {}).get("manager"),
+            old_value=(removed_item or {}).get("status"),
+        )
     return changed
 
 
@@ -340,7 +367,48 @@ def ensure_search_table(conn: sqlite3.Connection):
     conn.execute("CREATE INDEX IF NOT EXISTS ix_search_manager ON search_index(manager);")
 
 
-def refresh_search_index(full: bool = False):
+def collect_month_scope(months_back: Optional[int]) -> List[str]:
+    if months_back is None:
+        return get_recent_months()
+
+    limit: Optional[int]
+    if months_back == 0:
+        limit = None
+    else:
+        try:
+            limit = max(1, min(24, int(months_back)))
+        except (TypeError, ValueError):
+            limit = None
+
+    month_candidates: list[tuple[float, str]] = []
+    seen: set[str] = set()
+
+    for base_folder in app_config.SEARCH_FOLDERS.values():
+        if not base_folder or not os.path.isdir(base_folder):
+            continue
+        try:
+            with os.scandir(base_folder) as it:
+                for entry in it:
+                    if not entry.is_dir():
+                        continue
+                    if entry.name in seen:
+                        continue
+                    month_candidates.append((entry.stat().st_mtime, entry.name))
+                    seen.add(entry.name)
+        except FileNotFoundError:
+            continue
+
+    month_candidates.sort(key=lambda item: item[0], reverse=True)
+    ordered_months = [name for _, name in month_candidates]
+    if limit:
+        ordered_months = ordered_months[:limit]
+
+    if not ordered_months:
+        return get_recent_months(months_back if months_back else None)
+    return ordered_months
+
+
+def refresh_search_index(full: bool = False, months_back: Optional[int] = None, month_scope: Optional[List[str]] = None):
     now = time.time()
     if not full:
         with bazis_app.order_index_lock:
@@ -361,7 +429,7 @@ def refresh_search_index(full: bool = False):
         ensure_search_table(conn)
         cur = conn.cursor()
 
-        search_months = get_recent_months()
+        search_months = month_scope or collect_month_scope(months_back)
         all_rows: List[Tuple] = []
         cleanup_batches: List[Tuple[str, str, Set[str]]] = []
 
@@ -445,7 +513,7 @@ def refresh_search_index(full: bool = False):
 
 
 @measure_time("search")
-def search_in_index(query: str):
+def search_in_index(query: str, months_scope: Optional[List[str]] = None):
     cleaned_query, month_filters = _extract_month_filters(query)
     normalized_query = (cleaned_query or "").strip().lower()
     keys = list(app_config.SEARCH_FOLDERS.keys())
@@ -465,10 +533,18 @@ def search_in_index(query: str):
     )
     params: List[str] = [f"%{normalized_query}%"]
 
-    if month_filters:
-        placeholders = ",".join("?" for _ in month_filters)
+    merged_filters = list(month_filters)
+    if months_scope:
+        scope_set = set(months_scope)
+        if merged_filters:
+            merged_filters = [m for m in merged_filters if m in scope_set]
+        else:
+            merged_filters = list(scope_set)
+
+    if merged_filters:
+        placeholders = ",".join("?" for _ in merged_filters)
         sql += f" AND month IN ({placeholders})"
-        params.extend(month_filters)
+        params.extend(merged_filters)
 
     sql += " ORDER BY mtime_ts DESC"
 

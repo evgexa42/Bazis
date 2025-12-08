@@ -45,6 +45,7 @@ from app.dal.users import (
 from app import metrics, metrics_lock, ts_ago
 from app.routes.auth import login_required
 from app.services import telegram as telegram_service
+from app.services.audit import fetch_events, log_order_event
 
 settings_bp = Blueprint("settings", __name__)
 logger = logging.getLogger("bazis")
@@ -165,16 +166,61 @@ def settings_page():
                 "debug": updated.get("server", {}).get("debug"),
             }
 
+            managers_changed = old_config.get("managers", []) != updated.get("managers", [])
+            technologists_changed = old_config.get("technologists", {}) != updated.get("technologists", {})
+            search_changed = old_config.get("paths", {}).get("search", {}) != updated.get("paths", {}).get("search", {})
+            features_changed = old_config.get("features", {}) != updated.get("features", {})
+            telegram_changed = old_config.get("telegram", {}) != updated.get("telegram", {})
+
             monitor_restart_required = paths_changed
             needs_restart = server_changed
-            status_parts = ["Настройки сохранены."]
-            if monitor_restart_required:
-                status_parts.append(
-                    "Пути изменены — перезапустите файловый мониторинг, чтобы применить обновления."
+
+            light_changes = []
+            heavy_changes = []
+            if managers_changed:
+                light_changes.append("списки менеджеров")
+            if technologists_changed:
+                light_changes.append("список технологов")
+            if search_changed:
+                light_changes.append("пути для поиска")
+            if features_changed:
+                light_changes.append("флаги функций")
+            if telegram_changed:
+                light_changes.append("настройки Telegram")
+            if paths_changed:
+                heavy_changes.append("файловые пути")
+            if server_changed:
+                heavy_changes.append("параметры сервера")
+
+            status_lines = []
+            if light_changes and not heavy_changes:
+                status_lines.append(
+                    "Настройки сохранены и применены сразу: " + ", ".join(light_changes)
                 )
+            elif light_changes:
+                status_lines.append(
+                    "Часть настроек применена сразу: " + ", ".join(light_changes)
+                )
+            else:
+                status_lines.append("Настройки сохранены.")
+
+            restart_parts = []
+            if monitor_restart_required:
+                restart_parts.append("перезапустите файловый мониторинг из-за обновления путей")
             if needs_restart:
-                status_parts.append("Параметры сервера изменены — требуется ручной рестарт.")
-            status_message = " ".join(status_parts)
+                restart_parts.append("нужен рестарт сервера после изменения параметров")
+            if restart_parts:
+                status_lines.append("; ".join(restart_parts))
+
+            status_message = "<br>".join(status_lines)
+            changes_summary = ", ".join(light_changes + heavy_changes) or "без изменений"
+            log_order_event(
+                "settings_update",
+                order_name="settings",
+                old_value=changes_summary,
+                new_value=status_message,
+                user=session.get("user"),
+            )
 
     managers_text = "\n".join(MANAGER_NAMES)
     technologists_text = "\n".join(
@@ -203,6 +249,30 @@ def settings_page():
         permission_fields=list(PERMISSION_FIELDS),
         protected_roles=set(DEFAULT_ROLE_PERMISSIONS.keys()),
         role_usage={user["role"] for user in users},
+    )
+
+
+@settings_bp.route("/journal", methods=["GET"])
+@login_required
+@permissions_required("can_access_settings")
+def audit_journal():
+    try:
+        page = int(request.args.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+
+    per_page = 50
+    safe_page = max(1, page)
+    offset = (safe_page - 1) * per_page
+
+    events = fetch_events(limit=per_page, offset=offset)
+    has_next = len(events) == per_page
+
+    return render_template(
+        "journal.html",
+        events=events,
+        page=safe_page,
+        has_next=has_next,
     )
 
 
@@ -262,6 +332,12 @@ def delete_user_account():
 
     result = delete_user(user_id)
     body, status_code = _build_response(result)
+    if result.get("ok"):
+        log_order_event(
+            "user_delete",
+            order_name=str(user_id),
+            user=session.get("user"),
+        )
     return jsonify(body), status_code
 
 
@@ -404,6 +480,12 @@ def add_user():
 
     if result.get("ok"):
         session["settings_status"] = "Пользователь создан."
+        log_order_event(
+            "user_create",
+            order_name=username,
+            new_value=f"role={role}",
+            user=session.get("user"),
+        )
     else:
         session["settings_errors"] = [result.get("message")]
     return redirect(url_for("settings.settings_page"))

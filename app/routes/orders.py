@@ -29,11 +29,13 @@ from app import (
     sse_clients_lock,
 )
 from app.dal.permissions import permissions_required
+from app.services.audit import log_order_event
 from app.services.monitor import move_known_folder
 from app.services.snapshot import (
     build_orders_payload,
     refresh_search_index,
     remove_order,
+    collect_month_scope,
     search_in_index,
     upsert_order,
 )
@@ -138,6 +140,15 @@ def search_page():
         return redirect(url_for("orders.index"))
 
     query = request.form.get("query", "").strip()
+    period_choice = (request.form.get("period") or request.args.get("period") or "2").strip()
+    if period_choice == "all":
+        months_back = 0
+    else:
+        try:
+            months_back = max(1, min(24, int(period_choice)))
+        except (TypeError, ValueError):
+            months_back = 2
+
     results = {key: [] for key in app_config.SEARCH_FOLDERS.keys()}
 
     if query:
@@ -148,9 +159,14 @@ def search_page():
             )
 
         if not is_index_fresh:
-            refresh_search_index(full=True)
+            month_scope = collect_month_scope(months_back)
+            refresh_search_index(full=True, months_back=months_back, month_scope=month_scope)
+        else:
+            month_scope = collect_month_scope(months_back)
 
-        results = search_in_index(query)
+        results = search_in_index(query, months_scope=month_scope)
+    else:
+        month_scope = collect_month_scope(months_back)
 
     manager_filter = get_visible_manager_filter(request, session)
     if manager_filter:
@@ -162,7 +178,12 @@ def search_page():
         results = filtered_results
 
     return render_template(
-        "search.html", query=query, results=results, SEARCH_FOLDERS=app_config.SEARCH_FOLDERS
+        "search.html",
+        query=query,
+        results=results,
+        SEARCH_FOLDERS=app_config.SEARCH_FOLDERS,
+        period_choice=period_choice,
+        month_scope=month_scope,
     )
 
 
@@ -469,5 +490,19 @@ def confirm_order():
     upsert_order(new_name)
 
     logger.info("[confirm_order] Заказ подтверждён: %s -> %s", folder_name, new_name)
+    log_order_event(
+        "rename",
+        order_name=new_name,
+        old_value=folder_name,
+        new_value=new_name,
+        manager=folder_manager,
+    )
+    log_order_event(
+        "confirm",
+        order_name=new_name,
+        old_value=folder_name,
+        new_value="confirmed",
+        manager=folder_manager,
+    )
 
     return jsonify({"status": "ok", "folder": new_name})

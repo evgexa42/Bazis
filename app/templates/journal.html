@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Журнал аудита{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <h1>📜 Журнал действий</h1>
+    <p class="page-description">
+      Последние события по заказам, настройкам и пользователям. Запись ведётся автоматически для аудита.
+    </p>
+  </header>
+
+  <section class="card table-card">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Время</th>
+            <th>Пользователь</th>
+            <th>Событие</th>
+            <th>Описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in events %}
+          <tr>
+            <td class="table-secondary">{{ event.ts.strftime('%d.%m.%Y %H:%M') if event.ts else '—' }}</td>
+            <td>{{ event.user or 'system' }}</td>
+            <td>{{ event.action }}</td>
+            <td>
+              {% if event.action in ['create', 'delete', 'rename', 'confirm'] %}
+                Заказ: <strong>{{ event.order_name or '—' }}</strong>
+                {% if event.action == 'create' %}- создан{% endif %}
+                {% if event.action == 'delete' %}- удалён{% endif %}
+                {% if event.action == 'confirm' %}- подтверждён{% endif %}
+                {% if event.action == 'rename' %}- переименован с {{ event.old_value }}{% endif %}
+              {% elif event.action in ['user_create', 'user_delete'] %}
+                Пользователь: <strong>{{ event.order_name }}</strong>
+                {% if event.action == 'user_create' %}создан{% else %}удалён{% endif %}.
+              {% elif event.action == 'settings_update' %}
+                Изменены настройки: {{ event.old_value }}
+              {% else %}
+                {{ event.old_value or event.new_value or '—' }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      {% if page > 1 %}
+      <a class="btn btn--ghost" href="{{ url_for('settings.audit_journal', page=page-1) }}">← Предыдущие</a>
+      {% else %}
+      <span class="btn btn--ghost btn--disabled">← Предыдущие</span>
+      {% endif %}
+
+      <span class="table-secondary">Страница {{ page }}</span>
+
+      {% if has_next %}
+      <a class="btn btn--ghost" href="{{ url_for('settings.audit_journal', page=page+1) }}">Следующие →</a>
+      {% else %}
+      <span class="btn btn--ghost btn--disabled">Следующие →</span>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
