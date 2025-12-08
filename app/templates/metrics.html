@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Метрики сервера{% endblock %}
+
+{% block body_attrs %}
+data-page="metrics"
+{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <h1>📈 Метрики и состояние</h1>
+    <p class="page-description">
+      Текущая загрузка сервиса, активные SSE-подключения и ошибки за последние 24 часа. Данные обновляются автоматически.
+    </p>
+  </header>
+
+  <section class="card metrics-shell" data-metrics-page>
+    <div class="metrics-summary">
+      <div class="metric-chip">
+        <span class="metric-chip__label">RPS (текущ.)</span>
+        <strong class="metric-chip__value" data-rps-current>—</strong>
+      </div>
+      <div class="metric-chip">
+        <span class="metric-chip__label">Активные SSE</span>
+        <strong class="metric-chip__value" data-sse-count>—</strong>
+      </div>
+      <div class="metric-chip">
+        <span class="metric-chip__label">Ошибок за 24ч</span>
+        <strong class="metric-chip__value" data-errors-day>—</strong>
+      </div>
+      <div class="metric-chip">
+        <span class="metric-chip__label">Uptime</span>
+        <strong class="metric-chip__value" data-uptime>—</strong>
+      </div>
+    </div>
+
+    <div class="metrics-grid charts-grid">
+      <article class="chart-card chart-card--wide">
+        <header class="chart-card__header">
+          <div>
+            <h3 class="chart-card__title">RPS, последние 60 секунд</h3>
+            <p class="chart-card__hint">История запросов обновляется каждые несколько секунд.</p>
+          </div>
+          <span class="chart-card__meta" data-metrics-status>—</span>
+        </header>
+        <canvas id="rpsChart" height="200"></canvas>
+      </article>
+
+      <article class="chart-card">
+        <header class="chart-card__header">
+          <div>
+            <h3 class="chart-card__title">Активные SSE</h3>
+            <p class="chart-card__hint">Подписки браузеров на потоковые события.</p>
+          </div>
+          <span class="chart-card__meta" data-sse-meta>—</span>
+        </header>
+        <canvas id="sseChart" height="140"></canvas>
+      </article>
+
+      <article class="chart-card">
+        <header class="chart-card__header">
+          <div>
+            <h3 class="chart-card__title">Ошибки за 24 часа</h3>
+            <p class="chart-card__hint">Счётчик критичных событий.</p>
+          </div>
+          <span class="chart-card__meta" data-errors-meta>—</span>
+        </header>
+        <canvas id="errorChart" height="140"></canvas>
+      </article>
+    </div>
+  </section>
+{% endblock %}

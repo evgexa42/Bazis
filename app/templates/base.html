@@ -31,6 +31,9 @@
       {% if role_perms.can_access_search %}
       <a href="/search">🔍 Поиск</a>
       {% endif %}
+      {% if role_perms.can_access_metrics %}
+      <a href="/metrics">📈 Метрики</a>
+      {% endif %}
       {% if role_perms.can_access_facades %}
       <a href="/facades">🚪 Фасады</a>
       {% endif %}

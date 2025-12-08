@@ -110,6 +110,14 @@ def index():
     return render_template("index.html")
 
 
+@orders_bp.route("/metrics")
+def metrics_page():
+    if not getattr(g, "role_perms", {}).get("can_access_metrics"):
+        return redirect(url_for("orders.index"))
+
+    return render_template("metrics.html")
+
+
 @orders_bp.route("/facades")
 def facades_page():
     if not getattr(g, "role_perms", {}).get("can_access_facades"):

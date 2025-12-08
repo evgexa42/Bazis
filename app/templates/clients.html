@@ -32,7 +32,7 @@ data-managers="{{ config_managers | join(',') }}"
 
   <section class="card table-card clients-table">
     <div class="table-scroll">
-      <table class="data-table" data-clients-table>
+      <table class="data-table data-table--stacked" data-clients-table>
         <thead>
           <tr>
             <th>Клиент</th>
@@ -43,19 +43,19 @@ data-managers="{{ config_managers | join(',') }}"
         <tbody>
           {% for client, manager in clients.items() %}
           <tr data-client="{{ client }}">
-            <td>
-              <span class="table-primary" data-view>{{ client }}</span>
+            <td data-label="Клиент">
+              <span class="table-primary" data-view data-field="name">{{ client }}</span>
               <input type="text" class="input edit-name is-hidden" data-edit value="{{ client }}">
             </td>
-            <td>
-              <span class="manager-tag" data-view>{{ manager }}</span>
+            <td data-label="Менеджер">
+              <span class="manager-tag" data-view data-field="manager">{{ manager }}</span>
               <select class="select edit-manager is-hidden" data-edit>
                 {% for manager_name in config_managers %}
                 <option value="{{ manager_name }}" {% if manager_name == manager %}selected{% endif %}>{{ manager_name }}</option>
                 {% endfor %}
               </select>
             </td>
-            <td>
+            <td data-label="Действия">
               <div class="button-group button-group--inline" data-view>
                 <button type="button" class="btn btn--ghost btn--small" data-edit-btn>✏️ Изменить</button>
                 <button type="button" class="btn btn--ghost btn--small" data-delete-btn>🗑️ Удалить</button>

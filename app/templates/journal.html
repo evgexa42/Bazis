@@ -12,7 +12,7 @@
 
   <section class="card table-card">
     <div class="table-scroll">
-      <table class="data-table">
+      <table class="data-table data-table--stacked">
         <thead>
           <tr>
             <th>Время</th>
@@ -24,10 +24,10 @@
         <tbody>
           {% for event in events %}
           <tr>
-            <td class="table-secondary">{{ event.ts.strftime('%d.%m.%Y %H:%M') if event.ts else '—' }}</td>
-            <td>{{ event.user or 'system' }}</td>
-            <td>{{ event.action }}</td>
-            <td>
+            <td class="table-secondary" data-label="Время">{{ event.ts.strftime('%d.%m.%Y %H:%M') if event.ts else '—' }}</td>
+            <td data-label="Пользователь">{{ event.user or 'system' }}</td>
+            <td data-label="Событие">{{ event.action }}</td>
+            <td data-label="Описание">
               {% if event.action in ['create', 'delete', 'rename', 'confirm'] %}
                 Заказ: <strong>{{ event.order_name or '—' }}</strong>
                 {% if event.action == 'create' %}- создан{% endif %}

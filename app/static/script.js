@@ -1045,6 +1045,147 @@ const SearchPage = (() => {
   return { init };
 })();
 
+const MetricsPage = (() => {
+  let rpsCtx;
+  let sseCtx;
+  let errorCtx;
+  let timer = null;
+  const sseHistory = [];
+  const errorHistory = [];
+  const pollMs = 5000;
+
+  function init() {
+    const container = document.querySelector('[data-metrics-page]');
+    if (!container) return;
+
+    rpsCtx = container.querySelector('#rpsChart')?.getContext('2d') || null;
+    sseCtx = container.querySelector('#sseChart')?.getContext('2d') || null;
+    errorCtx = container.querySelector('#errorChart')?.getContext('2d') || null;
+
+    fetchAndRender();
+    timer = setInterval(fetchAndRender, pollMs);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) fetchAndRender();
+    });
+  }
+
+  async function fetchAndRender() {
+    try {
+      const response = await fetch('/api/metrics', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!response.ok) throw new Error('Ответ сервера с ошибкой');
+      const data = await response.json();
+      updateSummary(data);
+      drawRpsChart(data?.requests?.last_minute_rps || []);
+      pushHistory(sseHistory, data?.sse?.active_clients ?? 0, 60);
+      pushHistory(errorHistory, data?.errors?.errors_last_24h ?? 0, 60);
+      drawSparkline(sseCtx, sseHistory, '#2563eb');
+      drawSparkline(errorCtx, errorHistory, '#dc2626');
+      setMeta('Обновлено: ' + new Date().toLocaleTimeString());
+      setText('[data-sse-meta]', `${(data?.sse?.seconds_ago ?? 0) || 0} c назад`);
+      setText('[data-errors-meta]', `${data?.errors?.errors_last_24h ?? 0} за сутки`);
+    } catch (error) {
+      console.error('Metrics fetch failed', error);
+      setMeta('Нет данных');
+    }
+  }
+
+  function updateSummary(data) {
+    const nowSec = Date.now() / 1000;
+    const started = data?.started_at || nowSec;
+    const uptime = Math.max(0, Math.round(nowSec - started));
+    const rpsValues = data?.requests?.last_minute_rps || [];
+    const currentRps = rpsValues.length ? rpsValues[rpsValues.length - 1] : 0;
+
+    setText('[data-rps-current]', currentRps?.toFixed ? currentRps.toFixed(2) : currentRps || 0);
+    setText('[data-sse-count]', data?.sse?.active_clients ?? '—');
+    setText('[data-errors-day]', data?.errors?.errors_last_24h ?? '—');
+    setText('[data-uptime]', formatUptime(uptime));
+  }
+
+  function drawRpsChart(values) {
+    if (!rpsCtx) return;
+    const ctx = rpsCtx;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    if (!values.length) return;
+
+    const maxVal = Math.max(...values, 1);
+    const stepX = values.length > 1 ? width / (values.length - 1) : width;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2563eb';
+    ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
+    ctx.beginPath();
+
+    values.forEach((val, idx) => {
+      const x = idx * stepX;
+      const y = height - (val / maxVal) * (height - 10);
+      if (idx === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.stroke();
+    ctx.lineTo(width, height);
+    ctx.lineTo(0, height);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSparkline(ctx, values, color = '#2563eb') {
+    if (!ctx) return;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    if (!values.length) return;
+
+    const maxVal = Math.max(...values, 1);
+    const stepX = values.length > 1 ? width / (values.length - 1) : width;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    values.forEach((val, idx) => {
+      const x = idx * stepX;
+      const y = height - (val / maxVal) * (height - 6);
+      if (idx === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.stroke();
+  }
+
+  function pushHistory(store, value, limit) {
+    store.push(Number(value) || 0);
+    if (store.length > limit) store.shift();
+  }
+
+  function setMeta(text) {
+    setText('[data-metrics-status]', text);
+  }
+
+  function setText(selector, value) {
+    const el = document.querySelector(selector);
+    if (el) {
+      el.textContent = value;
+    }
+  }
+
+  function formatUptime(seconds) {
+    if (seconds === null || seconds === undefined) return '—';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hrs} ч ${mins} м`;
+  }
+
+  return { init };
+})();
+
 const FacadesPage = (() => {
   function init() {
     const container = document.getElementById('facadeList');
@@ -1258,6 +1399,7 @@ document.addEventListener('DOMContentLoaded', () => {
   OrdersPage.init();
   ClientsPage.init();
   SearchPage.init();
+  MetricsPage.init();
   FacadesPage.init();
   SettingsPage.init();
   UsersTable.init();
@@ -1311,14 +1453,17 @@ const ClientsTable = (() => {
       body: JSON.stringify({
         old_name: oldName,
         new_name: newName,
-        manager: newManager
+        new_manager: newManager
       })
     })
       .then(r => r.json())
       .then(res => {
         if (res.status === 'ok') {
           row.dataset.client = newName;
-          row.querySelector('[data-view]').textContent = newName;
+          const nameCell = row.querySelector('[data-field="name"]');
+          const managerCell = row.querySelector('[data-field="manager"]');
+          if (nameCell) nameCell.textContent = newName;
+          if (managerCell) managerCell.textContent = newManager || '—';
           location.reload();
         } else {
           alert(res.message || 'Ошибка сохранения');

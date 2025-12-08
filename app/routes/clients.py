@@ -40,7 +40,8 @@ def update_client():
     data = request.get_json()
     old_name = data.get("old_name")
     new_name = data.get("new_name")
-    new_manager = data.get("new_manager")
+    # поддерживаем старый ключ manager на случай старого JS
+    new_manager = data.get("new_manager") or data.get("manager") or ""
 
     updated = False
     with clients_lock:
