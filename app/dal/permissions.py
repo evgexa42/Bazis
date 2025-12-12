@@ -22,6 +22,7 @@ PERMISSION_FIELDS: Iterable[str] = (
     "can_manage_users",
     "can_edit_paths",
     "can_toggle_order_options",
+    "can_confirm_orders",
 )
 
 _EMPTY_PERMISSIONS: Dict[str, int] = {field: 0 for field in PERMISSION_FIELDS}
@@ -39,6 +40,7 @@ def _enforce_admin_baseline(role: str, perms: Dict[str, int]) -> Dict[str, int]:
     ensured = dict(perms)
     ensured["can_access_settings"] = 1
     ensured["can_manage_users"] = 1
+    ensured["can_confirm_orders"] = 1
     return ensured
 
 

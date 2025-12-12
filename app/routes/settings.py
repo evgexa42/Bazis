@@ -230,6 +230,7 @@ def settings_page():
 
     users = get_all_users()
     available_roles = sorted(get_allowed_roles())
+    audit_events = fetch_events(limit=120)
 
     return render_template(
         "settings.html",
@@ -249,6 +250,7 @@ def settings_page():
         permission_fields=list(PERMISSION_FIELDS),
         protected_roles=set(DEFAULT_ROLE_PERMISSIONS.keys()),
         role_usage={user["role"] for user in users},
+        audit_events=audit_events,
     )
 
 

@@ -56,7 +56,7 @@ data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}
             <th>Статус</th>
             <th>Изменено</th>
             <th>Дней назад</th>
-            {% if order_confirmation_enabled %}
+            {% if order_confirmation_enabled and role_perms.can_confirm_orders %}
             <th class="table-checkbox">Подтвердить</th>
             {% endif %}
           </tr>

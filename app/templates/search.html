@@ -18,16 +18,20 @@ data-managers="{{ config_managers | join(',') }}"
 
   <section class="card">
     <h2 class="section-title">Поисковый запрос</h2>
-    <form method="POST" action="{{ url_for('orders.search_page') }}" class="form-inline search-form">
-      <input type="text" name="query" class="input" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
-      <label class="field-label" for="period">Период</label>
-      <select name="period" id="period" class="select select--compact">
-        <option value="2" {% if period_choice == '2' %}selected{% endif %}>Последние 2 месяца</option>
-        <option value="6" {% if period_choice == '6' %}selected{% endif %}>Последние 6 месяцев</option>
-        <option value="12" {% if period_choice == '12' %}selected{% endif %}>Последние 12 месяцев</option>
-        <option value="all" {% if period_choice == 'all' %}selected{% endif %}>Все доступные</option>
-      </select>
-      <button type="submit" class="btn btn--primary">Поиск</button>
+    <form method="POST" action="{{ url_for('orders.search_page') }}" class="search-form">
+      <div class="search-form__controls">
+        <input type="text" name="query" class="input search-form__query" placeholder="Введите номер заказа (например 123-10)" value="{{ query }}" required>
+        <div class="search-form__period" title="Ограничьте период поиска по архиву">
+          <label class="field-label search-form__label" for="period">Период</label>
+          <select name="period" id="period" class="select select--compact search-period">
+            <option value="2" {% if period_choice == '2' %}selected{% endif %}>Последние 2 месяца</option>
+            <option value="6" {% if period_choice == '6' %}selected{% endif %}>Последние 6 месяцев</option>
+            <option value="12" {% if period_choice == '12' %}selected{% endif %}>Последние 12 месяцев</option>
+            <option value="all" {% if period_choice == 'all' %}selected{% endif %}>Все доступные</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn--primary">Поиск</button>
+      </div>
     </form>
     {% if query %}
     <p class="hint">Результаты поиска для: <strong>{{ query }}</strong>. Период: <strong>{{ period_choice if period_choice != 'all' else 'все архивы' }}</strong>.</p>

@@ -20,6 +20,7 @@
   data-can-access-search="{{ 1 if role_perms.get('can_access_search') else 0 }}"
   data-can-edit-paths="{{ 1 if role_perms.get('can_edit_paths') else 0 }}"
   data-can-toggle-order-options="{{ 1 if role_perms.get('can_toggle_order_options') else 0 }}"
+  data-can-confirm-orders="{{ 1 if role_perms.get('can_confirm_orders') else 0 }}"
   {% block body_attrs %}{% endblock %}
 >
   <div class="page {% block page_class %}page--wide{% endblock %}">

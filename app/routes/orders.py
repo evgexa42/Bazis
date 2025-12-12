@@ -28,7 +28,7 @@ from app import (
     sse_clients,
     sse_clients_lock,
 )
-from app.dal.permissions import permissions_required
+from app.dal.permissions import has_permission, permissions_required
 from app.services.audit import log_order_event
 from app.services.monitor import move_known_folder
 from app.services.snapshot import (
@@ -405,6 +405,27 @@ def confirm_order():
     current_role = session.get("role")
     current_user = session.get("user")
     folder_manager = (get_manager_from_name(folder_name) or "").strip() or "Неизвестно"
+
+    role_perms = getattr(g, "role_perms", {}) or {}
+    has_confirm_right = bool(role_perms.get("can_confirm_orders")) or has_permission(
+        current_role, "can_confirm_orders"
+    )
+    if not has_confirm_right:
+        logger.warning(
+            "[confirm_order] Запрет подтверждения: %s (%s) попытался подтвердить %s",
+            current_user,
+            current_role,
+            folder_name,
+        )
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Недостаточно прав для подтверждения заказов.",
+                }
+            ),
+            403,
+        )
 
     allow = False
     if current_role in {"admin", "technologist"}:

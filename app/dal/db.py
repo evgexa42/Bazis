@@ -1,6 +1,18 @@
+import logging
 import os
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, func, select
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    func,
+    select,
+    inspect,
+)
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import generate_password_hash
 
@@ -11,7 +23,15 @@ DATABASE_URL = f"sqlite:///{DB_PATH}"
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}, future=True
 )
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+# В SQLite с expire_on_commit=True поля истекают после коммита и рвут ленивые атрибуты
+# вне сессии (например, ts в OrderEvent). Отключаем истечение для стабильного чтения.
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    future=True,
+    expire_on_commit=False,
+)
 Base = declarative_base()
 
 
@@ -25,6 +45,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_manage_users": 1,
         "can_edit_paths": 1,
         "can_toggle_order_options": 1,
+        "can_confirm_orders": 1,
     },
     "technologist": {
         "can_access_settings": 1,
@@ -35,6 +56,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_manage_users": 0,
         "can_edit_paths": 0,
         "can_toggle_order_options": 1,
+        "can_confirm_orders": 1,
     },
     "manager": {
         "can_access_settings": 0,
@@ -45,6 +67,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_manage_users": 0,
         "can_edit_paths": 0,
         "can_toggle_order_options": 0,
+        "can_confirm_orders": 1,
     },
 }
 
@@ -75,6 +98,7 @@ class RolePermission(Base):
     can_manage_users = Column(Integer, nullable=False, default=0)
     can_edit_paths = Column(Integer, nullable=False, default=0)
     can_toggle_order_options = Column(Integer, nullable=False, default=0)
+    can_confirm_orders = Column(Integer, nullable=False, default=0)
 
 
 class OrderEvent(Base):
@@ -122,12 +146,35 @@ def _ensure_default_role_permissions() -> None:
                             setattr(record, field, value)
 
 
+def _ensure_role_permissions_columns() -> None:
+    """Гарантирует наличие новых колонок для прав ролей."""
+
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("role_permissions")}
+    if "can_confirm_orders" not in columns:
+        logging.getLogger("bazis").info(
+            "[db] Добавляем колонку can_confirm_orders в role_permissions"
+        )
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "ALTER TABLE role_permissions ADD COLUMN can_confirm_orders INTEGER NOT NULL DEFAULT 0"
+            )
+
+        # Восстанавливаем историческое поведение: базовые роли могут подтверждать заказы
+        with SessionLocal.begin() as session:
+            for role, perms in DEFAULT_ROLE_PERMISSIONS.items():
+                record = session.get(RolePermission, role)
+                if record:
+                    record.can_confirm_orders = perms.get("can_confirm_orders", 0)
+
+
 def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
     # Регистрируем все модели, зависящие от Base, перед созданием таблиц
     import app.dal.database  # noqa: F401
 
     Base.metadata.create_all(engine)
+    _ensure_role_permissions_columns()
     _create_default_admin()
     _ensure_default_role_permissions()
 

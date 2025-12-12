@@ -23,6 +23,7 @@ const APP_CONFIG = (() => {
     canAccessSearch: body?.dataset?.canAccessSearch === '1',
     canEditPaths: body?.dataset?.canEditPaths === '1',
     canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
+	canConfirmOrders: body?.dataset?.canConfirmOrders === '1',
   };
 
   return { managers, orderConfirmationEnabled, currentUser, currentRole, permissions };
@@ -91,7 +92,7 @@ const OrdersPage = (() => {
   let sortOrder = 1;
   let sse = null;
   let pollingTimer = null;
-  let pollingBackoff = 5000;
+  let pollingBackoff = 3000;
 
   function init() {
     const table = document.getElementById('orders');
@@ -303,6 +304,7 @@ const OrdersPage = (() => {
     const manager = (item.manager || 'Неизвестно').trim() || 'Неизвестно';
 
     if (!APP_CONFIG.orderConfirmationEnabled) return false;
+	if (!APP_CONFIG.permissions.canConfirmOrders) return false;
 
     if (role === 'admin' || role === 'technologist') {
       return true;
@@ -320,6 +322,9 @@ const OrdersPage = (() => {
   function render() {
     const table = document.querySelector('#orders tbody');
     if (!table) return;
+
+    const allowConfirmationUI =
+      APP_CONFIG.orderConfirmationEnabled && APP_CONFIG.permissions.canConfirmOrders;
 
     const filtered = allData
       .filter(item => {
@@ -407,9 +412,9 @@ const OrdersPage = (() => {
       daysTd.appendChild(daysDiv);
       tr.appendChild(daysTd);
 
-      if (APP_CONFIG.orderConfirmationEnabled) {
-        const confirmTd = document.createElement('td');
-        confirmTd.className = 'table-checkbox';
+    if (allowConfirmationUI) {
+      const confirmTd = document.createElement('td');
+      confirmTd.className = 'table-checkbox';
 
         if (item.status === 'Готов' && canConfirm(item)) {
           const checkbox = document.createElement('input');
@@ -592,29 +597,78 @@ const SettingsPage = (() => {
     box.classList.toggle('text-danger', isError);
   }
 
-  function buildThreadsTable(threads, nowSec) {
-    const tbody = document.getElementById('metrics-threads');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+  function notifyCopied(trigger, message = 'Скопировано') {
+    const scope = trigger?.closest('[data-copy-area]') || trigger?.closest('.error-entry');
+    const feedback = scope?.querySelector('[data-copy-feedback]');
 
-    Object.entries(threads || {})
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([name, info]) => {
-        const lastTs = info?.last_heartbeat || 0;
-        const secondsAgo = lastTs ? Math.max(0, (nowSec - lastTs).toFixed(1)) : '—';
-        const alive = lastTs && nowSec - lastTs <= 5 ? 'OK' : 'DEAD';
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${name}</td>
-          <td>${secondsAgo} c назад</td>
-          <td>
-            <span class="status-pill ${alive === 'OK' ? 'status-pill--success' : 'status-pill--error'}">${alive}</span>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
+    if (feedback) {
+      feedback.textContent = message;
+      feedback.classList.add('is-visible');
+      setTimeout(() => feedback.classList.remove('is-visible'), 1500);
+    } else {
+      window.alert(message);
+    }
   }
+
+  async function copyTextPayload(text, trigger) {
+    if (!text) return;
+
+    const fallbackCopy = () => {
+      const area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    };
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        notifyCopied(trigger);
+        return;
+      }
+    } catch (err) {
+      console.warn('Clipboard API недоступен, fallback copy используется', err);
+    }
+
+    fallbackCopy();
+    notifyCopied(trigger);
+  }
+  
+  const THREAD_TTL = {
+  watchdog: 5,            // должен дышать часто
+  metrics: 10,            // метрики обновляются каждые несколько секунд
+  snapshot_updater: 3600, // считаем живым, если шевелился за последний час
+  indexer: 3600,
+  };
+
+  function buildThreadsTable(threads, nowSec) {
+  const tbody = document.getElementById('metrics-threads');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  Object.entries(threads || {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([name, info]) => {
+      const lastTs = info?.last_heartbeat || 0;
+      const secondsAgo = lastTs ? Math.max(0, (nowSec - lastTs).toFixed(1)) : '—';
+
+      const ttl = THREAD_TTL[name] ?? 30; // по умолчанию 30 секунд для прочих
+      const alive = lastTs && nowSec - lastTs <= ttl ? 'OK' : 'DEAD';
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${name}</td>
+        <td>${secondsAgo}</td>
+        <td>${alive}</td>
+      `;
+      if (alive === 'DEAD') {
+        row.classList.add('text-danger');
+      }
+      tbody.appendChild(row);
+    });
+}
 
   function buildEndpointsTable(perEndpoint) {
     const tbody = document.getElementById('metrics-endpoints');
@@ -641,18 +695,75 @@ const SettingsPage = (() => {
 
   function buildErrorsList(errors) {
     const container = document.getElementById('metrics-errors-list');
+    const copyAllBtn = document.getElementById('metrics-errors-copy-all');
     if (!container) return;
     container.innerHTML = '';
 
-    (errors || []).slice(-10).reverse().forEach(item => {
-      const wrapper = document.createElement('details');
-      const when = item?.ts ? new Date(item.ts * 1000).toLocaleString() : '';
-      wrapper.innerHTML = `
-        <summary>${when} · ${item?.endpoint || ''} · ${item?.err || ''}</summary>
-        <pre>${item?.trace || ''}</pre>
+    const items = (errors || []).slice(-10).reverse();
+    const allTexts = [];
+
+    items.forEach(item => {
+      const when = item?.ts ? new Date(item.ts * 1000).toLocaleString() : '—';
+      const endpoint = item?.endpoint || '—';
+      const errText = item?.err || 'Ошибка';
+      const traceText = (item?.trace || errText || '').trim();
+      const summaryText = `${when} · ${endpoint}`.trim();
+      const fullText = [summaryText, traceText].filter(Boolean).join('\n');
+      if (fullText) {
+        allTexts.push(fullText);
+      }
+
+      const wrapper = document.createElement('article');
+      wrapper.className = 'error-entry';
+      wrapper.dataset.copyArea = '';
+
+      const header = document.createElement('div');
+      header.className = 'error-entry__header';
+      header.innerHTML = `
+        <div class="error-entry__title">
+          <span class="error-entry__timestamp">${when}</span>
+          <span class="error-entry__endpoint">${endpoint}</span>
+        </div>
       `;
+
+      const actions = document.createElement('div');
+      actions.className = 'error-entry__actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn btn--ghost btn--compact';
+      copyBtn.textContent = 'Скопировать';
+      copyBtn.addEventListener('click', () => copyTextPayload(fullText, copyBtn));
+      const feedback = document.createElement('span');
+      feedback.className = 'copy-feedback';
+      feedback.setAttribute('data-copy-feedback', '');
+      actions.appendChild(copyBtn);
+      actions.appendChild(feedback);
+
+      header.appendChild(actions);
+      wrapper.appendChild(header);
+
+      const details = document.createElement('details');
+      details.className = 'error-entry__details';
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = errText;
+      const pre = document.createElement('pre');
+      pre.className = 'error-entry__trace';
+      pre.textContent = traceText || '—';
+      details.appendChild(summary);
+      details.appendChild(pre);
+
+      wrapper.appendChild(details);
       container.appendChild(wrapper);
     });
+
+    if (copyAllBtn) {
+      copyAllBtn.disabled = allTexts.length === 0;
+      copyAllBtn.onclick = () => {
+        const combined = allTexts.join('\n\n');
+        copyTextPayload(combined, copyAllBtn);
+      };
+    }
   }
 
   async function loadMetrics() {

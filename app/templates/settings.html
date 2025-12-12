@@ -141,6 +141,45 @@ data-managers="{{ config_managers | join(',') }}"
         <button type="submit" class="btn btn--primary">💾 Сохранить</button>
       </div>
     </form>
+
+    <section class="card card--subtle audit-card" aria-labelledby="audit-log-title">
+      <div class="card-header-between">
+        <div>
+          <h2 id="audit-log-title" class="section-title">Журнал действий</h2>
+          <p class="hint">Последние события по заказам и пользователям. Список сворачивается в пределах блока.</p>
+        </div>
+      </div>
+      <div class="table-scroll table-scroll--compact">
+        <table class="data-table audit-table">
+          <thead>
+            <tr>
+              <th>Время</th>
+              <th>Пользователь</th>
+              <th>Действие</th>
+              <th>Объект</th>
+              <th>Детали</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if audit_events %}
+              {% for event in audit_events %}
+              <tr>
+                <td>{{ event.ts.strftime('%d.%m.%Y %H:%M') if event.ts else '—' }}</td>
+                <td>{{ event.user or 'system' }}</td>
+                <td>{{ event.action or '—' }}</td>
+                <td>{{ event.order_name or '—' }}</td>
+                <td class="table-secondary">
+                  {{ event.new_value or event.old_value or event.manager or '—' }}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5" class="table-secondary">Журнал пока пуст.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </section>
 
   {% if role_perms.can_manage_users %}
@@ -321,9 +360,18 @@ data-managers="{{ config_managers | join(',') }}"
       </table>
     </div>
 
-    <div class="metrics-card metrics-card--wide">
-      <h3 class="section-subtitle">Errors log (last 10)</h3>
-      <div id="metrics-errors-list" class="metrics-errors"></div>
+    <div class="metrics-card metrics-card--wide error-log-card">
+      <div class="errors-card__header" data-copy-area>
+        <div>
+          <h3 class="section-subtitle">Errors log (last 10)</h3>
+          <p class="hint">Разверните нужную ошибку и копируйте трассировки целиком или выборочно.</p>
+        </div>
+        <div class="errors-card__actions">
+          <button type="button" id="metrics-errors-copy-all" class="btn btn--ghost btn--compact">Скопировать всё</button>
+          <span class="copy-feedback" data-copy-feedback></span>
+        </div>
+      </div>
+      <div id="metrics-errors-list" class="metrics-errors" aria-live="polite"></div>
     </div>
   </section>
   {% endif %}
@@ -345,6 +393,12 @@ data-managers="{{ config_managers | join(',') }}"
       [
         ('can_manage_users', 'Может управлять пользователями', 'Создание, редактирование и деактивация учётных записей.'),
         ('can_edit_paths', 'Может менять пути/папки и конфиг', 'Изменение путей, сетевых настроек и токенов.'),
+      ]
+    ),
+    (
+      'Операции с заказами',
+      [
+        ('can_confirm_orders', 'Может подтверждать заказы', 'Дает доступ к кнопкам подтверждения и обработчику на сервере.'),
         ('can_toggle_order_options', 'Может менять настройки подтверждения заказов', 'Включение и выключение подтверждения заказов.'),
       ]
     )
