@@ -35,9 +35,9 @@ data-managers="{{ config_managers | join(',') }}"
       <h2 class="section-title">Поиск по клиентам</h2>
       <p class="hint">Поиск работает по части имени, без учёта регистра.</p>
     </div>
-    <form method="get" class="form-inline clients-filter">
-      <label class="field-label" for="client_query">Имя клиента</label>
-      <input type="text" name="q" id="client_query" class="input" value="{{ search_query }}" placeholder="Начните вводить имя...">
+    <form method="get" class="form-inline clients-filter clients-filter--compact">
+      <label class="field-label clients-filter__label" for="client_query">Имя клиента</label>
+      <input type="text" name="q" id="client_query" class="input input--compact" value="{{ search_query }}" placeholder="Начните вводить имя...">
       <button type="submit" class="btn btn--primary">Искать</button>
       {% if search_query %}
       <a href="{{ url_for('clients.clients_page') }}" class="btn btn--ghost">Сбросить</a>
@@ -50,29 +50,20 @@ data-managers="{{ config_managers | join(',') }}"
       <h2 class="section-title">Клиенты по менеджерам</h2>
       <p class="hint">Компактная статистика распределения клиентов.</p>
     </div>
-    <div class="table-scroll table-scroll--compact">
-      <table class="data-table data-table--compact">
-        <thead>
-          <tr>
-            <th>Менеджер</th>
-            <th style="width: 160px;">Кол-во клиентов</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if manager_stats %}
-            {% for manager_name, client_count in manager_stats %}
-            <tr>
-              <td>{{ manager_name or 'Неизвестно' }}</td>
-              <td>{{ client_count }}</td>
-            </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="2" class="table-secondary">Данные отсутствуют.</td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+    <div class="manager-stats-grid">
+      {% if manager_stats %}
+        {% for manager_name, client_count in manager_stats %}
+        <div class="manager-stat">
+          <div class="manager-stat__header">
+            <span class="manager-pill">{{ manager_name or 'Неизвестно' }}</span>
+          </div>
+          <div class="manager-stat__value">{{ client_count }}</div>
+          <p class="manager-stat__hint">клиентов</p>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="table-secondary manager-stat__empty">Данные отсутствуют.</div>
+      {% endif %}
     </div>
   </section>
 
@@ -81,7 +72,7 @@ data-managers="{{ config_managers | join(',') }}"
       <table class="data-table" data-clients-table>
         <thead>
           <tr>
-            <th>Клиент</th>
+            <th class="clients-col--name">Клиент</th>
             <th>Менеджер</th>
             <th>Действия</th>
           </tr>

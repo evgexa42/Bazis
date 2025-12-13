@@ -75,7 +75,7 @@ data-managers="{{ config_managers | join(',') }}"
     <h2 class="section-title">Конфигурация</h2>
     <form method="POST" class="settings-form">
       {% if role_perms.can_edit_paths %}
-      <div class="settings-grid">
+      <div class="settings-grid settings-grid--dense">
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="orders_path">Путь к папке заказов</label>
           <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\share" value="{{ config.get('paths', {}).get('orders', '') }}">
@@ -87,28 +87,9 @@ data-managers="{{ config_managers | join(',') }}"
         </div>
 
         <div class="settings-field settings-field--wide">
-          <label class="field-label" for="prisadka_root">Присадка root path</label>
-          <input type="text" class="input" id="prisadka_root" name="prisadka_root" placeholder="\\\\SERVER\\prisadka" value="{{ config.get('paths', {}).get('prisadka_root', '') }}">
-        </div>
-
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="desene_cpu_root">DESENE CPU root path</label>
-          <input type="text" class="input" id="desene_cpu_root" name="desene_cpu_root" placeholder="\\\\SERVER\\desene" value="{{ config.get('paths', {}).get('desene_cpu_root', '') }}">
-        </div>
-
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="prisadka_client_root">Присадка Клиента root path</label>
-          <input type="text" class="input" id="prisadka_client_root" name="prisadka_client_root" placeholder="\\\\SERVER\\client_prisadka" value="{{ config.get('paths', {}).get('prisadka_client_root', '') }}">
-        </div>
-
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="facades_list_dir">Папка для Facades_list</label>
-          <input type="text" class="input" id="facades_list_dir" name="facades_list_dir" placeholder="\\\\SERVER\\facades_list" value="{{ config.get('paths', {}).get('facades_list_dir', '') }}">
-        </div>
-
-        <div class="settings-field settings-field--wide">
           <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
-          <textarea id="search_folders" name="search_folders" class="input" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
+          <textarea id="search_folders" name="search_folders" class="input input--mono" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
+          <p class="hint">Используйте по одному пути в строке: <code>Название=\\\\server\\share</code>.</p>
         </div>
 
         <div class="settings-field">
