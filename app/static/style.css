@@ -180,6 +180,12 @@ h1 {
   color: var(--primary);
 }
 
+.btn--pill {
+  border-radius: 999px;
+  padding-inline: 16px;
+  box-shadow: 0 10px 24px -18px rgba(37, 99, 235, 0.4);
+}
+
 .btn--outline {
   background: transparent;
   border-color: rgba(148, 163, 184, 0.5);
@@ -1394,6 +1400,13 @@ code {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px 14px;
+}
+
+/* Rounded action area for role cards */
+.role-card__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 .role-card__title {

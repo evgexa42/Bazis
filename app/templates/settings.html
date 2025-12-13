@@ -447,8 +447,8 @@ data-managers="{{ config_managers | join(',') }}"
             </div>
           </div>
           {% endfor %}
-          <div class="settings-actions">
-            <button type="submit" class="btn btn--secondary">➕ Добавить роль</button>
+          <div class="role-card__footer">
+            <button type="submit" class="btn btn--secondary btn--pill">➕ Добавить роль</button>
           </div>
         </form>
       </article>
@@ -499,8 +499,8 @@ data-managers="{{ config_managers | join(',') }}"
         {% endfor %}
       </div>
 
-      <div class="settings-actions">
-        <button type="submit" class="btn btn--primary">💾 Сохранить права</button>
+      <div class="role-card__footer">
+        <button type="submit" class="btn btn--primary btn--pill">💾 Сохранить права</button>
       </div>
     </form>
   </section>
