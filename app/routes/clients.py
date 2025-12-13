@@ -3,6 +3,7 @@ from flask import Blueprint, g, jsonify, redirect, render_template, request, url
 from app import clients, clients_lock, reload_clients_from_db
 from app.dal.database import add_client as add_client_db
 from app.dal.database import delete_client as delete_client_db
+from app.dal.database import get_clients_filtered, get_clients_stats_by_manager
 from app.dal.database import update_client as update_client_db
 from app.dal.permissions import permissions_required
 
@@ -14,9 +15,16 @@ def clients_page():
     if not getattr(g, "role_perms", {}).get("can_access_clients"):
         return redirect(url_for("orders.index"))
 
-    with clients_lock:
-        clients_snapshot = dict(clients)
-    return render_template("clients.html", clients=clients_snapshot)
+    search_query = (request.args.get("q") or "").strip()
+    clients_snapshot = get_clients_filtered(search_query)
+    manager_stats = get_clients_stats_by_manager()
+
+    return render_template(
+        "clients.html",
+        clients=clients_snapshot,
+        search_query=search_query,
+        manager_stats=manager_stats,
+    )
 
 
 @clients_bp.route("/add_client", methods=["POST"])

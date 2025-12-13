@@ -1156,6 +1156,64 @@ const SearchPage = (() => {
   return { init };
 })();
 
+const SetupPage = (() => {
+  function init() {
+    const form = document.querySelector('[data-setup-form]');
+    if (!form) return;
+
+    bindRepeater('manager');
+    bindRepeater('technologist');
+  }
+
+  function bindRepeater(prefix) {
+    const container = document.querySelector(`[data-${prefix}-rows]`);
+    const addBtn = document.querySelector(`[data-add-${prefix}]`);
+    if (!container || !addBtn) return;
+
+    addBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      addRow(prefix, container);
+    });
+
+    container.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('[data-remove-row]');
+      if (!removeBtn) return;
+      const row = removeBtn.closest('[data-repeater-row]');
+      const rows = container.querySelectorAll('[data-repeater-row]');
+      if (row && rows.length > 1) {
+        row.remove();
+      }
+    });
+  }
+
+  function addRow(prefix, container) {
+    const row = document.createElement('div');
+    row.className = 'repeater-row';
+    row.setAttribute('data-repeater-row', '');
+
+    if (prefix === 'technologist') {
+      row.innerHTML = `
+        <input type="text" class="input" name="technologist_marker[]" placeholder="Маркер">
+        <input type="text" class="input" name="technologist_name[]" placeholder="Имя">
+        <input type="text" class="input" name="technologist_username[]" placeholder="Логин">
+        <input type="password" class="input" name="technologist_password[]" placeholder="Пароль">
+        <button type="button" class="btn btn--ghost" data-remove-row>✖</button>
+      `;
+    } else {
+      row.innerHTML = `
+        <input type="text" class="input" name="manager_name[]" placeholder="Имя для отображения">
+        <input type="text" class="input" name="manager_username[]" placeholder="Логин">
+        <input type="password" class="input" name="manager_password[]" placeholder="Пароль">
+        <button type="button" class="btn btn--ghost" data-remove-row>✖</button>
+      `;
+    }
+
+    container.appendChild(row);
+  }
+
+  return { init };
+})();
+
 const FacadesPage = (() => {
   function init() {
     const container = document.getElementById('facadeList');
@@ -1369,6 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
   OrdersPage.init();
   ClientsPage.init();
   SearchPage.init();
+  SetupPage.init();
   FacadesPage.init();
   SettingsPage.init();
   UsersTable.init();

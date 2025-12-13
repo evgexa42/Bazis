@@ -33,6 +33,7 @@ from app.services.audit import log_order_event
 from app.services.monitor import move_known_folder
 from app.services.snapshot import (
     build_orders_payload,
+    calculate_period_cutoff,
     refresh_search_index,
     remove_order,
     collect_month_scope,
@@ -149,6 +150,8 @@ def search_page():
         except (TypeError, ValueError):
             months_back = 2
 
+    period_cutoff_ts = calculate_period_cutoff(months_back) if months_back else None
+
     results = {key: [] for key in app_config.SEARCH_FOLDERS.keys()}
 
     if query:
@@ -164,7 +167,7 @@ def search_page():
         else:
             month_scope = collect_month_scope(months_back)
 
-        results = search_in_index(query, months_scope=month_scope)
+        results = search_in_index(query, months_scope=month_scope, cutoff_ts=period_cutoff_ts)
     else:
         month_scope = collect_month_scope(months_back)
 

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Первичная настройка{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <h1>🚀 Первичная настройка</h1>
+    <p class="page-description">
+      Укажите ключевые пути, данные Telegram и создайте первые учётные записи. Эта страница доступна только до завершения установки.
+    </p>
+  </header>
+
+  {% if errors %}
+  <section class="notice-card notice-card--error">
+    <strong>Исправьте ошибки:</strong>
+    <ul>
+      {% for error in errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if status_message %}
+  <section class="notice-card notice-card--success">{{ status_message }}</section>
+  {% endif %}
+
+  <section class="card">
+    <form method="post" class="settings-form" data-setup-form>
+      <h2 class="section-title">Файловые пути</h2>
+      <div class="settings-grid">
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="orders_path">Путь к папке заказов</label>
+          <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\orders" value="{{ config.get('paths', {}).get('orders', '') }}">
+        </div>
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="facades_dir">Папка для Facades_list</label>
+          <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
+        </div>
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="prisadka_root">Присадка root path</label>
+          <input type="text" class="input" id="prisadka_root" name="prisadka_root" placeholder="\\\\SERVER\\prisadka" value="{{ config.get('paths', {}).get('prisadka_root', '') }}">
+        </div>
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="desene_cpu_root">DESENE CPU root path</label>
+          <input type="text" class="input" id="desene_cpu_root" name="desene_cpu_root" placeholder="\\\\SERVER\\desene" value="{{ config.get('paths', {}).get('desene_cpu_root', '') }}">
+        </div>
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="prisadka_client_root">Присадка Клиента root path</label>
+          <input type="text" class="input" id="prisadka_client_root" name="prisadka_client_root" placeholder="\\\\SERVER\\client_prisadka" value="{{ config.get('paths', {}).get('prisadka_client_root', '') }}">
+        </div>
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="facades_list_dir">Папка для Facades_list (отдельно)</label>
+          <input type="text" class="input" id="facades_list_dir" name="facades_list_dir" placeholder="\\\\SERVER\\facades_list" value="{{ config.get('paths', {}).get('facades_list_dir', '') }}">
+        </div>
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="search_folders">Папки поиска (Название=Путь)</label>
+          <textarea id="search_folders" name="search_folders" class="input" placeholder="Архив=\\\\SERVER\\archive">{{ search_text }}</textarea>
+        </div>
+      </div>
+
+      <h2 class="section-title">Telegram</h2>
+      <div class="settings-grid">
+        <div class="settings-field">
+          <label class="field-label" for="telegram_token">Telegram Bot Token</label>
+          <input type="text" class="input" id="telegram_token" name="telegram_token" placeholder="000000:ABC" value="{{ config.get('telegram', {}).get('token', '') }}">
+        </div>
+        <div class="settings-field">
+          <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
+          <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+        </div>
+      </div>
+
+      <h2 class="section-title">Пользователи</h2>
+      <div class="card card--subtle">
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label class="field-label" for="admin_username">Логин администратора</label>
+            <input type="text" class="input" id="admin_username" name="admin_username" required>
+          </div>
+          <div class="settings-field">
+            <label class="field-label" for="admin_password">Пароль администратора</label>
+            <input type="password" class="input" id="admin_password" name="admin_password" required>
+          </div>
+          <div class="settings-field settings-field--wide">
+            <label class="field-label" for="admin_display">Отображаемое имя (опционально)</label>
+            <input type="text" class="input" id="admin_display" name="admin_display" placeholder="Главный администратор">
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--subtle">
+        <div class="card-header-between">
+          <div>
+            <h3 class="section-title">Менеджеры</h3>
+            <p class="hint">Добавьте учётные записи менеджеров. Поля логина и пароля обязательны.</p>
+          </div>
+          <button type="button" class="btn btn--ghost" data-add-manager>➕ Добавить менеджера</button>
+        </div>
+        <div class="repeater" data-manager-rows>
+          {% set managers_list = managers_prefill if managers_prefill else [{}] %}
+          {% for row in managers_list %}
+          <div class="repeater-row" data-repeater-row>
+            <input type="text" class="input" name="manager_name[]" placeholder="Имя для отображения" value="{{ row.name or '' }}">
+            <input type="text" class="input" name="manager_username[]" placeholder="Логин" value="{{ row.username or '' }}">
+            <input type="password" class="input" name="manager_password[]" placeholder="Пароль" value="{{ row.password or '' }}">
+            <button type="button" class="btn btn--ghost" data-remove-row>✖</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card card--subtle">
+        <div class="card-header-between">
+          <div>
+            <h3 class="section-title">Технологи</h3>
+            <p class="hint">Укажите маркер (для распознавания), логин и пароль.</p>
+          </div>
+          <button type="button" class="btn btn--ghost" data-add-technologist>➕ Добавить технолога</button>
+        </div>
+        <div class="repeater" data-technologist-rows>
+          {% set technologists_list = technologists_prefill if technologists_prefill else [{}] %}
+          {% for row in technologists_list %}
+          <div class="repeater-row" data-repeater-row>
+            <input type="text" class="input" name="technologist_marker[]" placeholder="Маркер" value="{{ row.marker or '' }}">
+            <input type="text" class="input" name="technologist_name[]" placeholder="Имя" value="{{ row.name or '' }}">
+            <input type="text" class="input" name="technologist_username[]" placeholder="Логин" value="{{ row.username or '' }}">
+            <input type="password" class="input" name="technologist_password[]" placeholder="Пароль" value="{{ row.password or '' }}">
+            <button type="button" class="btn btn--ghost" data-remove-row>✖</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button type="submit" class="btn btn--primary">💾 Сохранить и продолжить</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}
