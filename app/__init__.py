@@ -161,11 +161,13 @@ def inject_config_data():
 
 
 def register_blueprints(flask_app: Flask):
+    from app.routes.setup import setup_bp
     from app.routes.auth import auth_bp
     from app.routes.clients import clients_bp
     from app.routes.orders import orders_bp
     from app.routes.settings import settings_bp
 
+    flask_app.register_blueprint(setup_bp)
     flask_app.register_blueprint(auth_bp)
     flask_app.register_blueprint(orders_bp)
     flask_app.register_blueprint(clients_bp)

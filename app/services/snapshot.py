@@ -1,3 +1,4 @@
+import calendar
 import hashlib
 import os
 import re
@@ -7,6 +8,7 @@ import time
 from datetime import datetime
 from time import perf_counter
 from typing import Dict, List, Optional, Set, Tuple
+from zoneinfo import ZoneInfo
 
 import app as bazis_app
 import app.config as app_config
@@ -31,12 +33,40 @@ MONTHS_RO = {
     12: "12. Decembrie",
 }
 
+CHISINAU_TZ = ZoneInfo("Europe/Chisinau")
+
 
 def _format_modified(ts_value: float) -> str:
     try:
         return datetime.fromtimestamp(ts_value).strftime("%d.%m.%Y %H:%M")
     except Exception:
         return ""
+
+
+def _shift_months(dt: datetime, months_back: int) -> datetime:
+    """Сдвиг даты на указанное число календарных месяцев назад."""
+    assert months_back > 0, "period must be positive"
+    year = dt.year
+    month = dt.month - months_back
+    while month <= 0:
+        month += 12
+        year -= 1
+
+    last_day = calendar.monthrange(year, month)[1]
+    safe_day = min(dt.day, last_day)
+    return dt.replace(year=year, month=month, day=safe_day)
+
+
+def calculate_period_cutoff(months_back: int) -> float:
+    """Возвращает timestamp начала периода поиска с учётом часового пояса."""
+    months = max(1, months_back)
+    now = datetime.now(CHISINAU_TZ)
+    start_dt = _shift_months(now, months)
+    cutoff_ts = start_dt.timestamp()
+    logger.debug(
+        "[search] period cutoff %s months => %s", months, start_dt.isoformat()
+    )
+    return cutoff_ts
 
 
 def parse_folder_entry(
@@ -371,14 +401,14 @@ def collect_month_scope(months_back: Optional[int]) -> List[str]:
     if months_back is None:
         return get_recent_months()
 
-    limit: Optional[int]
+    raw_limit: Optional[int]
     if months_back == 0:
-        limit = None
+        raw_limit = None
     else:
         try:
-            limit = max(1, min(24, int(months_back)))
+            raw_limit = max(1, min(24, int(months_back)))
         except (TypeError, ValueError):
-            limit = None
+            raw_limit = None
 
     month_candidates: list[tuple[float, str]] = []
     seen: set[str] = set()
@@ -400,11 +430,15 @@ def collect_month_scope(months_back: Optional[int]) -> List[str]:
 
     month_candidates.sort(key=lambda item: item[0], reverse=True)
     ordered_months = [name for _, name in month_candidates]
-    if limit:
-        ordered_months = ordered_months[:limit]
+    effective_limit = None if raw_limit is None else min(24, raw_limit + 1)
+    if effective_limit:
+        ordered_months = ordered_months[:effective_limit]
 
     if not ordered_months:
-        return get_recent_months(months_back if months_back else None)
+        fallback = raw_limit if raw_limit is not None else months_back
+        if fallback:
+            fallback = min(24, fallback + 1)
+        return get_recent_months(fallback if fallback else None)
     return ordered_months
 
 
@@ -513,7 +547,9 @@ def refresh_search_index(full: bool = False, months_back: Optional[int] = None, 
 
 
 @measure_time("search")
-def search_in_index(query: str, months_scope: Optional[List[str]] = None):
+def search_in_index(
+    query: str, months_scope: Optional[List[str]] = None, cutoff_ts: Optional[float] = None
+):
     cleaned_query, month_filters = _extract_month_filters(query)
     normalized_query = (cleaned_query or "").strip().lower()
     keys = list(app_config.SEARCH_FOLDERS.keys())
@@ -531,7 +567,7 @@ def search_in_index(query: str, months_scope: Optional[List[str]] = None):
         "SELECT base_key, name, manager, path FROM search_index "
         "WHERE name_lc LIKE ?"
     )
-    params: List[str] = [f"%{normalized_query}%"]
+    params: List[object] = [f"%{normalized_query}%"]
 
     merged_filters = list(month_filters)
     if months_scope:
@@ -545,6 +581,10 @@ def search_in_index(query: str, months_scope: Optional[List[str]] = None):
         placeholders = ",".join("?" for _ in merged_filters)
         sql += f" AND month IN ({placeholders})"
         params.extend(merged_filters)
+
+    if cutoff_ts:
+        sql += " AND mtime_ts >= ?"
+        params.append(float(cutoff_ts))
 
     sql += " ORDER BY mtime_ts DESC"
 

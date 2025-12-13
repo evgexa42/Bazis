@@ -1,7 +1,7 @@
 import json
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, func
 
 from app.dal.db import Base, SessionLocal
 
@@ -26,6 +26,33 @@ def get_all_clients() -> Dict[str, str]:
     with SessionLocal.begin() as session:
         rows = session.query(Client).order_by(Client.name.asc()).all()
         return {row.name: row.manager or "" for row in rows}
+
+
+def get_clients_filtered(query: str | None) -> Dict[str, str]:
+    """Возвращает клиентов, отфильтрованных по подстроке имени."""
+    normalized = (query or "").strip().lower()
+    with SessionLocal.begin() as session:
+        q = session.query(Client)
+        if normalized:
+            like_pattern = f"%{normalized}%"
+            q = q.filter(func.lower(Client.name).like(like_pattern))
+        rows = q.order_by(Client.name.asc()).all()
+        return {row.name: row.manager or "" for row in rows}
+
+
+def get_clients_stats_by_manager() -> List[Tuple[str, int]]:
+    """Компактная статистика: сколько клиентов у каждого менеджера."""
+    with SessionLocal.begin() as session:
+        rows = (
+            session.query(Client.manager, func.count().label("count"))
+            .group_by(Client.manager)
+            .order_by(Client.manager.asc())
+            .all()
+        )
+        prepared: List[Tuple[str, int]] = []
+        for manager, count in rows:
+            prepared.append((manager or "Неизвестно", int(count)))
+        return prepared
 
 
 def replace_clients(clients: Dict[str, str]) -> None:
@@ -90,6 +117,8 @@ __all__ = [
     "add_client",
     "delete_client",
     "get_all_clients",
+    "get_clients_filtered",
+    "get_clients_stats_by_manager",
     "load_messages",
     "replace_clients",
     "replace_messages",

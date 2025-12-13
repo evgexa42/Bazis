@@ -367,6 +367,23 @@ select:focus {
   gap: 12px;
 }
 
+.repeater {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.repeater-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.repeater-row .btn {
+  margin-top: 0;
+}
+
 .notice-card {
   border-left: 4px solid var(--primary);
   padding: 16px 18px;
@@ -485,6 +502,11 @@ select:focus {
   overflow: auto;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 12px;
+}
+
+.data-table--compact th,
+.data-table--compact td {
+  padding: 10px 12px;
 }
 
 .data-table {
@@ -689,6 +711,16 @@ select:focus {
   padding: 6px 12px;
   border-radius: 999px;
   font-weight: 600;
+}
+
+.clients-filter {
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.clients-filter .input {
+  min-width: 260px;
 }
 
 .action-buttons {
