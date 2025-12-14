@@ -180,6 +180,12 @@ h1 {
   color: var(--primary);
 }
 
+.btn--pill {
+  border-radius: 999px;
+  padding-inline: 16px;
+  box-shadow: 0 10px 24px -18px rgba(37, 99, 235, 0.4);
+}
+
 .btn--outline {
   background: transparent;
   border-color: rgba(148, 163, 184, 0.5);
@@ -346,6 +352,10 @@ select:focus {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+.settings-grid--dense {
+  gap: 14px 18px;
+}
+
 .settings-field {
   display: flex;
   flex-direction: column;
@@ -365,6 +375,23 @@ select:focus {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.repeater {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.repeater-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.repeater-row .btn {
+  margin-top: 0;
 }
 
 .notice-card {
@@ -472,8 +499,12 @@ select:focus {
 }
 
 .table-card {
-  padding: 0;
   overflow: hidden;
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(148, 163, 184, 0.25);
 }
 
 .table-scroll {
@@ -485,6 +516,11 @@ select:focus {
   overflow: auto;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 12px;
+}
+
+.data-table--compact th,
+.data-table--compact td {
+  padding: 10px 12px;
 }
 
 .data-table {
@@ -689,6 +725,30 @@ select:focus {
   padding: 6px 12px;
   border-radius: 999px;
   font-weight: 600;
+}
+
+.clients-filter {
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.clients-filter--compact {
+  align-items: center;
+  gap: 8px;
+}
+
+.clients-filter .input {
+  min-width: 220px;
+}
+
+.clients-filter__label {
+  margin-bottom: 0;
+  font-weight: 600;
+}
+
+.clients-col--name {
+  width: 38%;
 }
 
 .action-buttons {
@@ -1341,9 +1401,32 @@ code {
 }
 
 .role-card__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px 14px;
+}
+
+/* Wrap permissions form to mirror role cards layout */
+.role-cards-form {
+  margin-top: 12px;
+  padding: 14px 14px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.78) 0%, #fff 100%);
+  box-shadow: 0 12px 32px -28px rgba(15, 23, 42, 0.35);
+}
+
+/* Rounded action area for role cards */
+.role-card__footer {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.role-cards-form .role-card__footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding-top: 12px;
+  margin-top: 16px;
 }
 
 .role-card__title {
@@ -1371,12 +1454,14 @@ code {
 }
 
 .role-block {
-  padding: 12px 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
 .role-block:first-of-type {
-  border-top: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .role-block__title {
@@ -1387,8 +1472,58 @@ code {
 
 .role-block__grid {
   display: grid;
-  gap: 10px 14px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.manager-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.manager-stat {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.75) 0%, #fff 100%);
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.manager-stat__header {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.manager-stat__value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.manager-stat__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.manager-stat__empty {
+  padding: 12px;
+  text-align: center;
+}
+
+.manager-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+  font-weight: 700;
 }
 /* Confirmation modal */
 .confirm-overlay {

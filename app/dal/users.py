@@ -30,6 +30,16 @@ def _count_admins(session) -> int:
     ).scalar_one()
 
 
+def count_users() -> int:
+    with SessionLocal.begin() as session:
+        return session.execute(select(func.count()).select_from(User)).scalar_one()
+
+
+def count_active_admins() -> int:
+    with SessionLocal.begin() as session:
+        return _count_admins(session)
+
+
 def _error(code: str, message: str) -> Dict[str, str]:
     return {"ok": False, "error_code": code, "message": message}
 
@@ -89,6 +99,34 @@ def create_user(username: str, password: str, role: str) -> Dict[str, str]:
         return {"ok": True}
     except IntegrityError:
         return _error("username_taken", "Пользователь с таким именем уже существует.")
+
+
+def upsert_user(username: str, password: str, role: str) -> Dict[str, str]:
+    username = (username or "").strip()
+    role = (role or "").strip().lower()
+
+    if not username or not password:
+        return _error("validation", "Имя пользователя и пароль обязательны.")
+
+    if role not in _allowed_roles():
+        return _error("invalid_role", "Недопустимая роль.")
+
+    password_hash = generate_password_hash(password)
+
+    try:
+        with SessionLocal.begin() as session:
+            user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
+            if user:
+                user.password_hash = password_hash
+                user.role = role
+                user.is_active = True
+            else:
+                session.add(User(username=username, password_hash=password_hash, role=role, is_active=True))
+        return {"ok": True, "username": username, "role": role}
+    except IntegrityError:
+        return _error("username_taken", "Пользователь с таким именем уже существует.")
+    except Exception:
+        return _error("db_error", "Не удалось сохранить пользователя.")
 
 
 def update_user_role(user_id: int, role: str) -> Dict[str, str]:
@@ -230,6 +268,9 @@ __all__ = [
     "get_allowed_roles",
     "get_all_users",
     "get_user_by_username",
+    "count_users",
+    "count_active_admins",
+    "upsert_user",
     "reset_user_password_random",
     "reset_user_password",
     "update_user",

@@ -20,7 +20,7 @@ from app.dal.users import verify_user_credentials
 auth_bp = Blueprint("auth", __name__)
 logger = logging.getLogger("bazis")
 
-PUBLIC_ENDPOINTS = {"auth.login", "static", "orders.ping"}
+PUBLIC_ENDPOINTS = {"auth.login", "static", "orders.ping", "setup.setup_page"}
 
 
 def login_required(view: Callable):

@@ -75,7 +75,7 @@ data-managers="{{ config_managers | join(',') }}"
     <h2 class="section-title">Конфигурация</h2>
     <form method="POST" class="settings-form">
       {% if role_perms.can_edit_paths %}
-      <div class="settings-grid">
+      <div class="settings-grid settings-grid--dense">
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="orders_path">Путь к папке заказов</label>
           <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\share" value="{{ config.get('paths', {}).get('orders', '') }}">
@@ -88,7 +88,8 @@ data-managers="{{ config_managers | join(',') }}"
 
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
-          <textarea id="search_folders" name="search_folders" class="input" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
+          <textarea id="search_folders" name="search_folders" class="input input--mono" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
+          <p class="hint">Используйте по одному пути в строке: <code>Название=\\\\server\\share</code>.</p>
         </div>
 
         <div class="settings-field">
@@ -446,8 +447,8 @@ data-managers="{{ config_managers | join(',') }}"
             </div>
           </div>
           {% endfor %}
-          <div class="settings-actions">
-            <button type="submit" class="btn btn--secondary">➕ Добавить роль</button>
+          <div class="role-card__footer">
+            <button type="submit" class="btn btn--secondary btn--pill">➕ Добавить роль</button>
           </div>
         </form>
       </article>
@@ -498,8 +499,8 @@ data-managers="{{ config_managers | join(',') }}"
         {% endfor %}
       </div>
 
-      <div class="settings-actions">
-        <button type="submit" class="btn btn--primary">💾 Сохранить права</button>
+      <div class="role-card__footer">
+        <button type="submit" class="btn btn--primary btn--pill">💾 Сохранить права</button>
       </div>
     </form>
   </section>

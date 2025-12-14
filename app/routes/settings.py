@@ -107,6 +107,10 @@ def settings_page():
         if role_perms.get("can_edit_paths"):
             orders_path = request.form.get("orders_path", "").strip()
             facades_dir = request.form.get("facades_dir", "").strip()
+            prisadka_root = request.form.get("prisadka_root", "").strip()
+            desene_cpu_root = request.form.get("desene_cpu_root", "").strip()
+            prisadka_client_root = request.form.get("prisadka_client_root", "").strip()
+            facades_list_dir = request.form.get("facades_list_dir", "").strip()
             search_raw = request.form.get("search_folders", "")
 
             server_host = request.form.get("server_host", "").strip()
@@ -121,6 +125,14 @@ def settings_page():
                 paths_cfg["orders"] = orders_path
             if facades_dir:
                 paths_cfg["facades_dir"] = facades_dir
+            if prisadka_root:
+                paths_cfg["prisadka_root"] = prisadka_root
+            if desene_cpu_root:
+                paths_cfg["desene_cpu_root"] = desene_cpu_root
+            if prisadka_client_root:
+                paths_cfg["prisadka_client_root"] = prisadka_client_root
+            if facades_list_dir:
+                paths_cfg["facades_list_dir"] = facades_list_dir
             paths_cfg["search"] = parse_mapping(search_raw)
 
             server_config = updated.setdefault("server", {})

@@ -21,6 +21,10 @@ DEFAULT_CONFIG = {
     "paths": {
         "orders": "",
         "facades_dir": "",
+        "prisadka_root": "",
+        "desene_cpu_root": "",
+        "prisadka_client_root": "",
+        "facades_list_dir": "",
         "search": {},
     },
     "managers": [],
@@ -41,6 +45,10 @@ FACADES_DIR = ""
 FACADES_FILE = ""
 WATCHED_PATH = ""
 WATCHED_PATH_NORM = ""
+PRISADKA_ROOT = ""
+DESENE_CPU_ROOT = ""
+PRISADKA_CLIENT_ROOT = ""
+FACADES_LIST_DIR = ""
 TELEGRAM_TOKEN = ""
 CHAT_ID = ""
 TELEGRAM_IGNORED_FOLDERS: list[str] = []
@@ -161,11 +169,19 @@ def _parse_paths_config(value: dict) -> dict:
 
     orders_path = str(value.get("orders") or "").strip()
     facades_dir = str(value.get("facades_dir") or "").strip()
+    prisadka_root = str(value.get("prisadka_root") or "").strip()
+    desene_cpu_root = str(value.get("desene_cpu_root") or "").strip()
+    prisadka_client_root = str(value.get("prisadka_client_root") or "").strip()
+    facades_list_dir = str(value.get("facades_list_dir") or "").strip()
     search_folders = _parse_search_folders(value.get("search"))
 
     return {
         "orders": orders_path,
         "facades_dir": facades_dir,
+        "prisadka_root": prisadka_root,
+        "desene_cpu_root": desene_cpu_root,
+        "prisadka_client_root": prisadka_client_root,
+        "facades_list_dir": facades_list_dir,
         "search": search_folders,
     }
 
@@ -231,6 +247,7 @@ def apply_config(config):
 
     global CONFIG
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
+    global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS
@@ -255,6 +272,10 @@ def apply_config(config):
 
     FOLDER_PATH = paths.get("orders") or ""
     FACADES_DIR = paths.get("facades_dir") or ""
+    PRISADKA_ROOT = paths.get("prisadka_root") or ""
+    DESENE_CPU_ROOT = paths.get("desene_cpu_root") or ""
+    PRISADKA_CLIENT_ROOT = paths.get("prisadka_client_root") or ""
+    FACADES_LIST_DIR = paths.get("facades_list_dir") or FACADES_DIR
     FACADES_FILE = (
         os.path.join(FACADES_DIR, "facades_list.txt") if FACADES_DIR else "facades_list.txt"
     )
@@ -283,6 +304,16 @@ def apply_config(config):
         warning = f"Папка для facades_list.txt '{FACADES_DIR}' не найдена"
         warnings.append(warning)
         logger.warning("[config] %s", warning)
+    for label, path in [
+        ("Путь присадки", PRISADKA_ROOT),
+        ("DESENE CPU", DESENE_CPU_ROOT),
+        ("Присадка клиента", PRISADKA_CLIENT_ROOT),
+        ("Папка facades_list", FACADES_LIST_DIR),
+    ]:
+        if path and not os.path.exists(path):
+            warning = f"{label} '{path}' не найден"
+            warnings.append(warning)
+            logger.warning("[config] %s", warning)
     for name, folder in SEARCH_FOLDERS.items():
         if folder and not os.path.exists(folder):
             warning = f"Путь поиска '{name}' -> '{folder}' недоступен"
@@ -316,6 +347,7 @@ __all__ = [
     "WATCHED_PATH_NORM",
     "FACADES_DIR",
     "FACADES_FILE",
+    "FACADES_LIST_DIR",
     "CHAT_ID",
     "TELEGRAM_TOKEN",
     "TELEGRAM_IGNORED_FOLDERS",
@@ -324,6 +356,9 @@ __all__ = [
     "DEBUG_MODE",
     "SEARCH_FOLDERS",
     "SEARCH_MONTHS",
+    "PRISADKA_ROOT",
+    "DESENE_CPU_ROOT",
+    "PRISADKA_CLIENT_ROOT",
     "ORDER_CONFIRMATION_ENABLED",
     "apply_config",
     "save_config",
