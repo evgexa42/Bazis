@@ -170,23 +170,36 @@ def _ensure_role_permissions_columns() -> None:
         "can_view_priced_panel": 0,
     }
 
-    for column_name, default_value in new_columns.items():
-        if column_name in columns:
-            continue
-
+    missing = [name for name in new_columns if name not in columns]
+    if missing:
         logging.getLogger("bazis").info(
-            "[db] Добавляем колонку %s в role_permissions", column_name
+            "[db] Добавляем отсутствующие колонки в role_permissions: %s", ", ".join(missing)
         )
         with engine.begin() as conn:
-            conn.exec_driver_sql(
-                f"ALTER TABLE role_permissions ADD COLUMN {column_name} INTEGER NOT NULL DEFAULT {int(default_value)}"
-            )
+            for column_name in missing:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE role_permissions ADD COLUMN {column_name} INTEGER NOT NULL DEFAULT {int(new_columns[column_name])}"
+                )
+        # Чистим кеш инспектора, чтобы последующие чтения видели новые колонки.
+        inspector = inspect(engine)
+        inspector.clear_cache()
 
+    # Отдельный проход по значениям с защитой от устаревших схем.
+    try:
         with SessionLocal.begin() as session:
             for role, perms in DEFAULT_ROLE_PERMISSIONS.items():
                 record = session.get(RolePermission, role)
                 if record:
-                    setattr(record, column_name, perms.get(column_name, default_value))
+                    for column_name, default_value in new_columns.items():
+                        if getattr(record, column_name, None) is None:
+                            setattr(record, column_name, perms.get(column_name, default_value))
+                else:
+                    session.add(RolePermission(role=role, **perms))
+    except Exception as exc:  # pragma: no cover - аварийный путь при миграции
+        logging.getLogger("bazis").error(
+            "[db] Ошибка при применении новых прав: %s", exc
+        )
+        raise
 
 
 def init_db() -> None:
