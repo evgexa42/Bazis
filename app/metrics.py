@@ -15,7 +15,9 @@ try:
 except Exception:  # pragma: no cover - опциональная зависимость
     psutil = None
 
-from app.logging_config import setup_logging
+import app.config as app_config
+from app.logging_config import cleanup_rotated_logs, setup_logging
+from app.services.audit import prune_old_events
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -150,6 +152,22 @@ def cleanup_error_window():
         _prune_old_errors_locked(cutoff)
 
 
+def run_retention_tasks():
+    """Запускает очистку логов и журнала по возрасту."""
+
+    try:
+        cleanup_rotated_logs(app_config.LOG_RETENTION_DAYS, logger)
+    except Exception:
+        logger.warning("[retention] Не удалось очистить логи", exc_info=True)
+
+    try:
+        removed = prune_old_events(app_config.JOURNAL_RETENTION_DAYS)
+        if removed:
+            logger.info("[retention] Очищено записей журнала: %s", removed)
+    except Exception:
+        logger.warning("[retention] Не удалось очистить журнал", exc_info=True)
+
+
 def collect_system_metrics():
     if not psutil:
         with metrics_lock:
@@ -173,7 +191,9 @@ def collect_system_metrics():
 
 def metrics_background_worker():
     refresh_db_metrics()
+    run_retention_tasks()
     last_db_check = time.time()
+    last_retention = time.time()
     while True:
         try:
             collect_system_metrics()
@@ -181,6 +201,9 @@ def metrics_background_worker():
             if time.time() - last_db_check >= 60:
                 refresh_db_metrics()
                 last_db_check = time.time()
+            if time.time() - last_retention >= 3600:
+                run_retention_tasks()
+                last_retention = time.time()
             heartbeat("metrics")
         except Exception as exc:
             logger.exception("[metrics] Ошибка фонового обновления", exc_info=exc)

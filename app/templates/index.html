@@ -4,7 +4,7 @@
 
 {% block body_attrs %}
 data-page="orders"
-data-managers="{{ config_managers | join(',') }}"
+data-managers='{{ config_managers | tojson }}'
 data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}"
 {% endblock %}
 

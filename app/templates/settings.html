@@ -4,7 +4,7 @@
 
 {% block body_attrs %}
 data-page="settings"
-data-managers="{{ config_managers | join(',') }}"
+data-managers='{{ config_managers | tojson }}'
 {% endblock %}
 
 {% block content %}

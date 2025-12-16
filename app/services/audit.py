@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from flask import g, has_request_context, request, session
@@ -75,4 +76,21 @@ def fetch_events(limit: int = 200, offset: int = 0) -> List[OrderEvent]:
         return list(result)
 
 
-__all__ = ["fetch_events", "log_order_event"]
+def prune_old_events(retention_days: int) -> int:
+    """Удаляет устаревшие записи журнала по возрасту."""
+
+    safe_days = max(0, retention_days)
+    if safe_days <= 0:
+        return 0
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=safe_days)
+    try:
+        with SessionLocal.begin() as db:
+            deleted = db.query(OrderEvent).filter(OrderEvent.ts < cutoff).delete()
+            return int(deleted or 0)
+    except Exception as exc:  # pragma: no cover - диагностируем побочные ошибки
+        logger.warning("[audit] Не удалось очистить старые события журнала", exc_info=exc)
+        return 0
+
+
+__all__ = ["fetch_events", "log_order_event", "prune_old_events"]
