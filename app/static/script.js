@@ -43,6 +43,9 @@ const APP_CONFIG = (() => {
   return { managers, orderConfirmationEnabled, currentUser, currentRole, permissions };
 })();
 
+const PREFERS_REDUCED_MOTION = typeof window !== 'undefined'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]')?.content
   || document.body?.dataset?.csrfToken
   || '').trim();
@@ -123,15 +126,17 @@ const OrdersPage = (() => {
   let sse = null;
   let pollingTimer = null;
   let pollingBackoff = 3000;
-  let managerPriced = new Set();
-  let pricedMap = {};
-  let pendingOrders = [];
-  let pendingRefreshTimer = null;
-  let bell = {
-    root: null,
-    badge: null,
-    panel: null,
-    list: null,
+    let managerPriced = new Set();
+    let pricedMap = {};
+    let pendingOrders = [];
+    let pendingRefreshTimer = null;
+    let previousOrders = new Map();
+    let sseStatus = { root: null, dot: null, text: null };
+    let bell = {
+      root: null,
+      badge: null,
+      panel: null,
+      list: null,
     empty: null,
     toggle: null,
   };
@@ -139,6 +144,10 @@ const OrdersPage = (() => {
   function init() {
     const table = document.getElementById('orders');
     if (!table) return;
+
+    sseStatus.root = document.getElementById('sseStatus');
+    sseStatus.dot = sseStatus.root?.querySelector('.sse-status__dot') || null;
+    sseStatus.text = sseStatus.root?.querySelector('.sse-status__text') || null;
 
     hydratePricedFromEmbedded();
     hydratePricedMapFromEmbedded();
@@ -152,6 +161,8 @@ const OrdersPage = (() => {
     const searchInput = document.getElementById('orderSearch');
     if (searchInput) {
       searchInput.addEventListener('input', () => handleSearchInput(searchInput.value));
+      searchInput.addEventListener('focus', () => searchInput.classList.add('is-focused'));
+      searchInput.addEventListener('blur', () => searchInput.classList.remove('is-focused'));
     }
     if (APP_CONFIG.permissions.canViewPricedPanel) {
       initBellWidget();
@@ -178,8 +189,13 @@ const OrdersPage = (() => {
     stopSSE();
     stopPollingFallback();
 
+    updateSseIndicator('reconnect', 'Подключение…');
     const streamUrl = `/events?${buildManagerParams().toString()}`;
     sse = new EventSource(streamUrl);
+
+    sse.onopen = () => {
+      updateSseIndicator('ok', 'Онлайн');
+    };
 
     sse.onmessage = ev => {
       pollingBackoff = 5000;
@@ -202,6 +218,7 @@ const OrdersPage = (() => {
     sse.onerror = () => {
       stopSSE();
       startPollingFallback();
+      updateSseIndicator('error', 'Офлайн');
     };
   }
 
@@ -231,6 +248,22 @@ const OrdersPage = (() => {
     pollingBackoff = 5000;
   }
 
+  function updateSseIndicator(state, label) {
+    if (!sseStatus.root) return;
+    sseStatus.root.classList.remove('sse-status--ok', 'sse-status--error', 'sse-status--reconnect');
+    if (state === 'ok') {
+      sseStatus.root.classList.add('sse-status--ok');
+    } else if (state === 'error') {
+      sseStatus.root.classList.add('sse-status--error');
+    } else {
+      sseStatus.root.classList.add('sse-status--reconnect');
+    }
+
+    if (sseStatus.text && label) {
+      sseStatus.text.textContent = label;
+    }
+  }
+
   function updateDataFromPayload(payload) {
     const orders = Array.isArray(payload?.orders)
       ? payload.orders
@@ -238,6 +271,7 @@ const OrdersPage = (() => {
         ? payload.folders
         : [];
 
+    previousOrders = new Map((allData || []).map(item => [getOrderKey(item), item]));
     allData = orders;
     render();
     renderStats({ ...payload, folders: orders });
@@ -432,112 +466,170 @@ const OrdersPage = (() => {
       });
     }
 
-    table.innerHTML = '';
+    const existingRows = new Map();
+    table.querySelectorAll('tr').forEach(row => {
+      const key = row.dataset.orderKey || row.dataset.key || row.dataset.client;
+      existingRows.set(key, row);
+    });
+
+    const newRows = [];
 
     filtered.forEach(item => {
-      const tr = document.createElement('tr');
-      if (item.status === 'Готов') {
-        tr.classList.add('done');
-      } else if (item.status === 'Подтвержден') {
-        tr.classList.add('confirmed');
-      } else {
-        tr.classList.add('new');
+      const key = getOrderKey(item);
+      let row = existingRows.get(key);
+      const prev = previousOrders.get(key);
+
+      if (!row) {
+        row = document.createElement('tr');
+        row.dataset.orderKey = key;
+        row.classList.add('is-entering');
+        if (!PREFERS_REDUCED_MOTION) {
+          requestAnimationFrame(() => row.classList.add('is-visible'));
+        } else {
+          row.classList.add('is-visible');
+        }
       }
 
-      let statusClass = 'status-pill status-pill--warning';
-      if (item.status === 'Готов') {
-        statusClass = 'status-pill status-pill--success';
-      } else if (item.status === 'Подтвержден') {
-        statusClass = 'status-pill status-pill--neutral';
+      fillOrderRow(row, item, allowConfirmationUI);
+
+      if (prev && hasOrderChanged(prev, item)) {
+        row.classList.add('is-updated');
+        setTimeout(() => row.classList.remove('is-updated'), 1100);
       }
 
-      const nameTd = document.createElement('td');
-      const nameDiv = document.createElement('div');
-      nameDiv.className = 'table-primary';
+      newRows.push(row);
+      existingRows.delete(key);
+    });
 
-      const pricedInfo = getPricedInfo(item);
-      if (pricedInfo?.visible) {
-        nameDiv.classList.add('table-primary--with-mark');
-        const pricedMark = document.createElement('span');
-        pricedMark.className = 'priced-mark';
-        pricedMark.textContent = pricedInfo.priced ? '✅' : '❌';
-        pricedMark.title = pricedInfo.priced
-          ? 'Отмечен как «Посчитан»'
-          : 'Не отмечен как «Посчитан»';
-        nameDiv.appendChild(pricedMark);
-      }
+    existingRows.forEach(row => animateRowDeletion(row));
 
-      const nameText = document.createElement('span');
-      nameText.textContent = item.name || '';
-      nameDiv.appendChild(nameText);
-      nameTd.appendChild(nameDiv);
-      tr.appendChild(nameTd);
+    newRows.forEach(row => table.appendChild(row));
+    previousOrders = new Map(filtered.map(item => [getOrderKey(item), item]));
+  }
 
-      const managerTd = document.createElement('td');
-      const managerDiv = document.createElement('div');
-      managerDiv.className = 'table-secondary';
-      managerDiv.textContent = item.manager || '—';
-      managerTd.appendChild(managerDiv);
-      tr.appendChild(managerTd);
+  function hasOrderChanged(prev, next) {
+    return prev?.status !== next?.status
+      || prev?.manager !== next?.manager
+      || prev?.modified !== next?.modified
+      || prev?.name !== next?.name;
+  }
 
-      const statusTd = document.createElement('td');
-      const statusSpan = document.createElement('span');
-      statusSpan.className = statusClass;
-      statusSpan.textContent = item.status || '';
-      statusTd.appendChild(statusSpan);
-      tr.appendChild(statusTd);
+  function animateRowDeletion(row) {
+    if (!row) return;
+    const height = row.offsetHeight;
+    row.style.height = `${height}px`;
+    if (!PREFERS_REDUCED_MOTION) {
+      requestAnimationFrame(() => {
+        row.classList.add('is-deleting');
+        row.style.height = '0px';
+      });
+      setTimeout(() => row.remove(), 320);
+    } else {
+      row.remove();
+    }
+  }
 
-      const modifiedTd = document.createElement('td');
-      const modifiedDiv = document.createElement('div');
-      modifiedDiv.className = 'table-secondary';
-      modifiedDiv.textContent = item.modified || '';
-      modifiedTd.appendChild(modifiedDiv);
-      tr.appendChild(modifiedTd);
+  function fillOrderRow(tr, item, allowConfirmationUI) {
+    tr.innerHTML = '';
+    tr.className = '';
+    tr.dataset.orderKey = getOrderKey(item);
 
-      const daysTd = document.createElement('td');
-      const daysDiv = document.createElement('div');
-      daysDiv.className = 'table-secondary';
-      daysDiv.textContent = item.days ?? '—';
-      daysTd.appendChild(daysDiv);
-      tr.appendChild(daysTd);
+    if (item.status === 'Готов') {
+      tr.classList.add('done');
+    } else if (item.status === 'Подтвержден') {
+      tr.classList.add('confirmed');
+    } else {
+      tr.classList.add('new');
+    }
+
+    let statusClass = 'status-pill status-pill--warning';
+    if (item.status === 'Готов') {
+      statusClass = 'status-pill status-pill--success';
+    } else if (item.status === 'Подтвержден') {
+      statusClass = 'status-pill status-pill--neutral';
+    }
+
+    const nameTd = document.createElement('td');
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'table-primary';
+
+    const pricedInfo = getPricedInfo(item);
+    if (pricedInfo?.visible) {
+      nameDiv.classList.add('table-primary--with-mark');
+      const pricedMark = document.createElement('span');
+      pricedMark.className = 'priced-mark';
+      pricedMark.textContent = pricedInfo.priced ? '✅' : '❌';
+      pricedMark.title = pricedInfo.priced
+        ? 'Отмечен как «Посчитан»'
+        : 'Не отмечен как «Посчитан»';
+      nameDiv.appendChild(pricedMark);
+    }
+
+    const nameText = document.createElement('span');
+    nameText.textContent = item.name || '';
+    nameDiv.appendChild(nameText);
+    nameTd.appendChild(nameDiv);
+    tr.appendChild(nameTd);
+
+    const managerTd = document.createElement('td');
+    const managerDiv = document.createElement('div');
+    managerDiv.className = 'table-secondary';
+    managerDiv.textContent = item.manager || '—';
+    managerTd.appendChild(managerDiv);
+    tr.appendChild(managerTd);
+
+    const statusTd = document.createElement('td');
+    const statusSpan = document.createElement('span');
+    statusSpan.className = statusClass;
+    statusSpan.textContent = item.status || '';
+    statusTd.appendChild(statusSpan);
+    tr.appendChild(statusTd);
+
+    const modifiedTd = document.createElement('td');
+    const modifiedDiv = document.createElement('div');
+    modifiedDiv.className = 'table-secondary';
+    modifiedDiv.textContent = item.modified || '';
+    modifiedTd.appendChild(modifiedDiv);
+    tr.appendChild(modifiedTd);
+
+    const daysTd = document.createElement('td');
+    const daysDiv = document.createElement('div');
+    daysDiv.className = 'table-secondary';
+    daysDiv.textContent = item.days ?? '—';
+    daysTd.appendChild(daysDiv);
+    tr.appendChild(daysTd);
 
     if (allowConfirmationUI) {
       const confirmTd = document.createElement('td');
       confirmTd.className = 'table-checkbox';
 
-        if (item.status === 'Готов' && canConfirm(item)) {
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.className = 'confirm-checkbox';
-          checkbox.checked = false;
-          const orderLabel = getOrderLabel(item);
-          const ariaLabel = orderLabel ? `Подтвердить заказ ${orderLabel}` : 'Подтвердить заказ';
-          checkbox.setAttribute('aria-label', ariaLabel);
-          checkbox.addEventListener('change', async () => {
-            await handleOrderConfirmation(item, checkbox);
-          });
-          confirmTd.appendChild(checkbox);
-        } else if (item.status === 'Подтвержден') {
-          const orderLabel = getOrderLabel(item);
-          const confirmedMark = document.createElement('span');
-          confirmedMark.className = 'confirm-status';
-          confirmedMark.textContent = '✔';
-          const ariaLabel = orderLabel ? `Заказ подтвержден ${orderLabel}` : 'Заказ подтвержден';
-          confirmedMark.setAttribute('aria-label', ariaLabel);
-          confirmedMark.title = orderLabel ? `Подтвержден: ${orderLabel}` : 'Заказ подтвержден';
-          confirmTd.appendChild(confirmedMark);
-        } else {
-          const placeholder = document.createElement('span');
-          placeholder.className = 'table-muted';
-          placeholder.textContent = '—';
-          confirmTd.appendChild(placeholder);
-        }
-
-        tr.appendChild(confirmTd);
+      if (item.status === 'Готов' && canConfirm(item)) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'confirm-checkbox';
+        checkbox.checked = false;
+        const orderLabel = getOrderLabel(item);
+        const ariaLabel = orderLabel ? `Подтвердить заказ ${orderLabel}` : 'Подтвердить заказ';
+        checkbox.setAttribute('aria-label', ariaLabel);
+        checkbox.addEventListener('change', async () => {
+          await handleOrderConfirmation(item, checkbox);
+        });
+        confirmTd.appendChild(checkbox);
+      } else if (item.status === 'Подтвержден') {
+        const orderLabel = getOrderLabel(item);
+        const confirmedMark = document.createElement('span');
+        confirmedMark.className = 'status-pill status-pill--success';
+        confirmedMark.textContent = orderLabel ? `✓ ${orderLabel}` : 'Подтвержден';
+        confirmTd.appendChild(confirmedMark);
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'table-muted';
+        placeholder.textContent = '—';
+        confirmTd.appendChild(placeholder);
       }
 
-      table.appendChild(tr);
-    });
+      tr.appendChild(confirmTd);
+    }
   }
 
   function isReadyStatus(status) {
@@ -864,6 +956,11 @@ const OrdersPage = (() => {
     return extractOrderNumber(item.name);
   }
 
+  function getOrderKey(item) {
+    if (!item) return '';
+    return item.path || item.order_key || item.name || item.id || item.modified || Math.random().toString(16).slice(2);
+  }
+
   function extractOrderNumber(name) {
     if (!name) return '';
     const firstPart = name.trim().split(/\s+/)[0] || '';
@@ -1012,6 +1109,11 @@ const SettingsPage = (() => {
       setTimeout(() => feedback.classList.remove('is-visible'), 1500);
     } else {
       window.alert(message);
+    }
+
+    if (trigger) {
+      trigger.classList.add('flash-highlight');
+      setTimeout(() => trigger.classList.remove('flash-highlight'), 900);
     }
   }
 
@@ -1397,6 +1499,93 @@ const UsersTable = (() => {
 
     text.textContent = `Новый пароль для ${username}: ${password}`;
     box.classList.remove('is-hidden');
+  }
+
+  return { init };
+})();
+
+const UIEffects = (() => {
+  function init() {
+    renderToasts();
+    highlightJournal();
+    enhanceAuthForms();
+    rememberClients();
+  }
+
+  function renderToasts() {
+    const stack = document.getElementById('toastStack');
+    const page = document.body?.dataset?.page || '';
+    if (!stack || page !== 'settings') return;
+
+    const notices = document.querySelectorAll('.notice-card');
+    notices.forEach(notice => {
+      const text = notice.textContent.trim();
+      const type = notice.classList.contains('notice-card--error')
+        ? 'error'
+        : notice.classList.contains('notice-card--warning')
+          ? 'warning'
+          : 'success';
+      pushToast(stack, { title: type === 'error' ? 'Ошибка' : 'Состояние', desc: text, type });
+      notice.remove();
+    });
+  }
+
+  function pushToast(stack, { title, desc, type }) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type || 'info'}`;
+
+    toast.innerHTML = `
+      <div class="toast__title">${title || 'Сообщение'}</div>
+      <div class="toast__desc">${desc || ''}</div>
+      <button class="toast__close" aria-label="Закрыть">✕</button>
+    `;
+
+    toast.querySelector('.toast__close')?.addEventListener('click', () => toast.remove());
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+    setTimeout(() => toast.remove(), 4200);
+  }
+
+  function highlightJournal() {
+    if (!window.location.pathname.includes('journal')) return;
+    document.querySelectorAll('tbody tr').forEach((row, index) => {
+      if (index < 5) {
+        row.classList.add('flash-highlight');
+        setTimeout(() => row.classList.remove('flash-highlight'), 1100);
+      }
+    });
+  }
+
+  function enhanceAuthForms() {
+    const page = document.body?.dataset?.page || '';
+    if (page !== 'login' && page !== 'setup') return;
+    const hasError = document.querySelector('.notice-card--error');
+    if (!hasError) return;
+    document.querySelectorAll('input').forEach(input => {
+      input.classList.add('shake');
+      setTimeout(() => input.classList.remove('shake'), 320);
+    });
+  }
+
+  function rememberClients() {
+    if (!window.location.pathname.includes('clients')) return;
+    const addForm = document.querySelector('form[action="/add_client"]');
+    const nameInput = addForm?.querySelector('input[name="client"]');
+
+    addForm?.addEventListener('submit', () => {
+      if (nameInput?.value) {
+        sessionStorage.setItem('recentClientName', nameInput.value.trim());
+      }
+    });
+
+    const recentName = sessionStorage.getItem('recentClientName');
+    if (!recentName) return;
+    const row = document.querySelector(`tr[data-client="${CSS.escape(recentName)}"]`);
+    if (row) {
+      row.classList.add('flash-highlight');
+      setTimeout(() => row.classList.remove('flash-highlight'), 1200);
+      sessionStorage.removeItem('recentClientName');
+    }
   }
 
   return { init };
@@ -1836,6 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
   FacadesPage.init();
   SettingsPage.init();
   UsersTable.init();
+  UIEffects.init();
 });
 
 const ClientsTable = (() => {
@@ -1879,6 +2069,10 @@ const ClientsTable = (() => {
     const oldName = row.dataset.client;
     const newName = row.querySelector('.edit-name').value.trim();
     const newManager = row.querySelector('.edit-manager').value.trim();
+
+    if (newName) {
+      sessionStorage.setItem('recentClientName', newName);
+    }
 
     fetch('/update_client', {
       method: 'POST',

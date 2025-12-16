@@ -455,10 +455,22 @@ data-managers='{{ config_managers | tojson }}'
           </div>
           {% endfor %}
           <div class="role-card__footer">
-            <button type="submit" class="btn btn--secondary btn--pill">➕ Добавить роль</button>
+            <button type="submit" class="btn btn--secondary btn--pill btn--organic">➕ Добавить роль</button>
           </div>
         </form>
       </article>
+
+      <section class="role-ready" aria-label="Текущие роли">
+        <div class="role-ready__header">
+          <h3 class="section-title">Готовые роли</h3>
+          <p class="hint">Список существующих ролей отображается для быстрого выбора.</p>
+        </div>
+        <div class="role-ready__list">
+          {% for role, perms in role_permissions | dictsort %}
+            <span class="role-chip">{{ role_titles.get(role, role|capitalize) }}</span>
+          {% endfor %}
+        </div>
+      </section>
 
       <form action="{{ url_for('settings.update_role_permissions') }}" method="POST" class="role-editor role-cards-form" id="rolePermissionsForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -508,7 +520,7 @@ data-managers='{{ config_managers | tojson }}'
         </div>
 
         <div class="role-card__footer role-card__footer--sticky">
-          <button type="submit" class="btn btn--primary btn--pill">💾 Сохранить права</button>
+          <button type="submit" class="btn btn--primary btn--pill role-save">💾 Сохранить права</button>
         </div>
       </form>
     </div>
