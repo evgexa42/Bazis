@@ -657,7 +657,7 @@ const OrdersPage = (() => {
       const canMark = APP_CONFIG.permissions.canMarkPriced && APP_CONFIG.currentRole !== 'technologist';
       pricedBtn.disabled = !canMark;
       if (canMark) {
-        pricedBtn.addEventListener('click', () => markPriced(item.order_key, pricedBtn));
+        pricedBtn.addEventListener('click', () => markPriced(item.order_key, pricedBtn, li));
       }
 
       actions.appendChild(copyBtn);
@@ -681,13 +681,22 @@ const OrdersPage = (() => {
   function toggleBellPanel(forceOpen) {
     if (!bell.panel || !bell.toggle) return;
 
-    const shouldOpen = forceOpen === undefined ? bell.panel.hasAttribute('hidden') : !!forceOpen;
+    const isHidden = bell.panel.hasAttribute('hidden');
+    const shouldOpen = forceOpen === undefined ? isHidden : !!forceOpen;
+
     if (shouldOpen) {
+      bell.panel.classList.remove('is-closing');
       bell.panel.removeAttribute('hidden');
+      requestAnimationFrame(() => bell.panel.classList.add('is-open'));
       bell.toggle.setAttribute('aria-expanded', 'true');
     } else {
-      bell.panel.setAttribute('hidden', '');
+      bell.panel.classList.remove('is-open');
+      bell.panel.classList.add('is-closing');
       bell.toggle.setAttribute('aria-expanded', 'false');
+      setTimeout(() => {
+        bell.panel.classList.remove('is-closing');
+        bell.panel.setAttribute('hidden', '');
+      }, 180);
     }
   }
 
@@ -700,6 +709,9 @@ const OrdersPage = (() => {
     bell.toggle = bell.root?.querySelector('[data-bell-toggle]');
 
     if (!bell.root || !bell.panel || !bell.toggle) return;
+
+    bell.panel.classList.remove('is-open', 'is-closing');
+    bell.panel.setAttribute('hidden', '');
 
     const closeBtn = bell.root.querySelector('[data-bell-close]');
     bell.toggle.addEventListener('click', () => toggleBellPanel());
@@ -746,7 +758,7 @@ const OrdersPage = (() => {
     showCopyFeedback(scope, 'Путь скопирован');
   }
 
-  async function markPriced(orderKey, button) {
+  async function markPriced(orderKey, button, listItem) {
     if (!orderKey) return;
     if (!APP_CONFIG.permissions.canMarkPriced) {
       window.alert('Недостаточно прав для отметки.');
@@ -774,8 +786,16 @@ const OrdersPage = (() => {
           pricedMap[orderKey] = [...existing, user];
         }
       }
-      pendingOrders = pendingOrders.filter(item => item.order_key !== orderKey);
-      renderPendingList();
+      const removeFromList = () => {
+        pendingOrders = pendingOrders.filter(item => item.order_key !== orderKey);
+        renderPendingList();
+      };
+      if (listItem) {
+        listItem.classList.add('is-leaving');
+        setTimeout(removeFromList, 160);
+      } else {
+        removeFromList();
+      }
       render();
       if (APP_CONFIG.permissions.canViewPriced) {
         fetchPricedSet();
