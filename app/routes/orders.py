@@ -29,6 +29,7 @@ from app import (
     sse_clients_lock,
 )
 from app.dal.permissions import has_permission, permissions_required
+from app.dal.manager_priced import get_priced_map, get_priced_set, is_priced, set_priced
 from app.services.audit import log_order_event
 from app.services.monitor import move_known_folder
 from app.services.snapshot import (
@@ -40,7 +41,11 @@ from app.services.snapshot import (
     search_in_index,
     upsert_order,
 )
-from app.services.telegram import folder_has_ready_marker, update_message_for_folder
+from app.services.telegram import (
+    folder_has_ready_marker,
+    technologist_from_folder,
+    update_message_for_folder,
+)
 
 
 def get_visible_manager_filter(request, session):
@@ -103,12 +108,53 @@ def _prepare_event_for_client(event: dict, visible_manager, requested_manager):
     prepared["applied_manager"] = applied_manager
     return prepared
 
+
+def _snapshot_copy():
+    """Возвращает копию текущего снапшота заказов."""
+    with bazis_app.orders_snapshot_lock:
+        return list(bazis_app.orders_snapshot)
+
+
+def _find_order_in_snapshot(order_key: str):
+    for order in _snapshot_copy():
+        if (order.get("name") or "") == order_key:
+            return order
+    return None
+
+
+def _technologist_marker(folder_name: str) -> tuple[str | None, str]:
+    for marker, tech_name in app_config.TECHNOLOGIST_MARKERS.items():
+        if f"[{marker}]" in folder_name:
+            return marker, tech_name
+    return None, technologist_from_folder(folder_name) or "—"
+
+
+def _is_ready_status(status: str | None) -> bool:
+    return (status or "").strip() == "Готов"
+
+
 orders_bp = Blueprint("orders", __name__)
 
 
 @orders_bp.route("/")
 def index():
-    return render_template("index.html")
+    priced_set = set()
+    priced_map = {}
+    current_user = session.get("user")
+    current_role = session.get("role")
+    role_perms = getattr(g, "role_perms", {})
+
+    if role_perms.get("can_view_priced"):
+        if current_role == "manager" and current_user:
+            priced_set = get_priced_set(current_user)
+        elif current_role in {"admin", "technologist"}:
+            priced_map = get_priced_map()
+
+    return render_template(
+        "index.html",
+        manager_priced=sorted(priced_set),
+        manager_priced_map=priced_map,
+    )
 
 
 @orders_bp.route("/facades")
@@ -133,6 +179,135 @@ def data():
     payload = build_orders_payload(visible_manager, requested_manager)
 
     return jsonify(payload)
+
+
+@orders_bp.route("/api/manager/priced_set")
+def api_manager_priced_set():
+    current_user = session.get("user")
+    if not current_user:
+        abort(401)
+
+    role_perms = getattr(g, "role_perms", {})
+    if not role_perms.get("can_view_priced"):
+        abort(403)
+
+    priced = []
+    priced_map: dict[str, list[str]] = {}
+    role = session.get("role")
+    if role not in {"manager", "admin", "technologist"}:
+        abort(403)
+
+    if role == "manager":
+        priced = sorted(get_priced_set(current_user))
+        priced_map = {key: [current_user] for key in priced}
+    elif role in {"admin", "technologist"}:
+        priced_map = get_priced_map()
+
+    return jsonify({"priced": priced, "priced_map": priced_map})
+
+
+@orders_bp.route("/api/manager/pending_priced")
+def api_manager_pending_priced():
+    current_user = session.get("user")
+    if not current_user:
+        abort(401)
+
+    role_perms = getattr(g, "role_perms", {})
+    if not role_perms.get("can_view_priced_panel"):
+        abort(403)
+
+    role = session.get("role")
+    if role not in {"manager", "admin", "technologist"}:
+        abort(403)
+
+    priced = get_priced_set(current_user) if role == "manager" else set()
+    priced_map = get_priced_map()
+    snapshot = _snapshot_copy()
+    pending: list[dict] = []
+
+    for order in snapshot:
+        if not order:
+            continue
+
+        order_key = order.get("name") or ""
+        order_status = order.get("status") or ""
+        if not _is_ready_status(order_status):
+            continue
+
+        marker_code, tech_name = _technologist_marker(order_key)
+        if not marker_code:
+            continue
+
+        manager_for_order = (order.get("manager") or get_manager_from_name(order_key)).strip()
+        if not manager_for_order:
+            continue
+
+        if role == "manager" and manager_for_order != current_user:
+            continue
+
+        if role == "manager":
+            if order_key in priced:
+                continue
+        else:
+            if manager_for_order and manager_for_order in priced_map.get(order_key, []):
+                continue
+
+        unc_path = os.path.join(app_config.FOLDER_PATH or "", order_key)
+        pending.append(
+            {
+                "order_key": order_key,
+                "display_name": order_key,
+                "tech_code": marker_code,
+                "tech_name": tech_name or "—",
+                "unc_path": unc_path,
+            }
+        )
+
+    return jsonify(pending)
+
+
+@orders_bp.route("/api/manager/mark_priced", methods=["POST"])
+def api_manager_mark_priced():
+    current_user = session.get("user")
+    if not current_user:
+        abort(401)
+
+    role_perms = getattr(g, "role_perms", {})
+    if not role_perms.get("can_mark_priced"):
+        return jsonify({"ok": False, "message": "Недостаточно прав"}), 403
+
+    if session.get("role") == "technologist":
+        return jsonify({"ok": False, "message": "Недостаточно прав"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    order_key = (payload.get("order_key") or "").strip()
+    if not order_key:
+        return jsonify({"ok": False, "message": "order_key required"}), 400
+
+    order = _find_order_in_snapshot(order_key)
+    if not order:
+        return jsonify({"ok": False, "message": "Заказ не найден"}), 404
+
+    manager_for_order = (order.get("manager") or get_manager_from_name(order_key)).strip()
+    if not manager_for_order:
+        return jsonify({"ok": False, "message": "Не указан менеджер заказа"}), 400
+    role = session.get("role")
+    if role == "manager" and manager_for_order != current_user:
+        return jsonify({"ok": False, "message": "Недостаточно прав"}), 403
+
+    if not _is_ready_status(order.get("status")):
+        return jsonify({"ok": False, "message": 'Заказ ещё не имеет статуса "Готов".'}), 400
+
+    marker_code, _ = _technologist_marker(order_key)
+    if not marker_code:
+        return jsonify({"ok": False, "message": "Заказ без отметки технолога"}), 400
+
+    target_manager = current_user if role == "manager" else manager_for_order
+
+    if not is_priced(order_key, target_manager):
+        set_priced(order_key, target_manager)
+
+    return jsonify({"ok": True})
 
 
 @orders_bp.route("/search", methods=["GET", "POST"])

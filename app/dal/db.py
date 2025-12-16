@@ -46,6 +46,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_edit_paths": 1,
         "can_toggle_order_options": 1,
         "can_confirm_orders": 1,
+        "can_view_priced": 1,
+        "can_mark_priced": 0,
+        "can_view_priced_panel": 1,
     },
     "technologist": {
         "can_access_settings": 1,
@@ -57,6 +60,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_edit_paths": 0,
         "can_toggle_order_options": 1,
         "can_confirm_orders": 1,
+        "can_view_priced": 1,
+        "can_mark_priced": 0,
+        "can_view_priced_panel": 1,
     },
     "manager": {
         "can_access_settings": 0,
@@ -68,6 +74,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_edit_paths": 0,
         "can_toggle_order_options": 0,
         "can_confirm_orders": 1,
+        "can_view_priced": 1,
+        "can_mark_priced": 1,
+        "can_view_priced_panel": 1,
     },
 }
 
@@ -99,6 +108,9 @@ class RolePermission(Base):
     can_edit_paths = Column(Integer, nullable=False, default=0)
     can_toggle_order_options = Column(Integer, nullable=False, default=0)
     can_confirm_orders = Column(Integer, nullable=False, default=0)
+    can_view_priced = Column(Integer, nullable=False, default=0)
+    can_mark_priced = Column(Integer, nullable=False, default=0)
+    can_view_priced_panel = Column(Integer, nullable=False, default=0)
 
 
 class OrderEvent(Base):
@@ -151,27 +163,37 @@ def _ensure_role_permissions_columns() -> None:
 
     inspector = inspect(engine)
     columns = {col["name"] for col in inspector.get_columns("role_permissions")}
-    if "can_confirm_orders" not in columns:
+    new_columns = {
+        "can_confirm_orders": 0,
+        "can_view_priced": 0,
+        "can_mark_priced": 0,
+        "can_view_priced_panel": 0,
+    }
+
+    for column_name, default_value in new_columns.items():
+        if column_name in columns:
+            continue
+
         logging.getLogger("bazis").info(
-            "[db] Добавляем колонку can_confirm_orders в role_permissions"
+            "[db] Добавляем колонку %s в role_permissions", column_name
         )
         with engine.begin() as conn:
             conn.exec_driver_sql(
-                "ALTER TABLE role_permissions ADD COLUMN can_confirm_orders INTEGER NOT NULL DEFAULT 0"
+                f"ALTER TABLE role_permissions ADD COLUMN {column_name} INTEGER NOT NULL DEFAULT {int(default_value)}"
             )
 
-        # Восстанавливаем историческое поведение: базовые роли могут подтверждать заказы
         with SessionLocal.begin() as session:
             for role, perms in DEFAULT_ROLE_PERMISSIONS.items():
                 record = session.get(RolePermission, role)
                 if record:
-                    record.can_confirm_orders = perms.get("can_confirm_orders", 0)
+                    setattr(record, column_name, perms.get(column_name, default_value))
 
 
 def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
     # Регистрируем все модели, зависящие от Base, перед созданием таблиц
     import app.dal.database  # noqa: F401
+    import app.dal.manager_priced  # noqa: F401
 
     Base.metadata.create_all(engine)
     _ensure_role_permissions_columns()
