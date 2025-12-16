@@ -38,6 +38,10 @@ data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}
             <option value="Неизвестно">Неизвестно</option>
           </select>
         </label>
+        <div class="filter-search">
+          <label class="field-label" for="orderSearch">Поиск по названию</label>
+          <input type="search" id="orderSearch" class="input input--compact" placeholder="Начните ввод" autocomplete="off">
+        </div>
         <div class="button-group">
           <button type="button" class="btn btn--ghost" data-sort="status" onclick="sortBy('status')">⇅ Статус</button>
           <button type="button" class="btn btn--ghost" data-sort="days" onclick="sortBy('days')">⇅ Давность</button>

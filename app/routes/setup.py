@@ -25,19 +25,6 @@ def enforce_setup_wizard():
         return redirect(url_for("auth.login"))
 
 
-def _parse_mapping(value: str) -> dict:
-    mapping = {}
-    for line in value.splitlines():
-        if "=" not in line:
-            continue
-        key, val = line.split("=", 1)
-        key = key.strip()
-        val = val.strip()
-        if key and val:
-            mapping[key] = val
-    return mapping
-
-
 def _collect_accounts(prefix: str) -> list[dict]:
     names = request.form.getlist(f"{prefix}_name[]")
     logins = request.form.getlist(f"{prefix}_username[]")
@@ -80,13 +67,7 @@ def setup_page():
     technologists_form = _collect_accounts("technologist") if request.method == "POST" else []
 
     if request.method == "POST":
-        orders_path = request.form.get("orders_path", "").strip()
         facades_dir = request.form.get("facades_dir", "").strip()
-        prisadka_root = request.form.get("prisadka_root", "").strip()
-        desene_cpu_root = request.form.get("desene_cpu_root", "").strip()
-        prisadka_client_root = request.form.get("prisadka_client_root", "").strip()
-        facades_list_dir = request.form.get("facades_list_dir", "").strip()
-        search_raw = request.form.get("search_folders", "")
 
         telegram_token = request.form.get("telegram_token", "").strip()
         telegram_chat = request.form.get("telegram_chat_id", "").strip()
@@ -96,13 +77,9 @@ def setup_page():
         admin_display = (request.form.get("admin_display") or "").strip()
 
         paths_snapshot = config_snapshot.setdefault("paths", {})
-        paths_snapshot["orders"] = orders_path
-        paths_snapshot["facades_dir"] = facades_dir
-        paths_snapshot["prisadka_root"] = prisadka_root
-        paths_snapshot["desene_cpu_root"] = desene_cpu_root
-        paths_snapshot["prisadka_client_root"] = prisadka_client_root
-        paths_snapshot["facades_list_dir"] = facades_list_dir
-        paths_snapshot["search"] = _parse_mapping(search_raw)
+        if facades_dir:
+            paths_snapshot["facades_dir"] = facades_dir
+            paths_snapshot["facades_list_dir"] = facades_dir
 
         telegram_snapshot = config_snapshot.setdefault("telegram", {})
         telegram_snapshot["token"] = telegram_token
@@ -135,13 +112,9 @@ def setup_page():
         if not errors:
             updated_config = deepcopy(config_snapshot)
             paths_cfg = updated_config.setdefault("paths", {})
-            paths_cfg["orders"] = orders_path
-            paths_cfg["facades_dir"] = facades_dir
-            paths_cfg["prisadka_root"] = prisadka_root
-            paths_cfg["desene_cpu_root"] = desene_cpu_root
-            paths_cfg["prisadka_client_root"] = prisadka_client_root
-            paths_cfg["facades_list_dir"] = facades_list_dir or facades_dir
-            paths_cfg["search"] = _parse_mapping(search_raw)
+            if facades_dir:
+                paths_cfg["facades_dir"] = facades_dir
+                paths_cfg["facades_list_dir"] = facades_dir
 
             telegram_cfg = updated_config.setdefault("telegram", {})
             telegram_cfg["token"] = telegram_token
@@ -197,9 +170,6 @@ def setup_page():
         config=config_snapshot,
         managers_prefill=managers_form,
         technologists_prefill=technologists_form,
-        search_text="\n".join(
-            f"{title}={path}" for title, path in (config_snapshot.get("paths", {}).get("search", {}) or {}).items()
-        ),
     )
 
 

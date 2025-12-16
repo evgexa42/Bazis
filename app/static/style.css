@@ -119,6 +119,13 @@ h1 {
   align-items: flex-end;
 }
 
+.filter-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
 .button-group {
   display: flex;
   flex-wrap: wrap;
@@ -850,6 +857,40 @@ select:focus {
   font-size: 1.2rem;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .bell-button .bell-icon {
+    display: inline-block;
+    transform-origin: top center;
+  }
+
+  .bell-button:hover .bell-icon,
+  .bell-button:focus-visible .bell-icon,
+  .bell-button.is-active .bell-icon {
+    animation: bell-ring 0.9s ease-in-out;
+  }
+
+  @keyframes bell-ring {
+    0% {
+      transform: rotate(0deg);
+    }
+    20% {
+      transform: rotate(-12deg);
+    }
+    40% {
+      transform: rotate(10deg);
+    }
+    60% {
+      transform: rotate(-6deg);
+    }
+    80% {
+      transform: rotate(4deg);
+    }
+    100% {
+      transform: rotate(0deg);
+    }
+  }
+}
+
 .bell-badge {
   position: absolute;
   top: -8px;
@@ -1563,6 +1604,19 @@ code {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.roles-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .role-card {
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 16px;
@@ -1589,6 +1643,7 @@ code {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px 14px;
+  flex: 1;
 }
 
 /* Wrap permissions form to mirror role cards layout */
@@ -1612,6 +1667,15 @@ code {
   border-top: 1px solid rgba(148, 163, 184, 0.25);
   padding-top: 12px;
   margin-top: 16px;
+}
+
+.role-card__footer--sticky {
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  padding-top: 12px;
+  margin-top: 18px;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, #fff 100%);
 }
 
 .role-card__title {
@@ -1659,6 +1723,10 @@ code {
   display: grid;
   gap: 8px 12px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.role-grid--cards {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .manager-stats-grid {

@@ -304,6 +304,14 @@ def _json_data() -> dict:
     return request.form.to_dict()
 
 
+def _checkbox_enabled(form, key: str) -> bool:
+    """Надёжно определяет состояние чекбокса с парой hidden+checkbox."""
+    values = [str(value).strip().lower() for value in form.getlist(key)]
+    if not values:
+        return False
+    return any(value in {"1", "true", "on", "yes"} for value in values)
+
+
 def _build_response(result: dict):
     if result.get("ok"):
         return {"status": "ok"}, 200
@@ -389,15 +397,16 @@ def change_user_password():
 @permissions_required("can_access_settings", "can_manage_users")
 def update_role_permissions():
     role_names = {name.strip().lower() for name in request.form.getlist("role_names[]") if name}
+    existing = get_all_role_permissions()
     if not role_names:
-        role_names = set(get_all_role_permissions().keys())
+        role_names = set(existing.keys())
 
     updates = {}
     for role in role_names:
         perms = {}
         for field in PERMISSION_FIELDS:
             key = f"roles[{role}][{field}]"
-            perms[field] = 1 if request.form.get(key) else 0
+            perms[field] = 1 if _checkbox_enabled(request.form, key) else 0
         updates[role] = perms
 
     updates.setdefault("admin", {})
@@ -416,9 +425,7 @@ def update_role_permissions():
 @permissions_required("can_access_settings", "can_manage_users")
 def create_role_entry():
     role_name = (request.form.get("role_name") or "").strip()
-    perms = {
-        field: 1 if request.form.get(f"new_role[{field}]") else 0 for field in PERMISSION_FIELDS
-    }
+    perms = {field: 1 if _checkbox_enabled(request.form, f"new_role[{field}]") else 0 for field in PERMISSION_FIELDS}
 
     result = create_role(role_name, perms)
     if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
