@@ -28,35 +28,12 @@
   <section class="card">
     <form method="post" class="settings-form" data-setup-form>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-	  <h2 class="section-title">Файловые пути</h2>
+          <h2 class="section-title">Файловый путь</h2>
       <div class="settings-grid">
         <div class="settings-field settings-field--wide">
-          <label class="field-label" for="orders_path">Путь к папке заказов</label>
-          <input type="text" class="input" id="orders_path" name="orders_path" placeholder="\\\\SERVER\\orders" value="{{ config.get('paths', {}).get('orders', '') }}">
-        </div>
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="facades_dir">Папка для Facades_list</label>
+          <label class="field-label" for="facades_dir">Папка для facades_list.txt</label>
           <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
-        </div>
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="prisadka_root">Присадка root path</label>
-          <input type="text" class="input" id="prisadka_root" name="prisadka_root" placeholder="\\\\SERVER\\prisadka" value="{{ config.get('paths', {}).get('prisadka_root', '') }}">
-        </div>
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="desene_cpu_root">DESENE CPU root path</label>
-          <input type="text" class="input" id="desene_cpu_root" name="desene_cpu_root" placeholder="\\\\SERVER\\desene" value="{{ config.get('paths', {}).get('desene_cpu_root', '') }}">
-        </div>
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="prisadka_client_root">Присадка Клиента root path</label>
-          <input type="text" class="input" id="prisadka_client_root" name="prisadka_client_root" placeholder="\\\\SERVER\\client_prisadka" value="{{ config.get('paths', {}).get('prisadka_client_root', '') }}">
-        </div>
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="facades_list_dir">Папка для Facades_list (отдельно)</label>
-          <input type="text" class="input" id="facades_list_dir" name="facades_list_dir" placeholder="\\\\SERVER\\facades_list" value="{{ config.get('paths', {}).get('facades_list_dir', '') }}">
-        </div>
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="search_folders">Папки поиска (Название=Путь)</label>
-          <textarea id="search_folders" name="search_folders" class="input" placeholder="Архив=\\\\SERVER\\archive">{{ search_text }}</textarea>
+          <p class="hint">Используется для генерации тестового документа на странице «Фасады».</p>
         </div>
       </div>
 

@@ -27,6 +27,10 @@ data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}
         <button type="button" class="btn btn--ghost" data-filter="Новый" onclick="setStatusFilter('Новый')">Новые</button>
         <button type="button" class="btn btn--ghost" data-filter="Готов" onclick="setStatusFilter('Готов')">Готовые</button>
       </div>
+	  <div class="filter-search">
+          <label class="field-label" for="orderSearch">Поиск по названию</label>
+          <input type="search" id="orderSearch" class="input input--compact" placeholder="Начните ввод" autocomplete="off">
+        </div>
       <div class="controls-actions">
         <label class="field" for="managerSelect">
           <span class="field-label">Менеджер</span>

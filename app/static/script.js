@@ -116,6 +116,8 @@ const OrdersPage = (() => {
     APP_CONFIG.currentRole === 'manager' && APP_CONFIG.currentUser
       ? APP_CONFIG.currentUser
       : 'Все';
+  let searchTerm = '';
+  let searchTimer = null;
   let sortKey = null;
   let sortOrder = 1;
   let sse = null;
@@ -146,6 +148,10 @@ const OrdersPage = (() => {
     const managerSelect = document.getElementById('managerSelect');
     if (managerSelect && currentManager !== 'Все') {
       managerSelect.value = currentManager;
+    }
+    const searchInput = document.getElementById('orderSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => handleSearchInput(searchInput.value));
     }
     if (APP_CONFIG.permissions.canViewPricedPanel) {
       initBellWidget();
@@ -250,6 +256,17 @@ const OrdersPage = (() => {
     currentStatus = status;
     highlightActiveFilter(status);
     render();
+  }
+
+  function handleSearchInput(value) {
+    const normalized = (value || '').trim().toLowerCase();
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+    }
+    searchTimer = setTimeout(() => {
+      searchTerm = normalized;
+      render();
+    }, 180);
   }
 
   function setManagerFilter() {
@@ -385,6 +402,11 @@ const OrdersPage = (() => {
           return item.status === 'Готов' || item.status === 'Подтвержден';
         }
         return item.status === currentStatus;
+      })
+      .filter(item => {
+        if (!searchTerm) return true;
+        const orderName = (item.name || '').toLowerCase();
+        return orderName.includes(searchTerm);
       })
       .slice();
 
@@ -714,10 +736,12 @@ const OrdersPage = (() => {
       bell.panel.removeAttribute('hidden');
       requestAnimationFrame(() => bell.panel.classList.add('is-open'));
       bell.toggle.setAttribute('aria-expanded', 'true');
+      bell.toggle.classList.add('is-active');
     } else {
       bell.panel.classList.remove('is-open');
       bell.panel.classList.add('is-closing');
       bell.toggle.setAttribute('aria-expanded', 'false');
+      bell.toggle.classList.remove('is-active');
       setTimeout(() => {
         bell.panel.classList.remove('is-closing');
         bell.panel.setAttribute('hidden', '');
