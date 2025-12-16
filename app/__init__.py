@@ -30,7 +30,7 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 CLIENTS_FILE = os.path.join(BASE_DIR, "clients.json")
 SNAPSHOT_TTL = 12.0
 
-logger = setup_logging()
+logger = setup_logging(app_config.LOG_RETENTION_DAYS)
 
 clients: dict = {}
 clients_lookup: dict = {}

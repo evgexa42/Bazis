@@ -4,11 +4,22 @@ const APP_CONFIG = (() => {
   }
 
   const body = document.body;
-  const managersRaw = body?.dataset?.managers || '';
-  const managers = managersRaw
-    .split(',')
-    .map(name => name.trim())
-    .filter(Boolean);
+  const managersRaw = body?.dataset?.managers;
+  let managers = [];
+  if (managersRaw) {
+    try {
+      const parsed = JSON.parse(managersRaw);
+      if (Array.isArray(parsed)) {
+        managers = parsed.map(name => `${name}`.trim()).filter(Boolean);
+      }
+    } catch (err) {
+      // Обратная совместимость: старый формат через запятую
+      managers = String(managersRaw)
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
+    }
+  }
 
   const orderConfirmationEnabled = body?.dataset?.orderConfirmation === 'true';
   const currentUser = body?.dataset?.currentUser || '';

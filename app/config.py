@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     "technologists": {},
     "search": {"months": 6},
     "features": {"order_confirmation": False},
+    "retention": {"logs_days": 30, "journal_days": 90},
 }
 
 logger = logging.getLogger("bazis")
@@ -59,6 +60,8 @@ SEARCH_FOLDERS: dict = {}
 SEARCH_MONTHS = DEFAULT_CONFIG["search"]["months"]
 MANAGER_NAMES: list[str] = []
 TECHNOLOGIST_MARKERS: dict = {}
+LOG_RETENTION_DAYS = DEFAULT_CONFIG["retention"]["logs_days"]
+JOURNAL_RETENTION_DAYS = DEFAULT_CONFIG["retention"]["journal_days"]
 
 
 def deep_merge(base, extra):
@@ -218,6 +221,18 @@ def _ensure_complete_config(raw_config: dict) -> dict:
         merged["features"].get("order_confirmation"), DEFAULT_CONFIG["features"]["order_confirmation"]
     )
 
+    merged.setdefault("retention", {})
+    merged["retention"]["logs_days"] = max(
+        0, _parse_int(merged["retention"].get("logs_days"), DEFAULT_CONFIG["retention"]["logs_days"])
+    )
+    merged["retention"]["journal_days"] = max(
+        0,
+        _parse_int(
+            merged["retention"].get("journal_days"),
+            DEFAULT_CONFIG["retention"].get("journal_days", 90),
+        ),
+    )
+
     return merged
 
 
@@ -250,7 +265,7 @@ def apply_config(config):
     global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
-    global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS
+    global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
 
     normalized = _ensure_complete_config(config)
     CONFIG.clear()
@@ -261,6 +276,7 @@ def apply_config(config):
     server = normalized["server"]
     telegram_cfg = normalized["telegram"]
     paths = normalized["paths"]
+    retention_cfg = normalized.get("retention", {})
 
     SERVER_HOST = server["host"] or DEFAULT_CONFIG["server"]["host"]
     SERVER_PORT = _parse_int(server["port"], DEFAULT_CONFIG["server"]["port"])
@@ -289,6 +305,9 @@ def apply_config(config):
 
     SEARCH_FOLDERS = deepcopy(paths.get("search") or {})
     SEARCH_MONTHS = normalized["search"]["months"]
+
+    LOG_RETENTION_DAYS = retention_cfg.get("logs_days", DEFAULT_CONFIG["retention"]["logs_days"])
+    JOURNAL_RETENTION_DAYS = retention_cfg.get("journal_days", DEFAULT_CONFIG["retention"]["journal_days"])
 
     MANAGER_NAMES[:] = normalized.get("managers", [])
     TECHNOLOGIST_MARKERS.clear()
@@ -360,6 +379,8 @@ __all__ = [
     "DESENE_CPU_ROOT",
     "PRISADKA_CLIENT_ROOT",
     "ORDER_CONFIRMATION_ENABLED",
+    "LOG_RETENTION_DAYS",
+    "JOURNAL_RETENTION_DAYS",
     "apply_config",
     "save_config",
     "load_config",

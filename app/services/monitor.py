@@ -18,6 +18,9 @@ known_folders = set()
 known_folders_lock = threading.Lock()
 observer = None
 observer_started = False
+observer_lock = threading.Lock()
+observer_stop_event = threading.Event()
+observer_thread: threading.Thread | None = None
 programmatic_renames: dict[tuple[str, str], float] = {}
 programmatic_renames_lock = threading.Lock()
 
@@ -189,40 +192,92 @@ def _consume_programmatic_move(src_path: str, dest_path: str) -> bool:
     return False
 
 
+def _stop_observer_instance():
+    """Останавливает активный observer безопасно."""
+
+    global observer
+    with observer_lock:
+        current = observer
+        observer = None
+
+    if current is None:
+        return
+
+    try:
+        current.stop()
+    except Exception:
+        logger.warning("[observer] Ошибка при остановке наблюдателя", exc_info=True)
+
+    try:
+        current.join(timeout=5)
+    except Exception:
+        logger.warning("[observer] Ошибка при ожидании завершения наблюдателя", exc_info=True)
+
+
 def start_observer_once():
-    global observer_started, observer
+    global observer_started, observer_thread, observer
     if observer_started:
         return
     observer_started = True
 
-    if not app_config.FOLDER_PATH:
-        logger.warning("[observer] Путь к папке заказов не настроен. Мониторинг не запущен.")
-        return
-
-    logger.info("[observer] Запуск мониторинга папки заказов: %s", app_config.FOLDER_PATH)
-    handler = OrderFolderHandler()
-    observer = Observer()
-
-    # пересчёт корней (на случай если конфиг загрузился позже)
-    global WATCH_ROOTS
-    WATCH_ROOTS = _get_watch_roots()
-
-    observer.schedule(handler, app_config.FOLDER_PATH, recursive=False)
-
-    observer.start()
-
-    def watchdog_heartbeat():
-        while observer_started:
-            heartbeat("watchdog")
-            time.sleep(1.5)
-
-    threading.Thread(target=watchdog_heartbeat, daemon=True).start()
+    observer_stop_event.clear()
 
     def stop_observer():
-        if observer is not None:
-            logger.info("[observer] Остановка мониторинга")
-            observer.stop()
-            observer.join(timeout=5)
+        global observer_started
+        observer_started = False
+        observer_stop_event.set()
+        _stop_observer_instance()
+
+    def observer_worker():
+        global observer_started
+        backoff = 1.0
+
+        while observer_started and not observer_stop_event.is_set():
+            if not app_config.FOLDER_PATH:
+                logger.warning("[observer] Путь к папке заказов не настроен. Мониторинг не запущен.")
+                break
+
+            try:
+                handler = OrderFolderHandler()
+                local_observer = Observer()
+
+                # пересчёт корней (на случай если конфиг загрузился позже)
+                global WATCH_ROOTS
+                WATCH_ROOTS = _get_watch_roots()
+
+                local_observer.schedule(handler, app_config.FOLDER_PATH, recursive=False)
+
+                with observer_lock:
+                    observer = local_observer
+
+                local_observer.start()
+                logger.info("[observer] Мониторинг запущен: %s", app_config.FOLDER_PATH)
+                backoff = 1.0
+
+                while observer_started and not observer_stop_event.is_set():
+                    if not local_observer.is_alive():
+                        raise RuntimeError("observer thread stopped")
+                    heartbeat("watchdog")
+                    local_observer.join(timeout=1.5)
+
+            except Exception as exc:
+                if not observer_started or observer_stop_event.is_set():
+                    break
+                logger.warning(
+                    "[observer] Мониторинг остановлен, перезапуск через %.1f сек", backoff, exc_info=exc
+                )
+                _stop_observer_instance()
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 60.0)
+                continue
+
+            _stop_observer_instance()
+
+        observer_started = False
+        logger.info("[observer] Мониторинг остановлен")
+
+    observer_thread = threading.Thread(target=observer_worker, daemon=True)
+    observer_thread.start()
 
     atexit.register(stop_observer)
 

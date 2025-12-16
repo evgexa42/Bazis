@@ -107,6 +107,7 @@ def parse_folder_entry(
 
 INDEX_TTL = 300.0
 _index_lock = threading.Lock()
+_index_access_lock = threading.RLock()
 
 
 def _apply_snapshot(new_snapshot: List[Dict], *, lock_held: bool = False) -> tuple[bool, List[Dict], int, float]:
@@ -461,87 +462,88 @@ def refresh_search_index(full: bool = False, months_back: Optional[int] = None, 
 
     conn = None
     try:
-        if not full:
-            with bazis_app.order_index_lock:
-                if bazis_app.order_index_updated_at and time.time() - bazis_app.order_index_updated_at < INDEX_TTL:
-                    return False
+        with _index_access_lock:
+            if not full:
+                with bazis_app.order_index_lock:
+                    if bazis_app.order_index_updated_at and time.time() - bazis_app.order_index_updated_at < INDEX_TTL:
+                        return False
 
-        conn = get_sqlite_connection()
-        ensure_search_table(conn)
-        cur = conn.cursor()
+            conn = get_sqlite_connection()
+            ensure_search_table(conn)
+            cur = conn.cursor()
 
-        search_months = month_scope or collect_month_scope(months_back)
-        all_rows: List[Tuple] = []
-        cleanup_batches: List[Tuple[str, str, Set[str]]] = []
+            search_months = month_scope or collect_month_scope(months_back)
+            all_rows: List[Tuple] = []
+            cleanup_batches: List[Tuple[str, str, Set[str]]] = []
 
-        for base_key, base_folder in app_config.SEARCH_FOLDERS.items():
-            if not base_folder:
-                continue
-            for month in search_months:
-                month_path = os.path.join(base_folder, month)
-                if not os.path.isdir(month_path):
+            for base_key, base_folder in app_config.SEARCH_FOLDERS.items():
+                if not base_folder:
                     continue
+                for month in search_months:
+                    month_path = os.path.join(base_folder, month)
+                    if not os.path.isdir(month_path):
+                        continue
 
-                paths_set: set[str] = set()
-                try:
-                    with os.scandir(month_path) as it:
-                        for entry in it:
-                            if not entry.is_dir():
-                                continue
-                            name = entry.name
-                            full_path = os.path.join(month_path, name)
-                            paths_set.add(full_path)
-                            mtime_ts = entry.stat().st_mtime
-                            manager = get_manager_from_name(name)
-                            all_rows.append(
-                                (
-                                    base_key,
-                                    month,
-                                    name,
-                                    name.lower(),
-                                    manager,
-                                    full_path,
-                                    mtime_ts,
+                    paths_set: set[str] = set()
+                    try:
+                        with os.scandir(month_path) as it:
+                            for entry in it:
+                                if not entry.is_dir():
+                                    continue
+                                name = entry.name
+                                full_path = os.path.join(month_path, name)
+                                paths_set.add(full_path)
+                                mtime_ts = entry.stat().st_mtime
+                                manager = get_manager_from_name(name)
+                                all_rows.append(
+                                    (
+                                        base_key,
+                                        month,
+                                        name,
+                                        name.lower(),
+                                        manager,
+                                        full_path,
+                                        mtime_ts,
+                                    )
                                 )
-                            )
-                except FileNotFoundError:
-                    paths_set = set()
+                    except FileNotFoundError:
+                        paths_set = set()
 
-                cleanup_batches.append((base_key, month, paths_set))
+                    cleanup_batches.append((base_key, month, paths_set))
 
-        if all_rows:
-            cur.execute("BEGIN")
-            cur.executemany(
-                """
-                INSERT INTO search_index(base_key, month, name, name_lc, manager, path, mtime_ts)
-                VALUES(?,?,?,?,?,?,?)
-                ON CONFLICT(path) DO UPDATE SET
-                    name=excluded.name,
-                    name_lc=excluded.name_lc,
-                    manager=excluded.manager,
-                    mtime_ts=excluded.mtime_ts
-                """,
-                all_rows,
-            )
-            cur.execute("COMMIT")
-
-        for base_key, month, paths_set in cleanup_batches:
-            if paths_set:
-                placeholders = ",".join("?" for _ in paths_set)
-                cur.execute(
-                    f"DELETE FROM search_index WHERE base_key=? AND month=? AND path NOT IN ({placeholders})",
-                    (base_key, month, *paths_set),
+            if all_rows:
+                cur.execute("BEGIN")
+                cur.executemany(
+                    """
+                    INSERT INTO search_index(base_key, month, name, name_lc, manager, path, mtime_ts)
+                    VALUES(?,?,?,?,?,?,?)
+                    ON CONFLICT(path) DO UPDATE SET
+                        name=excluded.name,
+                        name_lc=excluded.name_lc,
+                        manager=excluded.manager,
+                        mtime_ts=excluded.mtime_ts
+                    """,
+                    all_rows,
                 )
-            else:
-                cur.execute(
-                    "DELETE FROM search_index WHERE base_key=? AND month=?",
-                    (base_key, month),
-                )
+                cur.execute("COMMIT")
 
-        conn.commit()
+            for base_key, month, paths_set in cleanup_batches:
+                if paths_set:
+                    placeholders = ",".join("?" for _ in paths_set)
+                    cur.execute(
+                        f"DELETE FROM search_index WHERE base_key=? AND month=? AND path NOT IN ({placeholders})",
+                        (base_key, month, *paths_set),
+                    )
+                else:
+                    cur.execute(
+                        "DELETE FROM search_index WHERE base_key=? AND month=?",
+                        (base_key, month),
+                    )
 
-        with bazis_app.order_index_lock:
-            bazis_app.order_index_updated_at = time.time()
+            conn.commit()
+
+            with bazis_app.order_index_lock:
+                bazis_app.order_index_updated_at = time.time()
         heartbeat("indexer")
         return True
     finally:
@@ -567,36 +569,37 @@ def search_in_index(
     if not normalized_query:
         return results
 
-    conn = get_sqlite_connection()
-    ensure_search_table(conn)
-    cur = conn.cursor()
-    sql = (
-        "SELECT base_key, name, manager, path FROM search_index "
-        "WHERE name_lc LIKE ?"
-    )
-    params: List[object] = [f"%{normalized_query}%"]
+    with _index_access_lock:
+        conn = get_sqlite_connection()
+        ensure_search_table(conn)
+        cur = conn.cursor()
+        sql = (
+            "SELECT base_key, name, manager, path FROM search_index "
+            "WHERE name_lc LIKE ?"
+        )
+        params: List[object] = [f"%{normalized_query}%"]
 
-    merged_filters = list(month_filters)
-    if months_scope:
-        scope_set = set(months_scope)
+        merged_filters = list(month_filters)
+        if months_scope:
+            scope_set = set(months_scope)
+            if merged_filters:
+                merged_filters = [m for m in merged_filters if m in scope_set]
+            else:
+                merged_filters = list(scope_set)
+
         if merged_filters:
-            merged_filters = [m for m in merged_filters if m in scope_set]
-        else:
-            merged_filters = list(scope_set)
+            placeholders = ",".join("?" for _ in merged_filters)
+            sql += f" AND month IN ({placeholders})"
+            params.extend(merged_filters)
 
-    if merged_filters:
-        placeholders = ",".join("?" for _ in merged_filters)
-        sql += f" AND month IN ({placeholders})"
-        params.extend(merged_filters)
+        if cutoff_ts:
+            sql += " AND mtime_ts >= ?"
+            params.append(float(cutoff_ts))
 
-    if cutoff_ts:
-        sql += " AND mtime_ts >= ?"
-        params.append(float(cutoff_ts))
+        sql += " ORDER BY mtime_ts DESC"
 
-    sql += " ORDER BY mtime_ts DESC"
-
-    rows = cur.execute(sql, params).fetchall()
-    conn.close()
+        rows = cur.execute(sql, params).fetchall()
+        conn.close()
 
     for base_key, name, manager, path in rows:
         target_key = base_key if base_key in results else fallback_key
