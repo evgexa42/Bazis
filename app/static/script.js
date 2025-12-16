@@ -32,6 +32,20 @@ const APP_CONFIG = (() => {
   return { managers, orderConfirmationEnabled, currentUser, currentRole, permissions };
 })();
 
+const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]')?.content
+  || document.body?.dataset?.csrfToken
+  || '').trim();
+
+function withCsrfHeaders(headers = {}) {
+  if (!CSRF_TOKEN) return headers;
+  return { ...headers, 'X-CSRFToken': CSRF_TOKEN };
+}
+
+function withCsrfBody(body = {}) {
+  if (!CSRF_TOKEN) return body;
+  return { ...body, csrf_token: CSRF_TOKEN };
+}
+
 const ConfirmDialog = (() => {
   let dialog;
   let messageBox;
@@ -769,8 +783,8 @@ const OrdersPage = (() => {
     try {
       const response = await fetch('/api/manager/mark_priced', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_key: orderKey })
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(withCsrfBody({ order_key: orderKey }))
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.ok !== true) {
@@ -853,9 +867,9 @@ const OrdersPage = (() => {
     fetch('/confirm_order', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        ...withCsrfHeaders({ 'Content-Type': 'application/json' })
       },
-      body: JSON.stringify({ folder: item.name })
+      body: JSON.stringify(withCsrfBody({ folder: item.name }))
     })
       .then(async response => {
         const payload = await response.json().catch(() => ({}));
@@ -1330,8 +1344,8 @@ const UsersTable = (() => {
   function postJson(url, body) {
     return fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify(body)
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }),
+      body: JSON.stringify(withCsrfBody(body))
     }).then(async response => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1418,8 +1432,8 @@ const ClientsPage = (() => {
 
     fetch('/update_client', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_name: oldName, new_name: newName, new_manager: newManager })
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(withCsrfBody({ old_name: oldName, new_name: newName, new_manager: newManager }))
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -1441,8 +1455,8 @@ const ClientsPage = (() => {
 
     fetch('/delete_client', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: client })
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(withCsrfBody({ old_name: oldName, new_name: newName, new_manager: newManager }))
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -1599,8 +1613,8 @@ const FacadesPage = (() => {
 
       fetch('/facades/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items })
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(withCsrfBody({ items }))
       })
         .then(async response => {
           const data = await response.json().catch(() => ({}));
@@ -1833,12 +1847,12 @@ const ClientsTable = (() => {
 
     fetch('/update_client', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(withCsrfBody({
         old_name: oldName,
         new_name: newName,
         manager: newManager
-      })
+      }))
     })
       .then(r => r.json())
       .then(res => {
@@ -1859,8 +1873,8 @@ const ClientsTable = (() => {
 
     fetch('/delete_client', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(withCsrfBody({ name }))
     })
       .then(r => r.json())
       .then(res => {

@@ -31,7 +31,11 @@ from app import (
 from app.dal.permissions import has_permission, permissions_required
 from app.dal.manager_priced import get_priced_map, get_priced_set, is_priced, set_priced
 from app.services.audit import log_order_event
-from app.services.monitor import move_known_folder
+from app.services.monitor import (
+    discard_programmatic_move,
+    move_known_folder,
+    register_programmatic_move,
+)
 from app.services.snapshot import (
     build_orders_payload,
     calculate_period_cutoff,
@@ -669,10 +673,13 @@ def confirm_order():
             409,
         )
 
+    register_programmatic_move(current_path, new_path)
+
     try:
         os.rename(current_path, new_path)
     except OSError as exc:
         logger.exception("[confirm_order] Не удалось подтвердить заказ %s", folder_name, exc_info=exc)
+        discard_programmatic_move(current_path, new_path)
         return (
             jsonify(
                 {

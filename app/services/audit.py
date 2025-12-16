@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from flask import g, has_request_context, request, session
 from sqlalchemy import select
 
 from app.dal.db import OrderEvent, SessionLocal
+
+logger = logging.getLogger("bazis")
 
 
 def _resolve_actor(default: str = "system") -> str:
@@ -39,17 +42,22 @@ def log_order_event(
     actor = user or _resolve_actor()
     ip = user_ip or _resolve_ip()
 
-    with SessionLocal.begin() as db:
-        db.add(
-            OrderEvent(
-                order_name=order_name or "",
-                manager=manager or "",
-                action=action,
-                old_value=old_value or "",
-                new_value=new_value or "",
-                user=actor,
-                user_ip=ip,
+    try:
+        with SessionLocal.begin() as db:
+            db.add(
+                OrderEvent(
+                    order_name=order_name or "",
+                    manager=manager or "",
+                    action=action,
+                    old_value=old_value or "",
+                    new_value=new_value or "",
+                    user=actor,
+                    user_ip=ip,
+                )
             )
+    except Exception as exc:  # pragma: no cover - защитное логирование
+        logger.warning(
+            "[audit] Не удалось записать событие %s для %s", action, order_name or "<unknown>", exc_info=exc
         )
 
 

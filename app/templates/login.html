@@ -13,6 +13,7 @@
     <div class="notice-card notice-card--error">{{ error }}</div>
     {% endif %}
     <form method="POST" class="auth-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label class="field-label" for="username">Имя пользователя</label>
       <input class="input" type="text" id="username" name="username" required autofocus>
 

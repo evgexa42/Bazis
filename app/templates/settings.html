@@ -74,7 +74,8 @@ data-managers="{{ config_managers | join(',') }}"
   <section class="card tab-content is-active" data-tab-panel="general">
     <h2 class="section-title">Конфигурация</h2>
     <form method="POST" class="settings-form">
-      {% if role_perms.can_edit_paths %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+	  {% if role_perms.can_edit_paths %}
       <div class="settings-grid settings-grid--dense">
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="orders_path">Путь к папке заказов</label>
@@ -271,7 +272,8 @@ data-managers="{{ config_managers | join(',') }}"
       <h3 class="section-title">Добавить нового пользователя</h3>
       <p class="hint">Создайте учётную запись и назначьте роль. Пароль можно сразу выдать или позже изменить.</p>
       <form action="{{ url_for('settings.add_user') }}" method="POST" class="role-editor add-user-form">
-        <input type="text" name="username" class="input" placeholder="Имя пользователя" required>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+		<input type="text" name="username" class="input" placeholder="Имя пользователя" required>
         <input type="password" name="password" class="input" placeholder="Пароль" required>
         <select name="role" class="select">
           {% for role in allowed_roles %}
@@ -430,7 +432,8 @@ data-managers="{{ config_managers | join(',') }}"
           </div>
         </header>
         <form action="{{ url_for('settings.create_role_entry') }}" method="POST" class="role-card__body">
-          <div class="role-block">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+		  <div class="role-block">
             <label class="field-label" for="role_name">Название роли</label>
             <input type="text" id="role_name" name="role_name" class="input" placeholder="например, auditor" required>
           </div>
@@ -458,7 +461,8 @@ data-managers="{{ config_managers | join(',') }}"
     </div>
 
     <form action="{{ url_for('settings.update_role_permissions') }}" method="POST" class="role-editor role-cards-form">
-      <div class="role-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+	  <div class="role-grid">
         {% for role, perms in role_permissions | dictsort %}
         <article class="role-card">
           <header class="role-card__header">

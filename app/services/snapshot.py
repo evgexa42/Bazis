@@ -109,28 +109,35 @@ INDEX_TTL = 300.0
 _index_lock = threading.Lock()
 
 
-def _apply_snapshot(new_snapshot: List[Dict]) -> tuple[bool, List[Dict], int, float]:
+def _apply_snapshot(new_snapshot: List[Dict], *, lock_held: bool = False) -> tuple[bool, List[Dict], int, float]:
     now = time.time()
     new_snapshot = list(new_snapshot)
     new_snapshot.sort(key=lambda x: x.get("mtime_ts", 0.0), reverse=True)
     for item in new_snapshot:
         item["modified"] = _format_modified(item.get("mtime_ts", 0.0))
 
-    with bazis_app.orders_snapshot_lock:
+    def _apply_locked():
         if new_snapshot == bazis_app.orders_snapshot:
             bazis_app.last_snapshot_update = now
             bazis_app.last_snapshot_ts = now
-            version = bazis_app.orders_version
-            last_ts = bazis_app.last_snapshot_ts
-            applied_snapshot = list(bazis_app.orders_snapshot)
-            return False, applied_snapshot, version, last_ts
+            version_val = bazis_app.orders_version
+            last_ts_val = bazis_app.last_snapshot_ts
+            applied = list(bazis_app.orders_snapshot)
+            return False, applied, version_val, last_ts_val
         bazis_app.orders_snapshot = new_snapshot
         bazis_app.orders_version += 1
         bazis_app.last_snapshot_update = now
         bazis_app.last_snapshot_ts = now
-        version = bazis_app.orders_version
-        last_ts = bazis_app.last_snapshot_ts
-        applied_snapshot = list(bazis_app.orders_snapshot)
+        version_val = bazis_app.orders_version
+        last_ts_val = bazis_app.last_snapshot_ts
+        applied = list(bazis_app.orders_snapshot)
+        return True, applied, version_val, last_ts_val
+
+    if lock_held:
+        changed, applied_snapshot, version, last_ts = _apply_locked()
+    else:
+        with bazis_app.orders_snapshot_lock:
+            changed, applied_snapshot, version, last_ts = _apply_locked()
 
     with bazis_app.metrics_lock:
         snap = bazis_app.metrics["snapshot"]
@@ -138,7 +145,7 @@ def _apply_snapshot(new_snapshot: List[Dict]) -> tuple[bool, List[Dict], int, fl
         snap["last_update_ts"] = now
         snap["orders_count"] = len(new_snapshot)
 
-    return True, applied_snapshot, version, last_ts
+    return changed, applied_snapshot, version, last_ts
 
 
 @measure_time("build_orders_snapshot")
@@ -245,7 +252,7 @@ def _merge_order(entry: dict) -> tuple[bool, List[Dict], int, float, bool]:
         else:
             snapshot.append(entry)
 
-    changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
+        changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot, lock_held=True)
     return changed, applied_snapshot, version, last_snapshot_ts, existed
 
 
@@ -284,7 +291,7 @@ def remove_order(folder_name: str) -> bool:
             None,
         )
 
-    changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
+        changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot, lock_held=True)
     if changed:
         payload = build_orders_payload(
             folders=applied_snapshot,

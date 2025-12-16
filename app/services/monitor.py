@@ -18,6 +18,8 @@ known_folders = set()
 known_folders_lock = threading.Lock()
 observer = None
 observer_started = False
+programmatic_renames: dict[tuple[str, str], float] = {}
+programmatic_renames_lock = threading.Lock()
 
 
 def _norm_real(p: str) -> str:
@@ -85,6 +87,10 @@ class OrderFolderHandler(FileSystemEventHandler):
         src_name = os.path.basename(event.src_path)
         dest_name = os.path.basename(event.dest_path)
 
+        if _consume_programmatic_move(event.src_path, event.dest_path):
+            logger.debug("[observer] Пропуск служебного переименования: %s -> %s", src_name, dest_name)
+            return
+
         src_in_watch = in_watch_dir(event.src_path)
         dest_in_watch = in_watch_dir(event.dest_path)
 
@@ -151,6 +157,36 @@ def move_known_folder(src_name, dest_name):
         already_known = dest_name in known_folders
         known_folders.add(dest_name)
     return already_known
+
+
+def register_programmatic_move(src_path: str, dest_path: str, ttl: float = 5.0) -> None:
+    """Фиксируем служебное переименование, чтобы игнорировать один соответствующий эвент."""
+    now = time.monotonic()
+    key = (_norm_real(src_path), _norm_real(dest_path))
+    with programmatic_renames_lock:
+        programmatic_renames[key] = now + max(1.0, ttl)
+
+
+def discard_programmatic_move(src_path: str, dest_path: str) -> None:
+    key = (_norm_real(src_path), _norm_real(dest_path))
+    with programmatic_renames_lock:
+        programmatic_renames.pop(key, None)
+
+
+def _consume_programmatic_move(src_path: str, dest_path: str) -> bool:
+    now = time.monotonic()
+    key = (_norm_real(src_path), _norm_real(dest_path))
+
+    with programmatic_renames_lock:
+        expired = [item for item, exp in programmatic_renames.items() if exp < now]
+        for item in expired:
+            programmatic_renames.pop(item, None)
+
+        expiry = programmatic_renames.get(key)
+        if expiry and expiry >= now:
+            programmatic_renames.pop(key, None)
+            return True
+    return False
 
 
 def start_observer_once():

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}Bazis{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='logo_arh.png') }}">
@@ -24,6 +25,7 @@
   data-can-view-priced="{{ 1 if role_perms.get('can_view_priced') else 0 }}"
   data-can-mark-priced="{{ 1 if role_perms.get('can_mark_priced') else 0 }}"
   data-can-view-priced-panel="{{ 1 if role_perms.get('can_view_priced_panel') else 0 }}"
+  data-csrf-token="{{ csrf_token() }}"
   {% block body_attrs %}{% endblock %}
 >
   <div class="page {% block page_class %}page--wide{% endblock %}">

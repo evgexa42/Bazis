@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import timedelta
 
-from flask import Flask, g
+from flask import Flask, g, jsonify, request, session
 
 from app.dal.database import get_all_clients, replace_clients
 from app.dal.db import init_db
@@ -20,6 +20,7 @@ from app.metrics import (
     start_metrics_worker_once,
     ts_ago,
 )
+from app.security import csrf_error_response, ensure_csrf_token, validate_csrf_token
 
 from app import config as app_config
 
@@ -250,13 +251,20 @@ def create_app() -> Flask:
     flask_app = Flask(__name__, template_folder=TEMPLATES_DIR, static_folder=STATIC_DIR)
 
     secret_key = get_secret_key()
+    server_config = app_config.CONFIG.get("server", {}) if isinstance(app_config.CONFIG, dict) else {}
+    cookie_secure = bool(
+        server_config.get("https")
+        or server_config.get("use_https")
+        or server_config.get("secure_cookies")
+        or os.environ.get("BAZIS_SESSION_SECURE") in {"1", "true", "yes"}
+    )
     flask_app.config.update(
         SECRET_KEY=secret_key,
         PERMANENT_SESSION_LIFETIME=timedelta(days=30),
         SESSION_REFRESH_EACH_REQUEST=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=False,
+        SESSION_COOKIE_SECURE=cookie_secure,
     )
     flask_app.config.from_mapping(app_config.CONFIG)
 
@@ -266,9 +274,22 @@ def create_app() -> Flask:
 
     flask_app.jinja_env.filters["replace_slashes"] = replace_slashes
     flask_app.context_processor(inject_config_data)
+    flask_app.jinja_env.globals["csrf_token"] = ensure_csrf_token
 
     flask_app.register_blueprint(metrics_bp)
     register_blueprints(flask_app)
+
+    @flask_app.before_request
+    def _prepare_csrf():
+        token = ensure_csrf_token()
+        g.csrf_token = token
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            valid, message = validate_csrf_token()
+            if not valid:
+                flask_app.logger.warning(
+                    "[security] CSRF blocked request %s: %s", request.path, message
+                )
+                return csrf_error_response(message)
 
     if _should_start_background(flask_app):
         start_background_services()

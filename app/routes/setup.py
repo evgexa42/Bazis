@@ -73,6 +73,7 @@ def setup_page():
 
     errors: list[str] = []
     status_message = None
+    updated_config: dict | None = None
 
     config_snapshot = deepcopy(CONFIG if isinstance(CONFIG, dict) else DEFAULT_CONFIG)
     managers_form = _collect_accounts("manager") if request.method == "POST" else []
@@ -149,11 +150,16 @@ def setup_page():
             updated_config["managers"] = manager_names
             updated_config["technologists"] = {k: v for k, v in tech_markers.items() if k}
 
-            save_config(updated_config)
-            CONFIG.clear()
-            CONFIG.update(updated_config)
-            apply_config(CONFIG)
+            usernames = [name for name in [admin_username] if name]
+            usernames.extend(item.get("username") for item in managers if item.get("username"))
+            usernames.extend(item.get("username") for item in technologists if item.get("username"))
+            duplicates = {name for name in usernames if usernames.count(name) > 1}
+            if duplicates:
+                errors.append(
+                    "Логины должны быть уникальными. Дубликаты: " + ", ".join(sorted(duplicates)) + "."
+                )
 
+        if not errors and updated_config is not None:
             creation_errors: list[str] = []
 
             admin_result = upsert_user(admin_username, admin_password, "admin")
@@ -174,6 +180,10 @@ def setup_page():
                 errors.extend(creation_errors)
                 logger.warning("[setup] Ошибки создания пользователей: %s", creation_errors)
             else:
+                save_config(updated_config)
+                CONFIG.clear()
+                CONFIG.update(updated_config)
+                apply_config(CONFIG)
                 flash(
                     "Первичная настройка завершена. Авторизуйтесь с учётной записью администратора.",
                     "success",

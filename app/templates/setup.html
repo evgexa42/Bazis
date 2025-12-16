@@ -27,7 +27,8 @@
 
   <section class="card">
     <form method="post" class="settings-form" data-setup-form>
-      <h2 class="section-title">Файловые пути</h2>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+	  <h2 class="section-title">Файловые пути</h2>
       <div class="settings-grid">
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="orders_path">Путь к папке заказов</label>

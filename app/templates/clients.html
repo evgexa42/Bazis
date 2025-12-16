@@ -19,6 +19,7 @@ data-managers="{{ config_managers | join(',') }}"
   <section class="card">
     <h2 class="section-title">Добавить клиента</h2>
     <form action="/add_client" method="post" class="form-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="text" name="client" class="input" placeholder="Имя клиента" required>
       <select name="manager" class="select" required>
         <option value="" selected>Выбери менеджера</option>

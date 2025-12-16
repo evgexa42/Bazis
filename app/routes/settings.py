@@ -38,6 +38,7 @@ from app.dal.users import (
     delete_user,
     get_allowed_roles,
     get_all_users,
+    get_user_by_username,
     reset_user_password,
     update_user,
     update_user_role,
@@ -483,11 +484,15 @@ def api_metrics():
 @permissions_required("can_manage_users")
 def add_user():
 
-    username = request.form.get("username", "")
-    password = request.form.get("password", "")
-    role = request.form.get("role", "")
+    username = (request.form.get("username", "") or "").strip()
+    password = (request.form.get("password", "") or "").strip()
+    role = (request.form.get("role", "") or "").strip()
 
-    result = create_user(username, password, role)
+    existing = get_user_by_username(username)
+    if existing:
+        result = {"ok": False, "message": "Пользователь с таким именем уже существует.", "error_code": "username_taken"}
+    else:
+        result = create_user(username, password, role)
     if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
         body, status_code = _build_response(result)
         return jsonify(body), status_code
