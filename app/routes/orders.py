@@ -24,18 +24,10 @@ from app import (
     SSEClient,
     get_manager_from_name,
     logger,
-    measure_time,
     sse_clients,
     sse_clients_lock,
 )
 from app.dal.permissions import has_permission, permissions_required
-from app.dal.manager_priced import get_priced_map, get_priced_set, is_priced, set_priced
-from app.services.audit import log_order_event
-from app.services.monitor import (
-    discard_programmatic_move,
-    move_known_folder,
-    register_programmatic_move,
-)
 from app.services.snapshot import (
     build_orders_payload,
     calculate_period_cutoff,
@@ -126,38 +118,17 @@ def _find_order_in_snapshot(order_key: str):
     return None
 
 
-def _technologist_marker(folder_name: str) -> tuple[str | None, str]:
-    for marker, tech_name in app_config.TECHNOLOGIST_MARKERS.items():
-        if f"[{marker}]" in folder_name:
-            return marker, tech_name
-    return None, technologist_from_folder(folder_name) or "—"
-
-
-def _is_ready_status(status: str | None) -> bool:
-    return (status or "").strip() == "Готов"
-
-
 orders_bp = Blueprint("orders", __name__)
 
 
 @orders_bp.route("/")
 def index():
-    priced_set = set()
-    priced_map = {}
     current_user = session.get("user")
     current_role = session.get("role")
     role_perms = getattr(g, "role_perms", {})
 
-    if role_perms.get("can_view_priced"):
-        if current_role == "manager" and current_user:
-            priced_set = get_priced_set(current_user)
-        elif current_role in {"admin", "technologist"}:
-            priced_map = get_priced_map()
-
     return render_template(
         "index.html",
-        manager_priced=sorted(priced_set),
-        manager_priced_map=priced_map,
     )
 
 
@@ -183,135 +154,6 @@ def data():
     payload = build_orders_payload(visible_manager, requested_manager)
 
     return jsonify(payload)
-
-
-@orders_bp.route("/api/manager/priced_set")
-def api_manager_priced_set():
-    current_user = session.get("user")
-    if not current_user:
-        abort(401)
-
-    role_perms = getattr(g, "role_perms", {})
-    if not role_perms.get("can_view_priced"):
-        abort(403)
-
-    priced = []
-    priced_map: dict[str, list[str]] = {}
-    role = session.get("role")
-    if role not in {"manager", "admin", "technologist"}:
-        abort(403)
-
-    if role == "manager":
-        priced = sorted(get_priced_set(current_user))
-        priced_map = {key: [current_user] for key in priced}
-    elif role in {"admin", "technologist"}:
-        priced_map = get_priced_map()
-
-    return jsonify({"priced": priced, "priced_map": priced_map})
-
-
-@orders_bp.route("/api/manager/pending_priced")
-def api_manager_pending_priced():
-    current_user = session.get("user")
-    if not current_user:
-        abort(401)
-
-    role_perms = getattr(g, "role_perms", {})
-    if not role_perms.get("can_view_priced_panel"):
-        abort(403)
-
-    role = session.get("role")
-    if role not in {"manager", "admin", "technologist"}:
-        abort(403)
-
-    priced = get_priced_set(current_user) if role == "manager" else set()
-    priced_map = get_priced_map()
-    snapshot = _snapshot_copy()
-    pending: list[dict] = []
-
-    for order in snapshot:
-        if not order:
-            continue
-
-        order_key = order.get("name") or ""
-        order_status = order.get("status") or ""
-        if not _is_ready_status(order_status):
-            continue
-
-        marker_code, tech_name = _technologist_marker(order_key)
-        if not marker_code:
-            continue
-
-        manager_for_order = (order.get("manager") or get_manager_from_name(order_key)).strip()
-        if not manager_for_order:
-            continue
-
-        if role == "manager" and manager_for_order != current_user:
-            continue
-
-        if role == "manager":
-            if order_key in priced:
-                continue
-        else:
-            if manager_for_order and manager_for_order in priced_map.get(order_key, []):
-                continue
-
-        unc_path = os.path.join(app_config.FOLDER_PATH or "", order_key)
-        pending.append(
-            {
-                "order_key": order_key,
-                "display_name": order_key,
-                "tech_code": marker_code,
-                "tech_name": tech_name or "—",
-                "unc_path": unc_path,
-            }
-        )
-
-    return jsonify(pending)
-
-
-@orders_bp.route("/api/manager/mark_priced", methods=["POST"])
-def api_manager_mark_priced():
-    current_user = session.get("user")
-    if not current_user:
-        abort(401)
-
-    role_perms = getattr(g, "role_perms", {})
-    if not role_perms.get("can_mark_priced"):
-        return jsonify({"ok": False, "message": "Недостаточно прав"}), 403
-
-    if session.get("role") == "technologist":
-        return jsonify({"ok": False, "message": "Недостаточно прав"}), 403
-
-    payload = request.get_json(silent=True) or {}
-    order_key = (payload.get("order_key") or "").strip()
-    if not order_key:
-        return jsonify({"ok": False, "message": "order_key required"}), 400
-
-    order = _find_order_in_snapshot(order_key)
-    if not order:
-        return jsonify({"ok": False, "message": "Заказ не найден"}), 404
-
-    manager_for_order = (order.get("manager") or get_manager_from_name(order_key)).strip()
-    if not manager_for_order:
-        return jsonify({"ok": False, "message": "Не указан менеджер заказа"}), 400
-    role = session.get("role")
-    if role == "manager" and manager_for_order != current_user:
-        return jsonify({"ok": False, "message": "Недостаточно прав"}), 403
-
-    if not _is_ready_status(order.get("status")):
-        return jsonify({"ok": False, "message": 'Заказ ещё не имеет статуса "Готов".'}), 400
-
-    marker_code, _ = _technologist_marker(order_key)
-    if not marker_code:
-        return jsonify({"ok": False, "message": "Заказ без отметки технолога"}), 400
-
-    target_manager = current_user if role == "manager" else manager_for_order
-
-    if not is_priced(order_key, target_manager):
-        set_priced(order_key, target_manager)
-
-    return jsonify({"ok": True})
 
 
 @orders_bp.route("/search", methods=["GET", "POST"])
@@ -553,162 +395,3 @@ def open_folder():
         )
 
     return ("", 204)
-
-
-@orders_bp.route("/confirm_order", methods=["POST"])
-@measure_time("confirm_order")
-def confirm_order():
-    if not app_config.ORDER_CONFIRMATION_ENABLED:
-        logger.warning("[confirm_order] Попытка подтверждения при выключенной функции")
-        return (
-            jsonify({"status": "error", "message": "Подтверждение заказов отключено."}),
-            400,
-        )
-
-    if not app_config.FOLDER_PATH or not os.path.isdir(app_config.FOLDER_PATH):
-        return (
-            jsonify({"status": "error", "message": "Путь к папке заказов не настроен."}),
-            500,
-        )
-
-    payload = request.get_json(silent=True) or {}
-    folder_name = (payload.get("folder") or "").strip()
-    if not folder_name:
-        logger.warning("[confirm_order] Не указано имя заказа")
-        return (
-            jsonify({"status": "error", "message": "Не указано имя заказа."}),
-            400,
-        )
-
-    current_path = os.path.join(app_config.FOLDER_PATH, folder_name)
-    if not os.path.isdir(current_path):
-        return jsonify({"status": "error", "message": "Заказ не найден."}), 404
-
-    current_role = session.get("role")
-    current_user = session.get("user")
-    folder_manager = (get_manager_from_name(folder_name) or "").strip() or "Неизвестно"
-
-    role_perms = getattr(g, "role_perms", {}) or {}
-    has_confirm_right = bool(role_perms.get("can_confirm_orders")) or has_permission(
-        current_role, "can_confirm_orders"
-    )
-    if not has_confirm_right:
-        logger.warning(
-            "[confirm_order] Запрет подтверждения: %s (%s) попытался подтвердить %s",
-            current_user,
-            current_role,
-            folder_name,
-        )
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": "Недостаточно прав для подтверждения заказов.",
-                }
-            ),
-            403,
-        )
-
-    allow = False
-    if current_role in {"admin", "technologist"}:
-        allow = True
-    elif current_role == "manager":
-        if folder_manager == current_user:
-            allow = True
-        elif folder_manager in {"", "Неизвестно"}:
-            allow = True
-    elif current_role:
-        allow = False
-
-    if not allow:
-        logger.warning(
-            "[confirm_order] Недостаточно прав: %s (%s) попытался подтвердить заказ %s (%s)",
-            current_user,
-            current_role,
-            folder_name,
-            folder_manager,
-        )
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": "Недостаточно прав для подтверждения этого заказа",
-                }
-            ),
-            403,
-        )
-
-    if folder_name.endswith("+"):
-        return jsonify(
-            {
-                "status": "ok",
-                "folder": folder_name,
-                "message": "Заказ уже подтверждён.",
-            }
-        )
-
-    if not folder_has_ready_marker(folder_name):
-        logger.warning("[confirm_order] Заказ ещё не готов: %s", folder_name)
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": 'Заказ ещё не имеет статуса "Готов".',
-                }
-            ),
-            400,
-        )
-
-    new_name = f"{folder_name} +"
-    new_path = os.path.join(app_config.FOLDER_PATH, new_name)
-    if os.path.exists(new_path):
-        logger.warning("[confirm_order] Папка уже существует: %s", new_path)
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": "Папка с подтверждённым заказом уже существует.",
-                }
-            ),
-            409,
-        )
-
-    register_programmatic_move(current_path, new_path)
-
-    try:
-        os.rename(current_path, new_path)
-    except OSError as exc:
-        logger.exception("[confirm_order] Не удалось подтвердить заказ %s", folder_name, exc_info=exc)
-        discard_programmatic_move(current_path, new_path)
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": f"Не удалось подтвердить заказ: {exc}",
-                }
-            ),
-            500,
-        )
-
-    move_known_folder(folder_name, new_name)
-    update_message_for_folder(folder_name, new_name)
-    remove_order(folder_name)
-    upsert_order(new_name)
-
-    logger.info("[confirm_order] Заказ подтверждён: %s -> %s", folder_name, new_name)
-    log_order_event(
-        "rename",
-        order_name=new_name,
-        old_value=folder_name,
-        new_value=new_name,
-        manager=folder_manager,
-    )
-    log_order_event(
-        "confirm",
-        order_name=new_name,
-        old_value=folder_name,
-        new_value="confirmed",
-        manager=folder_manager,
-    )
-
-    return jsonify({"status": "ok", "folder": new_name})

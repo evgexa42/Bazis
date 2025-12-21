@@ -206,6 +206,7 @@ def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
     # Регистрируем все модели, зависящие от Base, перед созданием таблиц
     import app.dal.database  # noqa: F401
+    import app.dal.external_orders  # noqa: F401
     import app.dal.manager_priced  # noqa: F401
 
     Base.metadata.create_all(engine)

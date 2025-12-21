@@ -204,16 +204,20 @@ def start_background_services():
         return
 
     from app.services import monitor as monitor_service
+    from app.services import order_status
+    from app.services import orders_sync
     from app.services import snapshot as snapshot_service
     from app.services import telegram as telegram_service
 
     telegram_service.init_bot(app_config.TELEGRAM_TOKEN)
     telegram_service.load_messages_storage()
+    order_status.load_cache_from_db()
     start_snapshot_updater_once(snapshot_service)
     start_metrics_worker_once()
     snapshot_service.refresh_orders_snapshot(force=True)
     monitor_service.initialize_known_state()
     monitor_service.start_observer_once()
+    orders_sync.start_sync_worker()
 
     services_started = True
 

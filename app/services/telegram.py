@@ -105,17 +105,19 @@ def save_messages(msgs: List[dict]) -> None:
 
 def folder_has_ready_marker(folder_name: str) -> bool:
     if not app_config.TECHNOLOGIST_MARKERS:
-        return False
+        return "[$]" in (folder_name or "")
     for marker in app_config.TECHNOLOGIST_MARKERS:
         if f"[{marker}]" in folder_name:
             return True
-    return False
+    return "[$]" in (folder_name or "")
 
 
 def technologist_from_folder(folder_name: str) -> str:
     for marker, name in app_config.TECHNOLOGIST_MARKERS.items():
         if f"[{marker}]" in folder_name:
             return name
+    if "[$]" in (folder_name or ""):
+        return "Технолог"
     return "Неизвестно"
 
 

@@ -13,6 +13,8 @@ from zoneinfo import ZoneInfo
 import app as bazis_app
 import app.config as app_config
 from app import get_manager_from_name, heartbeat, logger, measure_time, sse_broadcast
+from app.services import order_status
+from app.services.order_numbers import extract_order_number_from_folder
 from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
 from app.services import telegram as telegram_service
@@ -87,9 +89,7 @@ def parse_folder_entry(
 
     confirmed = folder_name.endswith("+")
     status = "Подтвержден" if confirmed else ("Готов" if folder_has_ready_marker(folder_name) else "Новый")
-    order_number = folder_name.split()[0] if folder_name else ""
-    if confirmed and order_number.endswith("+"):
-        order_number = order_number.rstrip("+")
+    order_number = extract_order_number_from_folder(folder_name) or ""
 
     days_ago = int((now_ts - mtime_ts) // 86400)
 
@@ -169,6 +169,8 @@ def build_orders_snapshot():
                     folder_data.append(parsed)
     except FileNotFoundError:
         folder_data = []
+
+    folder_data = order_status.enrich_orders(folder_data)
 
     dt = (perf_counter() - t0) * 1000.0
     with bazis_app.metrics_lock:
@@ -262,6 +264,7 @@ def upsert_order(folder_name: str) -> bool:
     if not parsed:
         return remove_order(folder_name)
 
+    parsed = order_status.enrich_orders([parsed])[0]
     changed, applied_snapshot, version, last_snapshot_ts, existed = _merge_order(parsed)
     if changed:
         payload = build_orders_payload(

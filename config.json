@@ -35,6 +35,14 @@
     "months": 6
   },
   "features": {
-    "order_confirmation": true
+    "order_confirmation": false
+  },
+  "orders_sync": {
+    "pg_url": "",
+    "poll_seconds": 30,
+    "tail_days": 60,
+    "enabled": true,
+    "approved_plus_rename": true,
+    "anulat_rename_tech_marker": false
   }
 }

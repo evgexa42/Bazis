@@ -634,6 +634,20 @@ select:focus {
   background: rgba(148, 163, 184, 0.3);
 }
 
+.data-table tbody tr.cancelled {
+  background: rgba(239, 68, 68, 0.14);
+  color: #991b1b;
+  text-decoration: underline;
+}
+
+.data-table tbody tr.cancelled:hover {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.data-table tbody tr.cancelled .table-secondary {
+  color: #991b1b;
+}
+
 .table-primary {
   font-weight: 600;
   color: var(--text);
@@ -668,6 +682,11 @@ select:focus {
 .status-pill--neutral {
   background: rgba(148, 163, 184, 0.25);
   color: #1f2937;
+}
+
+.status-pill--danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #b91c1c;
 }
 
 .confirm-checkbox {

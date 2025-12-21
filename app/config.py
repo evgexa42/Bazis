@@ -32,6 +32,14 @@ DEFAULT_CONFIG = {
     "search": {"months": 6},
     "features": {"order_confirmation": False},
     "retention": {"logs_days": 30, "journal_days": 90},
+    "orders_sync": {
+        "pg_url": "",
+        "poll_seconds": 30,
+        "tail_days": 60,
+        "enabled": True,
+        "approved_plus_rename": True,
+        "anulat_rename_tech_marker": False,
+    },
 }
 
 logger = logging.getLogger("bazis")
@@ -62,6 +70,12 @@ MANAGER_NAMES: list[str] = []
 TECHNOLOGIST_MARKERS: dict = {}
 LOG_RETENTION_DAYS = DEFAULT_CONFIG["retention"]["logs_days"]
 JOURNAL_RETENTION_DAYS = DEFAULT_CONFIG["retention"]["journal_days"]
+ORDERS_PG_URL = ""
+ORDERS_PG_POLL_SECONDS = DEFAULT_CONFIG["orders_sync"]["poll_seconds"]
+ORDERS_PG_TAIL_DAYS = DEFAULT_CONFIG["orders_sync"]["tail_days"]
+ORDERS_SYNC_ENABLED = DEFAULT_CONFIG["orders_sync"]["enabled"]
+ORDERS_APPROVED_PLUS_RENAME = DEFAULT_CONFIG["orders_sync"]["approved_plus_rename"]
+ORDERS_ANULAT_RENAME_TECH_MARKER = DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"]
 
 
 def deep_merge(base, extra):
@@ -233,6 +247,26 @@ def _ensure_complete_config(raw_config: dict) -> dict:
         ),
     )
 
+    merged.setdefault("orders_sync", {})
+    merged["orders_sync"]["pg_url"] = str(merged["orders_sync"].get("pg_url") or "").strip()
+    merged["orders_sync"]["poll_seconds"] = max(
+        5, _parse_int(merged["orders_sync"].get("poll_seconds"), DEFAULT_CONFIG["orders_sync"]["poll_seconds"])
+    )
+    merged["orders_sync"]["tail_days"] = max(
+        1, _parse_int(merged["orders_sync"].get("tail_days"), DEFAULT_CONFIG["orders_sync"]["tail_days"])
+    )
+    merged["orders_sync"]["enabled"] = _parse_bool(
+        merged["orders_sync"].get("enabled"), DEFAULT_CONFIG["orders_sync"]["enabled"]
+    )
+    merged["orders_sync"]["approved_plus_rename"] = _parse_bool(
+        merged["orders_sync"].get("approved_plus_rename"),
+        DEFAULT_CONFIG["orders_sync"]["approved_plus_rename"],
+    )
+    merged["orders_sync"]["anulat_rename_tech_marker"] = _parse_bool(
+        merged["orders_sync"].get("anulat_rename_tech_marker"),
+        DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"],
+    )
+
     return merged
 
 
@@ -266,6 +300,8 @@ def apply_config(config):
     global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
+    global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
+    global ORDERS_APPROVED_PLUS_RENAME, ORDERS_ANULAT_RENAME_TECH_MARKER
 
     normalized = _ensure_complete_config(config)
     CONFIG.clear()
@@ -308,6 +344,22 @@ def apply_config(config):
 
     LOG_RETENTION_DAYS = retention_cfg.get("logs_days", DEFAULT_CONFIG["retention"]["logs_days"])
     JOURNAL_RETENTION_DAYS = retention_cfg.get("journal_days", DEFAULT_CONFIG["retention"]["journal_days"])
+
+    orders_sync_cfg = normalized.get("orders_sync", {})
+    ORDERS_PG_URL = os.environ.get("ORDERS_PG_URL", orders_sync_cfg.get("pg_url", ""))
+    ORDERS_PG_POLL_SECONDS = orders_sync_cfg.get("poll_seconds", DEFAULT_CONFIG["orders_sync"]["poll_seconds"])
+    ORDERS_PG_TAIL_DAYS = orders_sync_cfg.get("tail_days", DEFAULT_CONFIG["orders_sync"]["tail_days"])
+    ORDERS_SYNC_ENABLED = _parse_bool(
+        os.environ.get("ORDERS_SYNC_ENABLED", orders_sync_cfg.get("enabled")), DEFAULT_CONFIG["orders_sync"]["enabled"]
+    )
+    ORDERS_APPROVED_PLUS_RENAME = _parse_bool(
+        os.environ.get("ORDERS_APPROVED_PLUS_RENAME", orders_sync_cfg.get("approved_plus_rename")),
+        DEFAULT_CONFIG["orders_sync"]["approved_plus_rename"],
+    )
+    ORDERS_ANULAT_RENAME_TECH_MARKER = _parse_bool(
+        os.environ.get("ORDERS_ANULAT_RENAME_TECH_MARKER", orders_sync_cfg.get("anulat_rename_tech_marker")),
+        DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"],
+    )
 
     MANAGER_NAMES[:] = normalized.get("managers", [])
     TECHNOLOGIST_MARKERS.clear()
@@ -379,6 +431,12 @@ __all__ = [
     "DESENE_CPU_ROOT",
     "PRISADKA_CLIENT_ROOT",
     "ORDER_CONFIRMATION_ENABLED",
+    "ORDERS_PG_URL",
+    "ORDERS_PG_POLL_SECONDS",
+    "ORDERS_PG_TAIL_DAYS",
+    "ORDERS_SYNC_ENABLED",
+    "ORDERS_APPROVED_PLUS_RENAME",
+    "ORDERS_ANULAT_RENAME_TECH_MARKER",
     "LOG_RETENTION_DAYS",
     "JOURNAL_RETENTION_DAYS",
     "apply_config",
