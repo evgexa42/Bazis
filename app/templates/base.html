@@ -6,7 +6,6 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}Bazis{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="icon" href="{{ url_for('static', filename='logo_arh.png') }}">
   <script src="{{ url_for('static', filename='script.js') }}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
@@ -60,7 +59,9 @@
       {% endif %}
     </nav>
 
-    {% block content %}{% endblock %}
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+	
+	{% block content %}{% endblock %}
   </div>
 </body>
 </html>

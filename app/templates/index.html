@@ -10,7 +10,11 @@ data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}
 
 {% block content %}
   <header class="page-header">
-    <h1>📦 Мониторинг заказов</h1>
+    <div class="sse-status" id="sseStatus" aria-live="polite" aria-atomic="true">
+      <h1>📦 Мониторинг заказов</h1>
+	  <span class="sse-status__dot" aria-hidden="true"></span>
+      <span class="sse-status__text">Подключение…</span>
+    </div>
     <p class="page-description">
       Сводка по всем заказам в реальном времени. Используйте фильтры, чтобы быстро находить нужные проекты
       и контролировать их статус.
@@ -29,7 +33,7 @@ data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}
       </div>
 	  <div class="filter-search">
           <label class="field-label" for="orderSearch">Поиск по названию</label>
-          <input type="search" id="orderSearch" class="input input--compact" placeholder="Начните ввод" autocomplete="off">
+          <input type="search" id="orderSearch" class="input input--compact search-grow" placeholder="Начните ввод" autocomplete="off">
         </div>
       <div class="controls-actions">
         <label class="field" for="managerSelect">
