@@ -179,11 +179,13 @@ def sync_once() -> None:
 
     now = datetime.now(timezone.utc)
     records, ok = _fetch_external_orders(now)
-    if not ok:
-        return
+    if ok:
+        order_status.save_sync_result(records)
+        reconcile_folder_names(records)
+    else:
+        logger.warning("[orders_sync] Используем локальный кеш статусов из-за недоступности PostgreSQL")
 
-    order_status.save_sync_result(records)
-    reconcile_folder_names(records)
+    # даже при отсутствии внешних данных продолжаем обновлять снимок, чтобы мониторинг работал
     refresh_orders_snapshot(force=True)
 
 

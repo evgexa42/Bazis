@@ -170,7 +170,10 @@ def build_orders_snapshot():
     except FileNotFoundError:
         folder_data = []
 
-    folder_data = order_status.enrich_orders(folder_data)
+    try:
+        folder_data = order_status.enrich_orders(folder_data)
+    except Exception as exc:  # pragma: no cover - защитная логика
+        logger.warning("[snapshot] enrich_orders failed, fallback to raw data", exc_info=exc)
 
     dt = (perf_counter() - t0) * 1000.0
     with bazis_app.metrics_lock:

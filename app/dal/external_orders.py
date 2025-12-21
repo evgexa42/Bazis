@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Iterable, List
 
-from sqlalchemy import Boolean, Column, DateTime, String, func, insert
+from sqlalchemy import Boolean, Column, DateTime, String, func
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from app.dal.db import Base, SessionLocal
 
@@ -62,11 +63,10 @@ def replace_statuses(records: List[ExternalOrderRecord]) -> None:
             for rec in records
         ]
 
-        insert_stmt = insert(ExternalOrderStatus)
-        stmt = (
-            insert_stmt
-            .values(payload)
-            .on_conflict_do_update(
+        insert_stmt = sqlite_insert(ExternalOrderStatus).values(payload)
+
+        try:
+            stmt = insert_stmt.on_conflict_do_update(
                 index_elements=[ExternalOrderStatus.order_number],
                 set_={
                     "approved": insert_stmt.excluded.approved,
@@ -75,8 +75,11 @@ def replace_statuses(records: List[ExternalOrderRecord]) -> None:
                     "last_seen_at": insert_stmt.excluded.last_seen_at,
                 },
             )
-        )
-        session.execute(stmt)
+            session.execute(stmt)
+        except AttributeError:
+            # SQLite <3.24 или устаревший движок: выполняем merge в цикле для надёжности
+            for row in payload:
+                session.merge(ExternalOrderStatus(**row))
 
 
 __all__ = ["ExternalOrderRecord", "ExternalOrderStatus", "load_status_map", "replace_statuses"]
