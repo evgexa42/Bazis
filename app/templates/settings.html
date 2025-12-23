@@ -112,6 +112,38 @@ data-managers='{{ config_managers | tojson }}'
           <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
           <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
         </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="orders_pg_url">PostgreSQL (Orders) DSN</label>
+          <input type="text" class="input" id="orders_pg_url" name="orders_pg_url" placeholder="postgresql://user:pass@host:5432/orders" value="{{ config.get('orders_sync', {}).get('pg_url', '') }}">
+          <p class="hint">Используется только для чтения статусов «посчитан/подтвержден/аннулирован».</p>
+        </div>
+
+        <div class="settings-field">
+          <label class="field-label" for="orders_pg_poll_seconds">Интервал опроса, сек</label>
+          <input type="number" min="5" class="input" id="orders_pg_poll_seconds" name="orders_pg_poll_seconds" value="{{ config.get('orders_sync', {}).get('poll_seconds', 30) }}">
+        </div>
+
+        <div class="settings-field">
+          <label class="field-label" for="orders_pg_tail_days">Хвост по created_at, дней</label>
+          <input type="number" min="1" class="input" id="orders_pg_tail_days" name="orders_pg_tail_days" value="{{ config.get('orders_sync', {}).get('tail_days', 60) }}">
+          <p class="hint">В январе-феврале используется окно «сегодня - хвост», иначе — с 1 января года.</p>
+        </div>
+
+        <div class="settings-field">
+          <label class="checkbox-row">
+            <input type="checkbox" name="orders_sync_enabled" {% if config.get('orders_sync', {}).get('enabled', True) %}checked{% endif %}>
+            <span>Включить синхронизацию с Orders (PostgreSQL)</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="orders_plus_rename" {% if config.get('orders_sync', {}).get('approved_plus_rename', True) %}checked{% endif %}>
+            <span>Добавлять/снимать «+» по approved</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="orders_anulat_rename" {% if config.get('orders_sync', {}).get('anulat_rename_tech_marker', False) %}checked{% endif %}>
+            <span>Переименовывать [$] в [ANULAT] при аннуляции</span>
+          </label>
+        </div>
       </div>
 
       <label class="field">
@@ -131,13 +163,6 @@ data-managers='{{ config_managers | tojson }}'
           <textarea id="technologists" name="technologists" class="input" placeholder="J=Женя">{{ technologists_text }}</textarea>
         </div>
       </div>
-
-      {% if role_perms.can_toggle_order_options %}
-      <label class="field">
-        <input type="checkbox" name="order_confirmation" {% if config.get('features', {}).get('order_confirmation') %}checked{% endif %}>
-        <span>Включить подтверждение заказов в мониторинге</span>
-      </label>
-      {% endif %}
 
       <div class="settings-actions">
         <button type="submit" class="btn btn--primary">💾 Сохранить</button>
@@ -401,11 +426,7 @@ data-managers='{{ config_managers | tojson }}'
     (
       'Операции с заказами',
       [
-        ('can_confirm_orders', 'Может подтверждать заказы', 'Дает доступ к кнопкам подтверждения и обработчику на сервере.'),
-        ('can_toggle_order_options', 'Может менять настройки подтверждения заказов', 'Включение и выключение подтверждения заказов.'),
-        ('can_view_priced', 'Видит колонку «Посчитан»', 'Позволяет видеть отметку менеджера о расчете заказа.'),
-        ('can_view_priced_panel', 'Видит список «к расчету»', 'Позволяет открыть панель со списком заказов к расчету.'),
-        ('can_mark_priced', 'Может отмечать «Посчитан»', 'Дает право нажимать кнопку «Посчитан» и писать отметку.'),
+        ('can_toggle_order_options', 'Может менять настройки мониторинга заказов', 'Доступ к системным настройкам мониторинга.'),
       ]
     )
   ] %}

@@ -1,6 +1,6 @@
 const APP_CONFIG = (() => {
   if (typeof document === 'undefined') {
-    return { managers: [], orderConfirmationEnabled: false };
+    return { managers: [] };
   }
 
   const body = document.body;
@@ -21,7 +21,6 @@ const APP_CONFIG = (() => {
     }
   }
 
-  const orderConfirmationEnabled = body?.dataset?.orderConfirmation === 'true';
   const currentUser = body?.dataset?.currentUser || '';
   const currentRole = body?.dataset?.currentRole || '';
 
@@ -34,13 +33,9 @@ const APP_CONFIG = (() => {
     canAccessSearch: body?.dataset?.canAccessSearch === '1',
     canEditPaths: body?.dataset?.canEditPaths === '1',
     canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
-    canConfirmOrders: body?.dataset?.canConfirmOrders === '1',
-    canViewPriced: body?.dataset?.canViewPriced === '1',
-    canMarkPriced: body?.dataset?.canMarkPriced === '1',
-    canViewPricedPanel: body?.dataset?.canViewPricedPanel === '1',
   };
 
-  return { managers, orderConfirmationEnabled, currentUser, currentRole, permissions };
+  return { managers, currentUser, currentRole, permissions };
 })();
 
 const PREFERS_REDUCED_MOTION = typeof window !== 'undefined'
@@ -126,20 +121,8 @@ const OrdersPage = (() => {
   let sse = null;
   let pollingTimer = null;
   let pollingBackoff = 3000;
-    let managerPriced = new Set();
-    let pricedMap = {};
-    let pendingOrders = [];
-    let pendingRefreshTimer = null;
-    let previousOrders = new Map();
-    let sseStatus = { root: null, dot: null, text: null };
-    let bell = {
-      root: null,
-      badge: null,
-      panel: null,
-      list: null,
-    empty: null,
-    toggle: null,
-  };
+  let previousOrders = new Map();
+  let sseStatus = { root: null, dot: null, text: null };
 
   function init() {
     const table = document.getElementById('orders');
@@ -149,8 +132,6 @@ const OrdersPage = (() => {
     sseStatus.dot = sseStatus.root?.querySelector('.sse-status__dot') || null;
     sseStatus.text = sseStatus.root?.querySelector('.sse-status__text') || null;
 
-    hydratePricedFromEmbedded();
-    hydratePricedMapFromEmbedded();
     highlightActiveFilter(currentStatus);
     highlightSortButtons();
 
@@ -163,13 +144,6 @@ const OrdersPage = (() => {
       searchInput.addEventListener('input', () => handleSearchInput(searchInput.value));
       searchInput.addEventListener('focus', () => searchInput.classList.add('is-focused'));
       searchInput.addEventListener('blur', () => searchInput.classList.remove('is-focused'));
-    }
-    if (APP_CONFIG.permissions.canViewPricedPanel) {
-      initBellWidget();
-      fetchPendingPriced();
-    }
-    if (APP_CONFIG.permissions.canViewPriced) {
-      fetchPricedSet();
     }
     startSSE();
   }
@@ -208,7 +182,6 @@ const OrdersPage = (() => {
           allData = orders;
           render();
           renderStats({ ...payload, folders: orders });
-          schedulePendingRefresh();
         }
       } catch (err) {
         console.warn('Некорректные данные SSE', err);
@@ -275,7 +248,6 @@ const OrdersPage = (() => {
     allData = orders;
     render();
     renderStats({ ...payload, folders: orders });
-    schedulePendingRefresh();
   }
 
   function buildManagerParams() {
@@ -359,7 +331,8 @@ const OrdersPage = (() => {
 
     const doneCount = folders.filter(item => item.status === 'Готов' || item.status === 'Подтвержден').length;
     const newCount = folders.filter(item => item.status === 'Новый').length;
-    const confirmedCount = folders.filter(item => item.status === 'Подтвержден').length;
+    const confirmedCount = folders.filter(item => item.is_approved || item.status === 'Подтвержден').length;
+    const cancelledCount = folders.filter(item => item.is_cancelled || item.status === 'ANULAT').length;
 
     const managerOrder = Array.from(new Set([...(APP_CONFIG.managers || []), 'Неизвестно']));
     const managerItems = managerOrder
@@ -401,33 +374,9 @@ const OrdersPage = (() => {
     `;
   }
 
-  function canConfirm(item) {
-    const role = APP_CONFIG.currentRole;
-    const user = APP_CONFIG.currentUser || '';
-    const manager = (item.manager || 'Неизвестно').trim() || 'Неизвестно';
-
-    if (!APP_CONFIG.orderConfirmationEnabled) return false;
-    if (!APP_CONFIG.permissions.canConfirmOrders) return false;
-
-    if (role === 'admin' || role === 'technologist') {
-      return true;
-    }
-
-    if (role === 'manager') {
-      if (manager === user) return true;
-      if (manager === 'Неизвестно') return true;
-      return false;
-    }
-
-    return false;
-  }
-
   function render() {
     const table = document.querySelector('#orders tbody');
     if (!table) return;
-
-    const allowConfirmationUI =
-      APP_CONFIG.orderConfirmationEnabled && APP_CONFIG.permissions.canConfirmOrders;
 
     const filtered = allData
       .filter(item => {
@@ -439,7 +388,7 @@ const OrdersPage = (() => {
       })
       .filter(item => {
         if (!searchTerm) return true;
-        const orderName = (item.name || '').toLowerCase();
+        const orderName = (item.display_name || item.name || '').toLowerCase();
         return orderName.includes(searchTerm);
       })
       .slice();
@@ -490,7 +439,7 @@ const OrdersPage = (() => {
         }
       }
 
-      fillOrderRow(row, item, allowConfirmationUI);
+      fillOrderRow(row, item);
 
       if (prev && hasOrderChanged(prev, item)) {
         row.classList.add('is-updated');
@@ -511,7 +460,10 @@ const OrdersPage = (() => {
     return prev?.status !== next?.status
       || prev?.manager !== next?.manager
       || prev?.modified !== next?.modified
-      || prev?.name !== next?.name;
+      || prev?.name !== next?.name
+      || prev?.display_name !== next?.display_name
+      || prev?.is_approved !== next?.is_approved
+      || prev?.is_cancelled !== next?.is_cancelled;
   }
 
   function animateRowDeletion(row) {
@@ -529,24 +481,27 @@ const OrdersPage = (() => {
     }
   }
 
-  function fillOrderRow(tr, item, allowConfirmationUI) {
+  function fillOrderRow(tr, item) {
     tr.innerHTML = '';
     tr.className = '';
     tr.dataset.orderKey = getOrderKey(item);
 
-    if (item.status === 'Готов') {
-      tr.classList.add('done');
-    } else if (item.status === 'Подтвержден') {
-      tr.classList.add('confirmed');
-    } else {
-      tr.classList.add('new');
-    }
+    const isCancelled = !!item.is_cancelled;
+    const isApproved = !!item.is_approved;
+    const hasTechnologist = !!item.has_technologist;
+
+    if (isCancelled) tr.classList.add('cancelled');
+    else if (isApproved) tr.classList.add('confirmed');
+    else if (hasTechnologist) tr.classList.add('done');
+    else tr.classList.add('new');
 
     let statusClass = 'status-pill status-pill--warning';
-    if (item.status === 'Готов') {
-      statusClass = 'status-pill status-pill--success';
-    } else if (item.status === 'Подтвержден') {
+    if (isCancelled) {
+      statusClass = 'status-pill status-pill--danger';
+    } else if (isApproved) {
       statusClass = 'status-pill status-pill--neutral';
+    } else if (item.status === 'Готов' || hasTechnologist) {
+      statusClass = 'status-pill status-pill--success';
     }
 
     const nameTd = document.createElement('td');
@@ -566,7 +521,7 @@ const OrdersPage = (() => {
     }
 
     const nameText = document.createElement('span');
-    nameText.textContent = item.name || '';
+    nameText.textContent = item.display_name || item.name || '';
     nameDiv.appendChild(nameText);
     nameTd.appendChild(nameDiv);
     tr.appendChild(nameTd);
@@ -598,427 +553,19 @@ const OrdersPage = (() => {
     daysDiv.textContent = item.days ?? '—';
     daysTd.appendChild(daysDiv);
     tr.appendChild(daysTd);
-
-    if (allowConfirmationUI) {
-      const confirmTd = document.createElement('td');
-      confirmTd.className = 'table-checkbox';
-
-      if (item.status === 'Готов' && canConfirm(item)) {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'confirm-checkbox';
-        checkbox.checked = false;
-        const orderLabel = getOrderLabel(item);
-        const ariaLabel = orderLabel ? `Подтвердить заказ ${orderLabel}` : 'Подтвердить заказ';
-        checkbox.setAttribute('aria-label', ariaLabel);
-        checkbox.addEventListener('change', async () => {
-          await handleOrderConfirmation(item, checkbox);
-        });
-        confirmTd.appendChild(checkbox);
-      } else if (item.status === 'Подтвержден') {
-        const orderLabel = getOrderLabel(item);
-        const confirmedMark = document.createElement('span');
-        confirmedMark.className = 'status-pill status-pill--success';
-        confirmedMark.textContent = orderLabel ? `✓` : 'Подтвержден';
-        confirmTd.appendChild(confirmedMark);
-      } else {
-        const placeholder = document.createElement('span');
-        placeholder.className = 'table-muted';
-        placeholder.textContent = '—';
-        confirmTd.appendChild(placeholder);
-      }
-
-      tr.appendChild(confirmTd);
-    }
-  }
-
-  function isReadyStatus(status) {
-    return (status || '').trim() === 'Готов';
   }
 
   function getPricedInfo(item) {
-    if (!APP_CONFIG.permissions.canViewPriced) return null;
-    if (!isReadyStatus(item.status)) return null;
-
-    const orderKey = item.name || '';
-    if (!orderKey) return null;
-
-    const managerName = (item.manager || '').trim();
-    const currentUser = (APP_CONFIG.currentUser || '').trim();
-
-    if (APP_CONFIG.currentRole === 'manager') {
-      if (!managerName || managerName !== currentUser) return null;
-      return { visible: true, priced: managerPriced.has(orderKey) };
-    }
-
-    if (APP_CONFIG.currentRole === 'admin' || APP_CONFIG.currentRole === 'technologist') {
-      const managers = pricedMap[orderKey] || [];
-      const priced = managerName ? managers.includes(managerName) : managers.length > 0;
-      return { visible: true, priced };
-    }
-
+    if (!item?.has_technologist) return null;
+    if (item.is_cancelled) return null;
+    if (!item.is_priced) return { visible: true, priced: false };
+    if (item.is_priced && !item.is_approved) return { visible: true, priced: true };
     return null;
-  }
-
-  function hydratePricedFromEmbedded() {
-    const holder = document.getElementById('manager-priced-data');
-    if (!holder) return;
-
-    try {
-      const parsed = JSON.parse(holder.textContent || '[]');
-      if (Array.isArray(parsed)) {
-        managerPriced = new Set(parsed);
-      }
-    } catch (err) {
-      console.warn('Не удалось прочитать список посчитанных заказов', err);
-    }
-  }
-
-  function hydratePricedMapFromEmbedded() {
-    const holder = document.getElementById('manager-priced-map-data');
-    if (!holder) return;
-
-    try {
-      const parsed = JSON.parse(holder.textContent || '{}');
-      if (parsed && typeof parsed === 'object') {
-        pricedMap = normalizePricedMap(parsed);
-      }
-    } catch (err) {
-      console.warn('Не удалось прочитать карту посчитанных заказов', err);
-    }
-  }
-
-  function normalizePricedMap(source) {
-    const map = {};
-    Object.entries(source || {}).forEach(([key, value]) => {
-      if (!key) return;
-      if (Array.isArray(value)) {
-        map[key] = value.map(name => String(name || '').trim()).filter(Boolean);
-      }
-    });
-    return map;
-  }
-
-  async function fetchPricedSet() {
-    if (!APP_CONFIG.permissions.canViewPriced) return;
-    try {
-      const response = await fetch('/api/manager/priced_set', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      if (!response.ok) return;
-      const payload = await response.json();
-      if (Array.isArray(payload?.priced)) {
-        managerPriced = new Set(payload.priced);
-      }
-      if (payload?.priced_map && typeof payload.priced_map === 'object') {
-        pricedMap = normalizePricedMap(payload.priced_map);
-      }
-      render();
-    } catch (err) {
-      console.warn('Не удалось получить список посчитанных заказов', err);
-    }
-  }
-
-  function schedulePendingRefresh() {
-    if (!APP_CONFIG.permissions.canViewPricedPanel) return;
-    if (pendingRefreshTimer) return;
-
-    pendingRefreshTimer = setTimeout(() => {
-      pendingRefreshTimer = null;
-      fetchPendingPriced();
-    }, 500);
-  }
-
-  async function fetchPendingPriced() {
-    if (!APP_CONFIG.permissions.canViewPricedPanel) return;
-    try {
-      const response = await fetch('/api/manager/pending_priced', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      if (!response.ok) return;
-
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        pendingOrders = data;
-        renderPendingList();
-      }
-    } catch (err) {
-      console.warn('Не удалось загрузить заказы к расчету', err);
-    }
-  }
-
-  function renderPendingList() {
-    if (!bell.list || !bell.empty) return;
-    bell.list.innerHTML = '';
-
-    if (!pendingOrders.length) {
-      bell.list.classList.add('is-hidden');
-      bell.empty.hidden = false;
-      updateBellBadge(0);
-      return;
-    }
-
-    bell.list.classList.remove('is-hidden');
-    bell.empty.hidden = true;
-
-    pendingOrders.forEach(item => {
-      const li = document.createElement('li');
-      li.className = 'bell-item';
-      li.dataset.orderKey = item.order_key || '';
-
-      const title = document.createElement('div');
-      title.className = 'bell-item__title';
-      title.textContent = item.display_name || item.order_key || '—';
-      li.appendChild(title);
-
-      const meta = document.createElement('div');
-      meta.className = 'bell-item__meta';
-      meta.textContent = `Технолог: ${item.tech_name || '—'}`;
-      li.appendChild(meta);
-
-      const actions = document.createElement('div');
-      actions.className = 'bell-item__actions';
-
-      const copyBtn = document.createElement('button');
-      copyBtn.type = 'button';
-      copyBtn.className = 'btn btn--ghost btn--compact';
-      copyBtn.textContent = 'Копировать путь';
-      copyBtn.addEventListener('click', () => copyPath(item.unc_path, li));
-
-      const feedback = document.createElement('span');
-      feedback.className = 'copy-feedback';
-      feedback.dataset.copyFeedback = '';
-
-      const pricedBtn = document.createElement('button');
-      pricedBtn.type = 'button';
-      pricedBtn.className = 'btn btn--success btn--compact';
-      pricedBtn.textContent = 'Посчитан';
-      const canMark = APP_CONFIG.permissions.canMarkPriced && APP_CONFIG.currentRole !== 'technologist';
-      pricedBtn.disabled = !canMark;
-      if (canMark) {
-        pricedBtn.addEventListener('click', () => markPriced(item.order_key, pricedBtn, li));
-      }
-
-      actions.appendChild(copyBtn);
-      actions.appendChild(feedback);
-      actions.appendChild(pricedBtn);
-      li.appendChild(actions);
-
-      bell.list.appendChild(li);
-    });
-
-    updateBellBadge(pendingOrders.length);
-  }
-
-  function updateBellBadge(count) {
-    if (!bell.badge) return;
-    const safeCount = Number(count) || 0;
-    bell.badge.textContent = String(safeCount);
-    bell.badge.hidden = safeCount <= 0;
-  }
-
-  function toggleBellPanel(forceOpen) {
-    if (!bell.panel || !bell.toggle) return;
-
-    const isHidden = bell.panel.hasAttribute('hidden');
-    const shouldOpen = forceOpen === undefined ? isHidden : !!forceOpen;
-
-    if (shouldOpen) {
-      bell.panel.classList.remove('is-closing');
-      bell.panel.removeAttribute('hidden');
-      requestAnimationFrame(() => bell.panel.classList.add('is-open'));
-      bell.toggle.setAttribute('aria-expanded', 'true');
-      bell.toggle.classList.add('is-active');
-    } else {
-      bell.panel.classList.remove('is-open');
-      bell.panel.classList.add('is-closing');
-      bell.toggle.setAttribute('aria-expanded', 'false');
-      bell.toggle.classList.remove('is-active');
-      setTimeout(() => {
-        bell.panel.classList.remove('is-closing');
-        bell.panel.setAttribute('hidden', '');
-      }, 180);
-    }
-  }
-
-  function initBellWidget() {
-    bell.root = document.getElementById('managerPricedBell');
-    bell.badge = document.getElementById('managerPricedBadge');
-    bell.panel = document.getElementById('managerPricedPanel');
-    bell.list = document.getElementById('managerPricedList');
-    bell.empty = document.getElementById('managerPricedEmpty');
-    bell.toggle = bell.root?.querySelector('[data-bell-toggle]');
-
-    if (!bell.root || !bell.panel || !bell.toggle) return;
-
-    bell.panel.classList.remove('is-open', 'is-closing');
-    bell.panel.setAttribute('hidden', '');
-
-    const closeBtn = bell.root.querySelector('[data-bell-close]');
-    bell.toggle.addEventListener('click', () => toggleBellPanel());
-    closeBtn?.addEventListener('click', () => toggleBellPanel(false));
-
-    document.addEventListener('click', event => {
-      if (!bell.root?.contains(event.target)) {
-        toggleBellPanel(false);
-      }
-    });
-  }
-
-  function showCopyFeedback(scope, message) {
-    const feedback = scope?.querySelector('[data-copy-feedback]');
-    if (!feedback) {
-      window.alert(message);
-      return;
-    }
-
-    feedback.textContent = message;
-    feedback.classList.add('is-visible');
-    setTimeout(() => feedback.classList.remove('is-visible'), 1200);
-  }
-
-  async function copyPath(path, scope) {
-    if (!path) return;
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(path);
-        showCopyFeedback(scope, 'Путь скопирован');
-        return;
-      }
-    } catch (err) {
-      console.warn('Clipboard API недоступен, fallback копирование', err);
-    }
-
-    const area = document.createElement('textarea');
-    area.value = path;
-    document.body.appendChild(area);
-    area.select();
-    document.execCommand('copy');
-    document.body.removeChild(area);
-    showCopyFeedback(scope, 'Путь скопирован');
-  }
-
-  async function markPriced(orderKey, button, listItem) {
-    if (!orderKey) return;
-    if (!APP_CONFIG.permissions.canMarkPriced) {
-      window.alert('Недостаточно прав для отметки.');
-      return;
-    }
-    if (button) button.disabled = true;
-
-    try {
-      const response = await fetch('/api/manager/mark_priced', {
-        method: 'POST',
-        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(withCsrfBody({ order_key: orderKey }))
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload?.ok !== true) {
-        const msg = payload?.message || 'Не удалось отметить заказ';
-        throw new Error(msg);
-      }
-
-      managerPriced.add(orderKey);
-      const user = APP_CONFIG.currentUser || '';
-      if (user) {
-        const existing = pricedMap[orderKey] || [];
-        if (!existing.includes(user)) {
-          pricedMap[orderKey] = [...existing, user];
-        }
-      }
-      const removeFromList = () => {
-        pendingOrders = pendingOrders.filter(item => item.order_key !== orderKey);
-        renderPendingList();
-      };
-      if (listItem) {
-        listItem.classList.add('is-leaving');
-        setTimeout(removeFromList, 160);
-      } else {
-        removeFromList();
-      }
-      render();
-      if (APP_CONFIG.permissions.canViewPriced) {
-        fetchPricedSet();
-      }
-    } catch (err) {
-      window.alert(err?.message || 'Не удалось отметить заказ');
-    } finally {
-      if (button) button.disabled = false;
-    }
-  }
-
-  function getOrderNumber(item) {
-    if (!item) return '';
-    if (typeof item.order_number === 'string' && item.order_number.trim()) {
-      return item.order_number.trim();
-    }
-    return extractOrderNumber(item.name);
   }
 
   function getOrderKey(item) {
     if (!item) return '';
     return item.path || item.order_key || item.name || item.id || item.modified || Math.random().toString(16).slice(2);
-  }
-
-  function extractOrderNumber(name) {
-    if (!name) return '';
-    const firstPart = name.trim().split(/\s+/)[0] || '';
-    return firstPart.replace(/\+$/, '');
-  }
-
-  function getClientName(item) {
-    const name = item?.name || '';
-    if (!name.trim()) return '';
-    const withoutPlus = name.replace(/\s+\+$/, '').trim();
-    const firstSpaceIndex = withoutPlus.indexOf(' ');
-    if (firstSpaceIndex === -1) return '';
-    let clientPart = withoutPlus.slice(firstSpaceIndex + 1).trim();
-    clientPart = clientPart.replace(/\[[^\]]*\]/g, '').trim();
-    return clientPart;
-  }
-
-  function getOrderLabel(item) {
-    const orderNumber = getOrderNumber(item);
-    const clientName = getClientName(item);
-    const label = [orderNumber, clientName].filter(Boolean).join(' ');
-    return label || item?.name || '';
-  }
-
-  async function handleOrderConfirmation(item, checkbox) {
-    const orderLabel = getOrderLabel(item);
-    const message = orderLabel ? `Подтвердить заказ ${orderLabel}?` : 'Подтвердить заказ?';
-    const approved = await ConfirmDialog.confirm(message);
-    if (!approved) {
-      checkbox.checked = false;
-      return;
-    }
-
-    checkbox.disabled = true;
-
-    fetch('/confirm_order', {
-      method: 'POST',
-      headers: {
-        ...withCsrfHeaders({ 'Content-Type': 'application/json' })
-      },
-      body: JSON.stringify(withCsrfBody({ folder: item.name }))
-    })
-      .then(async response => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.status !== 'ok') {
-          const errorMessage = payload.message || 'Не удалось подтвердить заказ.';
-          throw new Error(errorMessage);
-        }
-        return payload;
-      })
-      .then(() => {
-        loadData();
-      })
-      .catch(error => {
-        checkbox.checked = false;
-        checkbox.disabled = false;
-        window.alert(error.message || 'Не удалось подтвердить заказ.');
-      });
   }
 
   return {
@@ -1148,6 +695,7 @@ const SettingsPage = (() => {
   metrics: 10,            // метрики обновляются каждые несколько секунд
   snapshot_updater: 3600, // считаем живым, если шевелился за последний час
   indexer: 3600,
+  orders_sync: 120,
   };
 
   function buildThreadsTable(threads, nowSec) {
@@ -2080,7 +1628,8 @@ const ClientsTable = (() => {
       body: JSON.stringify(withCsrfBody({
         old_name: oldName,
         new_name: newName,
-        manager: newManager
+        manager: newManager,
+		new_manager: newManager
       }))
     })
       .then(r => r.json())

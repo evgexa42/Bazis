@@ -45,16 +45,19 @@ def add_client():
 @permissions_required("can_access_clients")
 def update_client():
 
-    data = request.get_json()
-    old_name = data.get("old_name")
-    new_name = data.get("new_name")
-    new_manager = data.get("new_manager")
+    data = request.get_json(silent=True) or {}
+    old_name = (data.get("old_name") or "").strip()
+    new_name = (data.get("new_name") or "").strip()
+
+    # ✅ принимаем оба ключа
+    new_manager = (data.get("new_manager") or data.get("manager") or "").strip()
 
     updated = False
     with clients_lock:
         updated = update_client_db(old_name, new_name, new_manager)
         if updated:
             reload_clients_from_db()
+
     if not updated:
         return jsonify({"status": "error", "message": "Клиент не найден."}), 404
 

@@ -16,6 +16,10 @@
   "paths": {
     "orders": "\\\\SERVER\\homag\\ПРИСАДКА КЛИЕНТА",
     "facades_dir": "\\\\Server\\базис",
+    "prisadka_root": "",
+    "desene_cpu_root": "",
+    "prisadka_client_root": "",
+    "facades_list_dir": "",
     "search": {
       "Присадка ARHIMOB": "\\\\SERVER\\homag\\ПРИСАДКА ARHIMOB\\2025",
       "DESENE CPU": "\\\\SERVER\\homag\\DESENE CPU\\2025",
@@ -35,6 +39,18 @@
     "months": 6
   },
   "features": {
-    "order_confirmation": true
+    "order_confirmation": false
+  },
+  "retention": {
+    "logs_days": 30,
+    "journal_days": 90
+  },
+  "orders_sync": {
+    "pg_url": "postgresql+psycopg2://py_reader:py-reader-2025@192.168.100.15:5432/orders",
+    "poll_seconds": 30,
+    "tail_days": 60,
+    "enabled": true,
+    "approved_plus_rename": true,
+    "anulat_rename_tech_marker": false
   }
 }

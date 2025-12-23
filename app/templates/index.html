@@ -5,7 +5,6 @@
 {% block body_attrs %}
 data-page="orders"
 data-managers='{{ config_managers | tojson }}'
-data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}"
 {% endblock %}
 
 {% block content %}
@@ -64,41 +63,10 @@ data-order-confirmation="{{ 'true' if order_confirmation_enabled else 'false' }}
             <th>Статус</th>
             <th>Изменено</th>
             <th>Дней назад</th>
-            {% if order_confirmation_enabled and role_perms.can_confirm_orders %}
-            <th class="table-checkbox">Подтвердить</th>
-            {% endif %}
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </section>
-  {% if manager_priced is defined %}
-  <script id="manager-priced-data" type="application/json">{{ manager_priced | tojson | safe }}</script>
-  {% endif %}
-  {% if manager_priced_map is defined %}
-  <script id="manager-priced-map-data" type="application/json">{{ manager_priced_map | tojson | safe }}</script>
-  {% endif %}
-
-  {% if role_perms.can_view_priced_panel %}
-  <div class="bell-widget" id="managerPricedBell">
-    <button type="button" class="bell-button btn btn--primary btn--pill" data-bell-toggle aria-expanded="false" aria-controls="managerPricedPanel" title="Заказы к расчету">
-      <span class="bell-icon">🔔</span>
-      <span class="bell-badge" id="managerPricedBadge" hidden>0</span>
-    </button>
-    <div class="bell-panel card" id="managerPricedPanel" hidden>
-      <div class="bell-panel__header">
-        <div>
-          <p class="bell-panel__title">Заказы к расчету</p>
-          <p class="bell-panel__subtitle">Отмечайте посчитанные заказы</p>
-        </div>
-        <button type="button" class="btn btn--ghost btn--compact" data-bell-close aria-label="Закрыть">✕</button>
-      </div>
-      <div class="bell-panel__body">
-        <ul class="bell-list" id="managerPricedList"></ul>
-        <p class="bell-empty" id="managerPricedEmpty">Нет заказов</p>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 {% endblock %}

@@ -117,6 +117,12 @@ def settings_page():
             server_host = request.form.get("server_host", "").strip()
             server_port_raw = request.form.get("server_port", "").strip()
             debug_mode = request.form.get("debug_mode") == "on"
+            pg_url = request.form.get("orders_pg_url", "").strip()
+            pg_poll_seconds = request.form.get("orders_pg_poll_seconds", "").strip()
+            pg_tail_days = request.form.get("orders_pg_tail_days", "").strip()
+            pg_enabled = request.form.get("orders_sync_enabled") == "on"
+            plus_rename = request.form.get("orders_plus_rename") == "on"
+            anulat_rename = request.form.get("orders_anulat_rename") == "on"
 
             telegram_token = request.form.get("telegram_token", "").strip()
             telegram_chat = request.form.get("telegram_chat_id", "").strip()
@@ -150,14 +156,26 @@ def settings_page():
             telegram_cfg["token"] = telegram_token
             telegram_cfg["chat_id"] = telegram_chat
 
-        if role_perms.get("can_toggle_order_options"):
-            features_config = updated.setdefault("features", {})
-            if not isinstance(features_config, dict):
-                features_config = {}
-                updated["features"] = features_config
-            features_config["order_confirmation"] = (
-                request.form.get("order_confirmation") == "on"
-            )
+            orders_sync_cfg = updated.setdefault("orders_sync", {})
+            orders_sync_cfg["pg_url"] = pg_url
+            sync_defaults = app_config.DEFAULT_CONFIG.get("orders_sync", {})
+            try:
+                orders_sync_cfg["poll_seconds"] = (
+                    max(5, int(pg_poll_seconds)) if pg_poll_seconds else sync_defaults.get("poll_seconds", 30)
+                )
+            except (TypeError, ValueError):
+                orders_sync_cfg["poll_seconds"] = sync_defaults.get("poll_seconds", 30)
+                errors.append("Интервал опроса PostgreSQL должен быть числом.")
+            try:
+                orders_sync_cfg["tail_days"] = (
+                    max(1, int(pg_tail_days)) if pg_tail_days else sync_defaults.get("tail_days", 60)
+                )
+            except (TypeError, ValueError):
+                orders_sync_cfg["tail_days"] = sync_defaults.get("tail_days", 60)
+                errors.append("Хвост по дням для created_at должен быть числом.")
+            orders_sync_cfg["enabled"] = pg_enabled
+            orders_sync_cfg["approved_plus_rename"] = plus_rename
+            orders_sync_cfg["anulat_rename_tech_marker"] = anulat_rename
 
         if not errors:
             save_config(updated)
@@ -183,6 +201,7 @@ def settings_page():
             technologists_changed = old_config.get("technologists", {}) != updated.get("technologists", {})
             search_changed = old_config.get("paths", {}).get("search", {}) != updated.get("paths", {}).get("search", {})
             features_changed = old_config.get("features", {}) != updated.get("features", {})
+            orders_sync_changed = old_config.get("orders_sync", {}) != updated.get("orders_sync", {})
             telegram_changed = old_config.get("telegram", {}) != updated.get("telegram", {})
 
             monitor_restart_required = paths_changed
@@ -198,6 +217,8 @@ def settings_page():
                 light_changes.append("пути для поиска")
             if features_changed:
                 light_changes.append("флаги функций")
+            if orders_sync_changed:
+                light_changes.append("параметры Orders (PostgreSQL)")
             if telegram_changed:
                 light_changes.append("настройки Telegram")
             if paths_changed:
