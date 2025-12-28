@@ -9,6 +9,7 @@ from watchdog.observers import Observer
 import app as bazis_app
 import app.config as app_config
 from app import heartbeat, measure_time
+from app.services import order_timeline
 from app.services import telegram as telegram_service
 from app.services.snapshot import remove_order, upsert_order
 
@@ -74,7 +75,14 @@ class OrderFolderHandler(FileSystemEventHandler):
         logger.info("[observer] Папка создана: %s", folder_name)
         if register_known_folder(folder_name):
             return
+        try:
+            created_ts = os.path.getctime(event.src_path)
+        except OSError:
+            created_ts = None
+        order_timeline.mark_created(folder_name, created_ts)
         upsert_order(folder_name)
+        if telegram_service.folder_has_ready_marker(folder_name):
+            order_timeline.mark_processed(folder_name)
         if telegram_service.should_notify(folder_name):
             telegram_service.enqueue(
                 telegram_service.send_telegram_message,
@@ -107,7 +115,10 @@ class OrderFolderHandler(FileSystemEventHandler):
         if dest_in_watch and not src_in_watch:
             if register_known_folder(dest_name):
                 return
+            order_timeline.mark_created(dest_name)
             upsert_order(dest_name)
+            if telegram_service.folder_has_ready_marker(dest_name):
+                order_timeline.mark_processed(dest_name)
             if telegram_service.should_notify(dest_name):
                 telegram_service.enqueue(
                     telegram_service.send_telegram_message,
@@ -125,6 +136,8 @@ class OrderFolderHandler(FileSystemEventHandler):
         logger.info("[observer] Папка переименована: %s -> %s", src_name, dest_name)
         remove_order(src_name)
         upsert_order(dest_name)
+        if telegram_service.folder_has_ready_marker(dest_name):
+            order_timeline.mark_processed(dest_name)
         telegram_service.enqueue(
             telegram_service.handle_moved_notification, src_name, dest_name, already_known
         )
@@ -299,6 +312,13 @@ def initialize_known_state():
                 name = entry.name
                 if telegram_service.is_folder_ignored(name):
                     continue
+                try:
+                    entry_stat = entry.stat()
+                    order_timeline.mark_created(name, entry_stat.st_ctime)
+                    if telegram_service.folder_has_ready_marker(name):
+                        order_timeline.mark_processed(name, entry_stat.st_mtime)
+                except OSError:
+                    pass
                 actual_folders.append(name)
     except Exception as exc:
         logger.exception("[init] Не удалось прочитать каталог", exc_info=exc)

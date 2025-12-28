@@ -1,9 +1,11 @@
 import json
+import os
 import queue
 import threading
 from typing import List, Optional
 
 from telegram import Bot
+from telegram.utils.request import Request
 
 import app as bazis_app
 import app.config as app_config
@@ -16,6 +18,7 @@ messages: List[dict] = []
 messages_lock = threading.Lock()
 tg_queue: "queue.Queue[tuple]" = queue.Queue(maxsize=1000)
 _disabled_warning_logged = False
+_cert_patched = False
 
 
 def _telegram_configured() -> bool:
@@ -63,12 +66,41 @@ def start_worker_once():
         threading.Thread(target=_worker, daemon=True).start()
         _worker_started = True
 
+
+def _ensure_cert_bundle() -> None:
+    """Гарантирует, что в frozen-сборках есть путь к цепочке сертификации."""
+
+    global _cert_patched
+    if _cert_patched:
+        return
+    if "SSL_CERT_FILE" in os.environ:
+        _cert_patched = True
+        return
+    try:
+        import certifi
+
+        cert_path = certifi.where()
+        if cert_path and os.path.exists(cert_path):
+            os.environ.setdefault("SSL_CERT_FILE", cert_path)
+            logger.info("[TG] SSL_CERT_FILE установлен для Telegram запросов.")
+    except Exception:
+        logger.warning("[TG] Не удалось установить SSL_CERT_FILE для Telegram", exc_info=True)
+    finally:
+        _cert_patched = True
+
+
 def init_bot(token: str) -> None:
     global bot, _disabled_warning_logged
     _disabled_warning_logged = False
     if token and app_config.CHAT_ID:
-        bot = Bot(token=token)
-        start_worker_once()
+        try:
+            _ensure_cert_bundle()
+            request = Request(con_pool_size=8, read_timeout=20, connect_timeout=20)
+            bot = Bot(token=token, request=request)
+            start_worker_once()
+        except Exception as exc:
+            bot = None
+            logger.exception("[TG] Не удалось инициализировать бота", exc_info=exc)
     else:
         bot = None
 

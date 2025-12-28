@@ -124,6 +124,22 @@ const OrdersPage = (() => {
   let previousOrders = new Map();
   let sseStatus = { root: null, dot: null, text: null };
 
+  function formatDuration(seconds) {
+    if (seconds === null || seconds === undefined) return '';
+    const total = Math.max(0, Math.floor(seconds));
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+
+    const parts = [];
+    if (days) parts.push(`${days} д`);
+    if (hours) parts.push(`${hours} ч`);
+    if (!days && minutes) parts.push(`${minutes} м`);
+    if (!days && !hours && !minutes) parts.push('<1 м');
+
+    return parts.slice(0, 2).join(' ');
+  }
+
   function init() {
     const table = document.getElementById('orders');
     if (!table) return;
@@ -463,7 +479,9 @@ const OrdersPage = (() => {
       || prev?.name !== next?.name
       || prev?.display_name !== next?.display_name
       || prev?.is_approved !== next?.is_approved
-      || prev?.is_cancelled !== next?.is_cancelled;
+      || prev?.is_cancelled !== next?.is_cancelled
+      || prev?.created !== next?.created
+      || prev?.processed !== next?.processed;
   }
 
   function animateRowDeletion(row) {
@@ -523,6 +541,31 @@ const OrdersPage = (() => {
     const nameText = document.createElement('span');
     nameText.textContent = item.display_name || item.name || '';
     nameDiv.appendChild(nameText);
+
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'order-meta';
+
+    if (item.created) {
+      const createdLine = document.createElement('div');
+      createdLine.className = 'order-meta__item';
+      createdLine.textContent = `Создано: ${item.created}`;
+      metaDiv.appendChild(createdLine);
+    }
+
+    if (item.processed) {
+      const processedLine = document.createElement('div');
+      processedLine.className = 'order-meta__item';
+      const durationText = formatDuration(item.processing_seconds);
+      processedLine.textContent = durationText
+        ? `Обработан: ${item.processed} · ${durationText}`
+        : `Обработан: ${item.processed}`;
+      metaDiv.appendChild(processedLine);
+    }
+
+    if (metaDiv.children.length) {
+      nameDiv.appendChild(metaDiv);
+    }
+
     nameTd.appendChild(nameDiv);
     tr.appendChild(nameTd);
 

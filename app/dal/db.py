@@ -209,6 +209,7 @@ def init_db() -> None:
     # Регистрируем все модели, зависящие от Base, перед созданием таблиц
     import app.dal.database  # noqa: F401
     import app.dal.external_orders  # noqa: F401
+    import app.dal.order_timeline  # noqa: F401
     import app.dal.manager_priced  # noqa: F401
 
     Base.metadata.create_all(engine)

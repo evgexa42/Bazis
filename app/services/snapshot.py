@@ -19,6 +19,7 @@ from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
 from app.services import telegram as telegram_service
 from app.services.telegram import folder_has_ready_marker, technologist_from_folder
+from app.services import order_timeline
 
 MONTHS_RO = {
     1: "01. Ianuarie",
@@ -72,14 +73,19 @@ def calculate_period_cutoff(months_back: int) -> float:
 
 
 def parse_folder_entry(
-    folder_name: str, stat_mtime: Optional[float] = None, now_ts: Optional[float] = None
+    folder_name: str,
+    stat_mtime: Optional[float] = None,
+    now_ts: Optional[float] = None,
+    stat_result=None,
 ):
     if telegram_service.is_folder_ignored(folder_name):
         return None
 
     folder_path = os.path.join(app_config.FOLDER_PATH or "", folder_name)
     try:
-        mtime_ts = stat_mtime if stat_mtime is not None else os.path.getmtime(folder_path)
+        stat = stat_result or os.stat(folder_path)
+        mtime_ts = stat_mtime if stat_mtime is not None else stat.st_mtime
+        created_ts = getattr(stat, "st_ctime", None)
     except OSError:
         return None
 
@@ -92,8 +98,9 @@ def parse_folder_entry(
     order_number = extract_order_number_from_folder(folder_name) or ""
 
     days_ago = int((now_ts - mtime_ts) // 86400)
+    processed_ts = mtime_ts if folder_has_ready_marker(folder_name) else None
 
-    return {
+    entry = {
         "name": folder_name,
         "status": status,
         "manager": manager,
@@ -103,7 +110,12 @@ def parse_folder_entry(
         "days": days_ago,
         "confirmed": confirmed,
         "order_number": order_number,
-}
+        "order_key": order_number.lower(),
+        "created_ts": created_ts,
+        "processed_ts": processed_ts,
+    }
+
+    return order_timeline.enrich_entry(entry, fallback_created=created_ts, fallback_processed=processed_ts)
 
 INDEX_TTL = 300.0
 _index_lock = threading.Lock()
@@ -163,8 +175,13 @@ def build_orders_snapshot():
             for entry in it:
                 if not entry.is_dir():
                     continue
-
-                parsed = parse_folder_entry(entry.name, stat_mtime=entry.stat().st_mtime, now_ts=now_ts)
+                entry_stat = entry.stat()
+                parsed = parse_folder_entry(
+                    entry.name,
+                    stat_mtime=entry_stat.st_mtime,
+                    now_ts=now_ts,
+                    stat_result=entry_stat,
+                )
                 if parsed:
                     folder_data.append(parsed)
     except FileNotFoundError:

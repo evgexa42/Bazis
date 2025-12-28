@@ -720,6 +720,22 @@ select:focus {
   gap: 8px;
 }
 
+.order-meta {
+  margin-top: 4px;
+  display: grid;
+  gap: 2px;
+  color: #6b7280;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.order-meta__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .priced-mark {
   display: inline-flex;
   align-items: center;
