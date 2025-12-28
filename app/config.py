@@ -5,9 +5,9 @@ from copy import deepcopy
 from flask import current_app, has_app_context
 
 from app.dal.json_store import load_json_file, save_json_atomic
+from app.paths import resolve_path
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+CONFIG_FILE = resolve_path("config.json")
 
 # Полный набор настроек по умолчанию (все ключи присутствуют всегда)
 DEFAULT_CONFIG = {

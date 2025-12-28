@@ -2,7 +2,7 @@
   "server": {
     "host": "192.168.100.114",
     "port": 5000,
-    "debug": true,
+    "debug": false,
     "secret_key": "801f9789e27ee55847dad3d6d6fbe117843f0e59c9f42a6a4b3a8e3b7b5e0993"
   },
   "telegram": {

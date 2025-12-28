@@ -5,7 +5,9 @@ from pathlib import Path
 import shutil
 import sys
 
-BASE_DIR = Path(__file__).resolve().parent
+from app.paths import get_base_dir
+
+BASE_DIR = Path(get_base_dir())
 DB_PATH = BASE_DIR / "database.db"
 BACKUP_DIR = BASE_DIR / "backups"
 LOG_DIR = BASE_DIR / "logs"

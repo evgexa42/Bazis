@@ -3,8 +3,9 @@ from pathlib import Path
 from app.dal.database import replace_clients, replace_messages
 from app.dal.db import init_db
 from app.dal.json_store import load_json_file
+from app.paths import get_base_dir
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(get_base_dir())
 CLIENTS_JSON = BASE_DIR / "clients.json"
 MESSAGES_JSON = BASE_DIR / "messages.json"
 

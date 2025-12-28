@@ -1,4 +1,3 @@
-
 import os
 import time
 import traceback
@@ -17,9 +16,8 @@ except Exception:  # pragma: no cover - опциональная зависим�
 
 import app.config as app_config
 from app.logging_config import cleanup_rotated_logs, setup_logging
+from app.paths import resolve_path
 from app.services.audit import prune_old_events
-
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 metrics_lock = Lock()
 metrics_worker_started = False
@@ -60,7 +58,7 @@ metrics = {
     },
     "threads": {},
     "db": {
-        "path": os.path.join(BASE_DIR, "database.db"),
+        "path": resolve_path("database.db"),
         "size_bytes": 0,
         "last_backup_ts": None,
     },
@@ -120,14 +118,14 @@ def measure_time(name=None, bucket="per_endpoint"):
 
 
 def refresh_db_metrics():
-    db_path = metrics["db"].get("path") or os.path.join(BASE_DIR, "database.db")
+    db_path = metrics["db"].get("path") or resolve_path("database.db")
     latest_backup = None
     try:
         size_bytes = os.path.getsize(db_path)
     except OSError:
         size_bytes = 0
 
-    backups_dir = os.path.join(BASE_DIR, "backups")
+    backups_dir = resolve_path("backups")
     if os.path.isdir(backups_dir):
         try:
             files = [

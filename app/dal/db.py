@@ -16,8 +16,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import generate_password_hash
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-DB_PATH = os.path.join(BASE_DIR, "database.db")
+from app.paths import get_base_dir, resolve_path
+
+BASE_DIR = get_base_dir()  # базовый путь нужен для инициализации каталога БД
+DB_PATH = resolve_path("database.db")
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
