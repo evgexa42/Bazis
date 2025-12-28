@@ -6,7 +6,15 @@ import time
 from datetime import datetime
 from typing import Dict, Optional
 
-from app.dal.order_timeline import load_timelines, upsert_created, upsert_processed
+from sqlalchemy.exc import IntegrityError
+
+from app.dal.order_timeline import (
+    OrderTimeline,
+    load_timelines,
+    upsert_created,
+    upsert_processed,
+)
+from app.dal.db import SessionLocal
 
 logger = logging.getLogger("bazis")
 _lock = threading.RLock()
@@ -79,13 +87,12 @@ def mark_created(order_name: str, created_ts: float | int | None = None) -> Opti
         if existing.get("created_ts") and existing["created_ts"] <= ts_val:
             return existing["created_ts"]
 
-    saved = upsert_created(key, ts_val)
-    with _lock:
+        saved = _upsert_created_safe(key, ts_val)
         entry = _timeline_cache.setdefault(key, {"created_ts": None, "processed_ts": None})
         if saved is not None:
             entry["created_ts"] = saved
         entry.setdefault("processed_ts", existing.get("processed_ts"))
-    return saved
+        return saved
 
 
 def mark_processed(order_name: str, processed_ts: float | int | None = None) -> Optional[float]:
@@ -101,13 +108,12 @@ def mark_processed(order_name: str, processed_ts: float | int | None = None) -> 
         if existing.get("processed_ts"):
             return existing["processed_ts"]
 
-    saved = upsert_processed(key, ts_val)
-    with _lock:
+        saved = _upsert_processed_safe(key, ts_val)
         entry = _timeline_cache.setdefault(key, {"created_ts": None, "processed_ts": None})
         if saved is not None:
             entry["processed_ts"] = saved
         entry.setdefault("created_ts", existing.get("created_ts"))
-    return saved
+        return saved
 
 
 def _calc_delta(created_ts: float | None, processed_ts: float | None) -> Optional[int]:
@@ -147,6 +153,48 @@ def enrich_entry(entry: dict, *, fallback_created: float | None = None, fallback
     entry["processing_seconds"] = _calc_delta(created_ts, processed_ts)
 
     return entry
+
+
+def _upsert_created_safe(order_key: str, ts_val: float) -> Optional[float]:
+    """Защита от гонок при одновременной вставке одинакового order_key."""
+
+    try:
+        return upsert_created(order_key, ts_val)
+    except IntegrityError:
+        logger.warning("[timeline] Повторная запись created для %s, читаем существующую", order_key)
+
+    with SessionLocal() as session:
+        record: OrderTimeline | None = session.get(OrderTimeline, order_key)
+        if record is None:
+            return None
+        if record.created_ts is None or ts_val < record.created_ts:
+            record.created_ts = ts_val
+            try:
+                session.commit()
+            except Exception:
+                session.rollback()
+        return record.created_ts
+
+
+def _upsert_processed_safe(order_key: str, ts_val: float) -> Optional[float]:
+    """Защита от гонок при записи processed."""
+
+    try:
+        return upsert_processed(order_key, ts_val)
+    except IntegrityError:
+        logger.warning("[timeline] Повторная запись processed для %s, читаем существующую", order_key)
+
+    with SessionLocal() as session:
+        record: OrderTimeline | None = session.get(OrderTimeline, order_key)
+        if record is None:
+            return None
+        if record.processed_ts is None:
+            record.processed_ts = ts_val
+            try:
+                session.commit()
+            except Exception:
+                session.rollback()
+        return record.processed_ts
 
 
 # Первичная загрузка кеша сразу после импорта модуля.
