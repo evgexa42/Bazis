@@ -463,7 +463,10 @@ const OrdersPage = (() => {
       || prev?.name !== next?.name
       || prev?.display_name !== next?.display_name
       || prev?.is_approved !== next?.is_approved
-      || prev?.is_cancelled !== next?.is_cancelled;
+      || prev?.is_cancelled !== next?.is_cancelled
+      || prev?.created_at_display !== next?.created_at_display
+      || prev?.processed_at_display !== next?.processed_at_display
+      || prev?.elapsed_display !== next?.elapsed_display;
   }
 
   function animateRowDeletion(row) {
@@ -523,6 +526,13 @@ const OrdersPage = (() => {
     const nameText = document.createElement('span');
     nameText.textContent = item.display_name || item.name || '';
     nameDiv.appendChild(nameText);
+    const meta = buildMetaLine(item);
+    if (meta) {
+      const metaSpan = document.createElement('div');
+      metaSpan.className = 'order-meta';
+      metaSpan.textContent = meta;
+      nameDiv.appendChild(metaSpan);
+    }
     nameTd.appendChild(nameDiv);
     tr.appendChild(nameTd);
 
@@ -563,9 +573,23 @@ const OrdersPage = (() => {
     return null;
   }
 
+  function buildMetaLine(item) {
+    const parts = [];
+    if (item?.created_at_display) {
+      parts.push(`Создан: ${item.created_at_display}`);
+    }
+    if (item?.processed_at_display) {
+      parts.push(`Обработан: ${item.processed_at_display}`);
+      if (item?.elapsed_display) {
+        parts.push(`Прошло: ${item.elapsed_display}`);
+      }
+    }
+    return parts.join(' • ');
+  }
+
   function getOrderKey(item) {
     if (!item) return '';
-    return item.path || item.order_key || item.name || item.id || item.modified || Math.random().toString(16).slice(2);
+    return item.path || item.order_key || item.stable_key || item.name || item.id || item.modified || Math.random().toString(16).slice(2);
   }
 
   return {

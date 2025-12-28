@@ -37,6 +37,10 @@ def build() -> int:
         _fmt_data_arg(base_dir / "app" / "static", "app/static"),
         _fmt_data_arg(base_dir / "app" / "templates", "app/templates"),
     ]
+    for optional in ("config.json", ".env"):
+        candidate = base_dir / optional
+        if candidate.exists():
+            data_args.append(_fmt_data_arg(candidate, optional))
 
     pyinstaller_args = [
         "--noconfirm",
@@ -47,6 +51,7 @@ def build() -> int:
         f"--distpath={dist_dir}",
         f"--workpath={work_dir}",
         f"--specpath={work_dir}",
+        "--collect-all=certifi",
         #f"--key={cipher_key}",
     ]
     for data_arg in data_args:
@@ -59,7 +64,7 @@ def build() -> int:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     # Копируем пользовательские файлы рядом с exe, оставляя их в открытом доступе.
-    for filename in ("config.json", "database.db"):
+    for filename in ("config.json", "database.db", ".env"):
         src = base_dir / filename
         if src.exists():
             shutil.copy2(src, target_dir / filename)

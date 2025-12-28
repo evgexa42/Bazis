@@ -14,6 +14,7 @@ import app as bazis_app
 import app.config as app_config
 from app import get_manager_from_name, heartbeat, logger, measure_time, sse_broadcast
 from app.services import order_status
+from app.services import order_timestamps
 from app.services.order_numbers import extract_order_number_from_folder
 from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
@@ -43,6 +44,38 @@ def _format_modified(ts_value: float) -> str:
         return datetime.fromtimestamp(ts_value).strftime("%d.%m.%Y %H:%M")
     except Exception:
         return ""
+
+
+def _format_dt_local(dt: datetime | None) -> str:
+    if not dt:
+        return ""
+    try:
+        return dt.astimezone(CHISINAU_TZ).strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return ""
+
+
+def _attach_timestamps(entries: List[Dict], source: str) -> List[Dict]:
+    if not entries:
+        return entries
+
+    records = order_timestamps.ensure_records(entries, source=source)
+
+    for entry in entries:
+        record = records.get(entry.get("stable_key"))
+        if not record:
+            continue
+
+        created = record.created_at
+        processed = record.processed_at
+
+        entry["created_at"] = created.isoformat() if created else None
+        entry["processed_at"] = processed.isoformat() if processed else None
+        entry["created_at_display"] = _format_dt_local(created) if created else ""
+        entry["processed_at_display"] = _format_dt_local(processed) if processed else ""
+        entry["elapsed_display"] = order_timestamps.format_elapsed(created, processed)
+
+    return entries
 
 
 def _shift_months(dt: datetime, months_back: int) -> datetime:
@@ -79,7 +112,9 @@ def parse_folder_entry(
 
     folder_path = os.path.join(app_config.FOLDER_PATH or "", folder_name)
     try:
-        mtime_ts = stat_mtime if stat_mtime is not None else os.path.getmtime(folder_path)
+        stat = os.stat(folder_path)
+        mtime_ts = stat_mtime if stat_mtime is not None else stat.st_mtime
+        ctime_ts = getattr(stat, "st_ctime", None)
     except OSError:
         return None
 
@@ -99,6 +134,7 @@ def parse_folder_entry(
         "manager": manager,
         "technologist": technologist,
         "mtime_ts": mtime_ts,
+        "ctime_ts": ctime_ts,
         "modified": "",
         "days": days_ago,
         "confirmed": confirmed,
@@ -172,8 +208,13 @@ def build_orders_snapshot():
 
     try:
         folder_data = order_status.enrich_orders(folder_data)
+        folder_data = _attach_timestamps(folder_data, source="snapshot_scan")
     except Exception as exc:  # pragma: no cover - защитная логика
         logger.warning("[snapshot] enrich_orders failed, fallback to raw data", exc_info=exc)
+        try:
+            folder_data = _attach_timestamps(folder_data, source="snapshot_scan_fallback")
+        except Exception:
+            logger.warning("[snapshot] attach_timestamps fallback failed", exc_info=True)
 
     dt = (perf_counter() - t0) * 1000.0
     with bazis_app.metrics_lock:
@@ -268,6 +309,7 @@ def upsert_order(folder_name: str) -> bool:
         return remove_order(folder_name)
 
     parsed = order_status.enrich_orders([parsed])[0]
+    parsed = _attach_timestamps([parsed], source="watchdog")[0]
     changed, applied_snapshot, version, last_snapshot_ts, existed = _merge_order(parsed)
     if changed:
         payload = build_orders_payload(

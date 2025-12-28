@@ -4,3 +4,4 @@ python-telegram-bot
 SQLAlchemy
 psycopg2-binary
 pytest
+certifi

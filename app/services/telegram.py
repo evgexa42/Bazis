@@ -1,25 +1,66 @@
 import json
+import os
 import queue
+import sys
 import threading
 from typing import List, Optional
 
+import certifi
 from telegram import Bot
+from telegram.utils.request import Request
 
 import app as bazis_app
 import app.config as app_config
 from app import get_manager_from_name, logger
 from app.dal.database import load_messages as load_messages_from_db
 from app.dal.database import replace_messages as replace_messages_in_db
+from app.paths import get_base_dir
 
 bot: Optional[Bot] = None
 messages: List[dict] = []
 messages_lock = threading.Lock()
 tg_queue: "queue.Queue[tuple]" = queue.Queue(maxsize=1000)
 _disabled_warning_logged = False
+_config_state_logged = False
+
+
+def _runtime_mode() -> str:
+    return "frozen" if getattr(sys, "frozen", False) else "source"
+
+
+def _mask(value: str | None) -> str:
+    if not value:
+        return ""
+    if len(value) <= 8:
+        return "***"
+    return f"{value[:4]}***{value[-4:]}"
+
+
+def _log_config_state() -> None:
+    global _config_state_logged
+    if _config_state_logged:
+        return
+    _config_state_logged = True
+
+    base_dir = get_base_dir()
+    config_path = os.path.join(base_dir, "config.json")
+    env_path = os.path.join(base_dir, ".env")
+    logger.info(
+        "[TG] runtime=%s base_dir=%s config=%s env=%s token=%s chat_id=%s",
+        _runtime_mode(),
+        base_dir,
+        config_path,
+        env_path,
+        _mask(app_config.TELEGRAM_TOKEN),
+        app_config.CHAT_ID or "(empty)",
+    )
 
 
 def _telegram_configured() -> bool:
-    return bot is not None and bool(app_config.CHAT_ID)
+    configured = bot is not None and bool(app_config.CHAT_ID)
+    if not configured:
+        _log_config_state()
+    return configured
 
 
 def _log_disabled_once() -> None:
@@ -27,7 +68,11 @@ def _log_disabled_once() -> None:
     if _disabled_warning_logged:
         return
     _disabled_warning_logged = True
-    logger.warning("[TG] Бот не настроен: пропускаем задачи отправки.")
+    logger.warning(
+        "[TG] Бот не настроен: пропускаем задачи отправки (token=%s, chat_id=%s)",
+        _mask(app_config.TELEGRAM_TOKEN),
+        app_config.CHAT_ID or "(empty)",
+    )
 
 
 def enqueue(fn, *args, **kwargs) -> None:
@@ -66,11 +111,31 @@ def start_worker_once():
 def init_bot(token: str) -> None:
     global bot, _disabled_warning_logged
     _disabled_warning_logged = False
+    _log_config_state()
+
     if token and app_config.CHAT_ID:
-        bot = Bot(token=token)
+        request = Request(
+            con_pool_size=8,
+            read_timeout=20,
+            connect_timeout=20,
+            request_kwargs={"verify": certifi.where()},
+        )
+        bot = Bot(token=token, request=request)
         start_worker_once()
+        logger.info(
+            "[TG] Бот инициализирован (mode=%s, token=%s, chat_id=%s, ca=%s)",
+            _runtime_mode(),
+            _mask(token),
+            app_config.CHAT_ID,
+            certifi.where(),
+        )
     else:
         bot = None
+        logger.warning(
+            "[TG] Бот не инициализирован (token=%s, chat_id=%s)",
+            _mask(token),
+            app_config.CHAT_ID or "(empty)",
+        )
 
 
 def load_messages_storage() -> None:
@@ -159,6 +224,7 @@ def send_telegram_message(msg: str, folder_name: str) -> None:
         _log_disabled_once()
         return
     try:
+        logger.info("[TG] Отправка сообщения для %s", folder_name)
         sent = bot.send_message(chat_id=app_config.CHAT_ID, text=msg)
         entry = {
             "folder": folder_name,
@@ -176,7 +242,12 @@ def send_telegram_message(msg: str, folder_name: str) -> None:
             sent.message_id,
         )
     except Exception as exc:
-        logger.exception("[Telegram Error] %s", exc)
+        logger.exception(
+            "[Telegram Error] Ошибка отправки сообщения (folder=%s, chat_id=%s)",
+            folder_name,
+            app_config.CHAT_ID,
+            exc_info=exc,
+        )
 
 
 def delete_telegram_message(folder_name: str) -> None:
