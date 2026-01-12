@@ -260,7 +260,10 @@ def settings_page():
     technologists_text = "\n".join(
         f"{marker}={name}" for marker, name in TECHNOLOGIST_MARKERS.items()
     )
-    search_text = "\n".join(f"{title}={path}" for title, path in SEARCH_FOLDERS.items())
+    search_source = app_config.CONFIG.get("paths", {}).get("search") or app_config.SEARCH_FOLDERS
+    search_text = request.form.get("search_folders") or "\n".join(
+        f"{title}={path}" for title, path in (search_source or {}).items()
+    )
 
     users = get_all_users()
     available_roles = sorted(get_allowed_roles())

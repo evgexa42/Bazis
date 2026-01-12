@@ -1067,6 +1067,9 @@ const UIEffects = (() => {
 
     const notices = document.querySelectorAll('.notice-card');
     notices.forEach(notice => {
+      if (notice.classList.contains('is-hidden')) return;
+      if (notice.dataset.passwordNotice !== undefined) return;
+
       const text = notice.textContent.trim();
       const type = notice.classList.contains('notice-card--error')
         ? 'error'

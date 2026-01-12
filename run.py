@@ -1,3 +1,8 @@
+import os
+import certifi
+
+os.environ["SSL_CERT_FILE"] = certifi.where()
+
 from app import config as app_config
 from app import create_app, logger
 

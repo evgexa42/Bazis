@@ -1,4 +1,5 @@
 import json
+import os
 import queue
 import threading
 from typing import List, Optional
@@ -28,6 +29,37 @@ def _log_disabled_once() -> None:
         return
     _disabled_warning_logged = True
     logger.warning("[TG] Бот не настроен: пропускаем задачи отправки.")
+
+
+def _ensure_tls_bundle() -> None:
+    """Гарантирует доступ к корневым сертификатам в frozen-билде.
+
+    PyInstaller иногда теряет путь до certifi, поэтому принудительно прописываем
+    переменные окружения, если они ещё не заданы.
+    """
+
+    if os.environ.get("SSL_CERT_FILE") and os.environ.get("REQUESTS_CA_BUNDLE"):
+        return
+
+    try:
+        import certifi  # локальный импорт во избежание лишней зависимости при старте
+
+        cafile = certifi.where()
+        if cafile and os.path.exists(cafile):
+            os.environ.setdefault("SSL_CERT_FILE", cafile)
+            os.environ.setdefault("REQUESTS_CA_BUNDLE", cafile)
+            logger.info("[TG] SSL_CERT_FILE/REQUESTS_CA_BUNDLE установлен: %s", cafile)
+    except Exception as exc:  # pragma: no cover - защитное логирование
+        logger.warning("[TG] Не удалось указать сертификаты TLS", exc_info=exc)
+
+
+def _create_bot(token: str) -> Optional[Bot]:
+    _ensure_tls_bundle()
+    try:
+        return Bot(token=token)
+    except Exception as exc:  # pragma: no cover - логируем сбой и отключаем бота
+        logger.exception("[TG] Не удалось инициализировать Bot", exc_info=exc)
+        return None
 
 
 def enqueue(fn, *args, **kwargs) -> None:
@@ -67,7 +99,7 @@ def init_bot(token: str) -> None:
     global bot, _disabled_warning_logged
     _disabled_warning_logged = False
     if token and app_config.CHAT_ID:
-        bot = Bot(token=token)
+        bot = _create_bot(token)
         start_worker_once()
     else:
         bot = None
