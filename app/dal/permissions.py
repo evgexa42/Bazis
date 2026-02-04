@@ -26,6 +26,8 @@ PERMISSION_FIELDS: Iterable[str] = (
     "can_view_priced",
     "can_mark_priced",
     "can_view_priced_panel",
+    "can_edit_order_manager",
+    "can_manage_db",
 )
 
 _EMPTY_PERMISSIONS: Dict[str, int] = {field: 0 for field in PERMISSION_FIELDS}
@@ -46,6 +48,8 @@ def _enforce_admin_baseline(role: str, perms: Dict[str, int]) -> Dict[str, int]:
     ensured["can_confirm_orders"] = 1
     ensured["can_view_priced"] = 1
     ensured["can_view_priced_panel"] = 1
+    ensured["can_edit_order_manager"] = 1
+    ensured["can_manage_db"] = 1
     return ensured
 
 

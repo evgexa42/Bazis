@@ -239,6 +239,117 @@ h1 {
   border-radius: 10px;
 }
 
+.manager-edit-btn {
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.order-manager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-manager--override .order-manager-value {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-medium) var(--easing);
+  z-index: 50;
+}
+
+.modal-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background: var(--surface);
+  border-radius: 16px;
+  width: min(420px, 92vw);
+  padding: 16px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.modal-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal-card__body {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal-card__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.metrics-range {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.metrics-range .btn.is-active {
+  border-color: rgba(37, 99, 235, 0.5);
+  color: var(--primary);
+}
+
+.metrics-summary {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.metrics-summary table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.metrics-summary th,
+.metrics-summary td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.metrics-summary th {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.db-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.db-tools__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .btn--danger:hover {
   background: rgba(220, 38, 38, 0.18);
   color: var(--danger-hover);

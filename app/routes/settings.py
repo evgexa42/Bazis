@@ -1,7 +1,10 @@
 
 import logging
+import os
+import shutil
 import time
 from copy import deepcopy
+from datetime import datetime, timedelta
 
 from flask import (
     Blueprint,
@@ -12,6 +15,7 @@ from flask import (
     request,
     session,
     url_for,
+    send_file,
 )
 
 import app.config as app_config
@@ -25,6 +29,7 @@ from app.config import (
     save_config,
 )
 from app.dal.db import DEFAULT_ROLE_PERMISSIONS
+from app.dal.db import DB_PATH, OrderEvent, SessionLocal, engine, init_db
 from app.dal.permissions import (
     PERMISSION_FIELDS,
     create_role,
@@ -47,6 +52,8 @@ from app import metrics, metrics_lock, ts_ago
 from app.routes.auth import login_required
 from app.services import telegram as telegram_service
 from app.services.audit import fetch_events, log_order_event
+from app.paths import resolve_path
+from sqlalchemy import func, select
 
 settings_bp = Blueprint("settings", __name__)
 logger = logging.getLogger("bazis")
@@ -89,6 +96,21 @@ def settings_page():
                 if key and val:
                     mapping[key] = val
             return mapping
+        
+        def parse_chat_ids(value: str) -> list[str]:
+            chat_ids = []
+            invalid = []
+            for line in (value or "").splitlines():
+                raw = line.strip()
+                if not raw:
+                    continue
+                if all(ch.isdigit() or ch == "-" for ch in raw):
+                    chat_ids.append(raw)
+                else:
+                    invalid.append(raw)
+            if invalid:
+                errors.append("Chat ID должен содержать только цифры и знак минус.")
+            return chat_ids
 
         updated = deepcopy(CONFIG)
         old_config = deepcopy(CONFIG)
@@ -108,6 +130,7 @@ def settings_page():
         if role_perms.get("can_edit_paths"):
             orders_path = request.form.get("orders_path", "").strip()
             facades_dir = request.form.get("facades_dir", "").strip()
+            not_given_dir = request.form.get("not_given_dir", "").strip()
             prisadka_root = request.form.get("prisadka_root", "").strip()
             desene_cpu_root = request.form.get("desene_cpu_root", "").strip()
             prisadka_client_root = request.form.get("prisadka_client_root", "").strip()
@@ -126,10 +149,13 @@ def settings_page():
 
             telegram_token = request.form.get("telegram_token", "").strip()
             telegram_chat = request.form.get("telegram_chat_id", "").strip()
+            telegram_chat_ids = request.form.get("telegram_chat_ids", "")
 
             paths_cfg = updated.setdefault("paths", {})
             if orders_path:
                 paths_cfg["orders"] = orders_path
+            if not_given_dir:
+                paths_cfg["not_given_dir"] = not_given_dir
             if facades_dir:
                 paths_cfg["facades_dir"] = facades_dir
             if prisadka_root:
@@ -155,6 +181,7 @@ def settings_page():
             telegram_cfg = updated.setdefault("telegram", {})
             telegram_cfg["token"] = telegram_token
             telegram_cfg["chat_id"] = telegram_chat
+            telegram_cfg["chat_ids"] = parse_chat_ids(telegram_chat_ids) or ([telegram_chat] if telegram_chat else [])
 
             orders_sync_cfg = updated.setdefault("orders_sync", {})
             orders_sync_cfg["pg_url"] = pg_url
@@ -264,6 +291,9 @@ def settings_page():
     search_text = request.form.get("search_folders") or "\n".join(
         f"{title}={path}" for title, path in (search_source or {}).items()
     )
+    chat_ids_text = request.form.get("telegram_chat_ids") or "\n".join(
+        app_config.CONFIG.get("telegram", {}).get("chat_ids") or ([] if not app_config.CHAT_ID else [app_config.CHAT_ID])
+    )
 
     users = get_all_users()
     available_roles = sorted(get_allowed_roles())
@@ -288,7 +318,113 @@ def settings_page():
         protected_roles=set(DEFAULT_ROLE_PERMISSIONS.keys()),
         role_usage={user["role"] for user in users},
         audit_events=audit_events,
+        chat_ids_text=chat_ids_text,
     )
+
+
+def _period_bounds(range_key: str) -> tuple[datetime, datetime]:
+    now = datetime.now()
+    if range_key == "week":
+        start = now - timedelta(days=now.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif range_key == "month":
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, now
+
+
+def _group_events(action: str, start: datetime, end: datetime) -> list[dict]:
+    with SessionLocal.begin() as session:
+        rows = session.execute(
+            select(OrderEvent.manager, func.count())
+            .where(OrderEvent.action == action, OrderEvent.ts >= start, OrderEvent.ts <= end)
+            .group_by(OrderEvent.manager)
+            .order_by(func.count().desc())
+        ).all()
+    return [{"name": (name or "Неизвестно"), "count": int(count or 0)} for name, count in rows]
+
+
+@settings_bp.route("/metrics/api", methods=["GET"])
+@login_required
+@permissions_required("can_access_metrics")
+def metrics_summary_api():
+    range_key = (request.args.get("range") or "day").strip().lower()
+    if range_key not in {"day", "week", "month"}:
+        range_key = "day"
+    start, end = _period_bounds(range_key)
+
+    return jsonify(
+        {
+            "period_start": start.isoformat(),
+            "period_end": end.isoformat(),
+            "confirmed_by_manager": _group_events("manager_confirmed", start, end),
+            "processed_by_technologist": _group_events("technologist_processed", start, end),
+        }
+    )
+
+
+@settings_bp.route("/admin/db/export", methods=["GET"])
+@login_required
+@permissions_required("can_manage_db")
+def export_db():
+    backups_dir = resolve_path("backups")
+    os.makedirs(backups_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_name = f"database_backup_{timestamp}.db"
+    backup_path = os.path.join(backups_dir, backup_name)
+    shutil.copy2(DB_PATH, backup_path)
+    log_order_event("db_export", order_name=backup_name, user=session.get("user"))
+    return send_file(backup_path, as_attachment=True, download_name=backup_name)
+
+
+@settings_bp.route("/admin/db/import", methods=["POST"])
+@login_required
+@permissions_required("can_manage_db")
+def import_db():
+    confirm = request.form.get("confirm") == "1"
+    if not confirm:
+        session["settings_errors"] = ["Подтвердите импорт базы данных."]
+        return redirect(url_for("settings.settings_page"))
+
+    file = request.files.get("db_file")
+    if not file or not file.filename:
+        session["settings_errors"] = ["Файл базы данных не выбран."]
+        return redirect(url_for("settings.settings_page"))
+
+    _, ext = os.path.splitext(file.filename.lower())
+    if ext not in {".db", ".sqlite", ".sqlite3"}:
+        session["settings_errors"] = ["Недопустимый формат файла базы данных."]
+        return redirect(url_for("settings.settings_page"))
+
+    uploads_dir = resolve_path("uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    temp_path = os.path.join(uploads_dir, f"import_{timestamp}{ext}")
+    file.save(temp_path)
+
+    backups_dir = resolve_path("backups")
+    os.makedirs(backups_dir, exist_ok=True)
+    backup_path = os.path.join(backups_dir, f"database_before_import_{timestamp}.db")
+    shutil.copy2(DB_PATH, backup_path)
+
+    try:
+        engine.dispose()
+        os.replace(temp_path, DB_PATH)
+        init_db()
+        session["settings_status"] = "База данных импортирована."
+        log_order_event("db_import", order_name=os.path.basename(DB_PATH), user=session.get("user"))
+    except Exception as exc:
+        logger.exception("[settings] Ошибка импорта БД", exc_info=exc)
+        session["settings_errors"] = ["Импорт базы данных не удался."]
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                logger.warning("[settings] Не удалось удалить временный файл: %s", temp_path)
+
+    return redirect(url_for("settings.settings_page"))
 
 
 @settings_bp.route("/journal", methods=["GET"])

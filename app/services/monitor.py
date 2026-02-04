@@ -11,6 +11,11 @@ import app.config as app_config
 from app import heartbeat, measure_time
 from app.services import telegram as telegram_service
 from app.services.snapshot import remove_order, upsert_order
+from app.services.order_numbers import extract_order_number_from_folder, PLUS_SUFFIX_RE
+from app.services.order_times import normalize_order_key
+from app.services.audit import log_order_event
+from app.dal.order_manager_overrides import get_overrides_map
+from app import get_manager_from_name
 
 logger = bazis_app.logger
 
@@ -61,6 +66,79 @@ def in_watch_dir(path: str) -> bool:
             pass
 
     return False
+
+
+def _get_not_given_roots() -> set[str]:
+    root = app_config.NOT_GIVEN_DIR
+    if not root:
+        return set()
+    return {_norm_real(root), _norm_abs(root)}
+
+
+NOT_GIVEN_ROOTS = _get_not_given_roots()
+
+
+def in_not_given_dir(path: str) -> bool:
+    if not path or not NOT_GIVEN_ROOTS:
+        return False
+
+    p_real = _norm_real(path)
+    p_abs = _norm_abs(path)
+
+    for root in NOT_GIVEN_ROOTS:
+        try:
+            if os.path.commonpath([p_real, root]) == root:
+                return True
+        except ValueError:
+            pass
+
+        try:
+            if os.path.commonpath([p_abs, root]) == root:
+                return True
+        except ValueError:
+            pass
+
+    return False
+
+
+def _resolve_manager_for_folder(folder_name: str) -> str:
+    order_key = normalize_order_key(folder_name)
+    override = get_overrides_map([order_key]).get(order_key) if order_key else None
+    return override or get_manager_from_name(folder_name)
+
+
+def _confirm_not_given_folder(folder_path: str) -> None:
+    if not folder_path or not app_config.NOT_GIVEN_DIR:
+        return
+    folder_name = os.path.basename(folder_path)
+    if not folder_name:
+        return
+    if PLUS_SUFFIX_RE.search(folder_name):
+        return
+    if not extract_order_number_from_folder(folder_name):
+        return
+
+    src_path = os.path.join(app_config.NOT_GIVEN_DIR, folder_name)
+    target_name = f"{folder_name} +"
+    dest_path = os.path.join(app_config.NOT_GIVEN_DIR, target_name)
+    if not os.path.exists(src_path):
+        return
+    if os.path.exists(dest_path):
+        return
+
+    register_programmatic_move(src_path, dest_path)
+    try:
+        os.rename(src_path, dest_path)
+    except OSError:
+        discard_programmatic_move(src_path, dest_path)
+        return
+
+    log_order_event(
+        "manager_confirmed",
+        order_name=target_name,
+        manager=_resolve_manager_for_folder(target_name),
+        new_value=target_name,
+    )
 
 
 class OrderFolderHandler(FileSystemEventHandler):
@@ -128,6 +206,13 @@ class OrderFolderHandler(FileSystemEventHandler):
         telegram_service.enqueue(
             telegram_service.handle_moved_notification, src_name, dest_name, already_known
         )
+        if PLUS_SUFFIX_RE.search(dest_name) and not PLUS_SUFFIX_RE.search(src_name):
+            log_order_event(
+                "manager_confirmed",
+                order_name=dest_name,
+                manager=_resolve_manager_for_folder(dest_name),
+                new_value=dest_name,
+            )
 
     @measure_time("observer_on_deleted")
     def on_deleted(self, event):
@@ -140,6 +225,25 @@ class OrderFolderHandler(FileSystemEventHandler):
         unregister_known_folder(folder_name)
         telegram_service.enqueue(telegram_service.delete_telegram_message, folder_name)
         remove_order(folder_name)
+
+
+class NotGivenFolderHandler(FileSystemEventHandler):
+    @measure_time("observer_not_given_created")
+    def on_created(self, event):
+        if not event.is_directory:
+            return
+        if not in_not_given_dir(event.src_path):
+            return
+        _confirm_not_given_folder(event.src_path)
+
+    @measure_time("observer_not_given_moved")
+    def on_moved(self, event):
+        if not event.is_directory:
+            return
+        if _consume_programmatic_move(event.src_path, event.dest_path):
+            return
+        if in_not_given_dir(event.dest_path):
+            _confirm_not_given_folder(event.dest_path)
 
 
 def register_known_folder(folder_name):
@@ -244,8 +348,12 @@ def start_observer_once():
                 # пересчёт корней (на случай если конфиг загрузился позже)
                 global WATCH_ROOTS
                 WATCH_ROOTS = _get_watch_roots()
+                global NOT_GIVEN_ROOTS
+                NOT_GIVEN_ROOTS = _get_not_given_roots()
 
                 local_observer.schedule(handler, app_config.FOLDER_PATH, recursive=False)
+                if app_config.NOT_GIVEN_DIR:
+                    local_observer.schedule(NotGivenFolderHandler(), app_config.NOT_GIVEN_DIR, recursive=False)
 
                 with observer_lock:
                     observer = local_observer
@@ -316,3 +424,13 @@ def initialize_known_state():
             ensure_message_for_folder(name)
         else:
             delete_telegram_message(name)
+
+    if app_config.NOT_GIVEN_DIR and os.path.isdir(app_config.NOT_GIVEN_DIR):
+        try:
+            with os.scandir(app_config.NOT_GIVEN_DIR) as it:
+                for entry in it:
+                    if not entry.is_dir():
+                        continue
+                    _confirm_not_given_folder(entry.path)
+        except Exception as exc:
+            logger.warning("[init] Не удалось обработать «НЕ ДАЛИ В РАБОТУ»", exc_info=exc)

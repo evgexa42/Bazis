@@ -84,6 +84,7 @@ def setup_page():
         telegram_snapshot = config_snapshot.setdefault("telegram", {})
         telegram_snapshot["token"] = telegram_token
         telegram_snapshot["chat_id"] = telegram_chat
+        telegram_snapshot["chat_ids"] = [telegram_chat] if telegram_chat else []
 
         if not admin_username or not admin_password:
             errors.append("Укажите логин и пароль администратора.")
@@ -119,6 +120,7 @@ def setup_page():
             telegram_cfg = updated_config.setdefault("telegram", {})
             telegram_cfg["token"] = telegram_token
             telegram_cfg["chat_id"] = telegram_chat
+            telegram_cfg["chat_ids"] = [telegram_chat] if telegram_chat else []
 
             updated_config["managers"] = manager_names
             updated_config["technologists"] = {k: v for k, v in tech_markers.items() if k}

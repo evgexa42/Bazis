@@ -9,16 +9,20 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 import app.config as app_config
-from app import heartbeat
+from app import get_manager_from_name, heartbeat
 from app.dal.external_orders import ExternalOrderRecord
+from app.dal.order_manager_overrides import get_overrides_map
 from app.services import order_status
 from app.services.monitor import discard_programmatic_move, move_known_folder, register_programmatic_move
 from app.services.order_numbers import (
     created_at_cutoff,
     extract_order_info_from_sql,
     extract_order_number_from_folder,
+    PLUS_SUFFIX_RE,
 )
+from app.services.order_times import normalize_order_key
 from app.services.snapshot import refresh_orders_snapshot, remove_order, upsert_order
+from app.services.audit import log_order_event
 from app.services.telegram import update_message_for_folder
 
 logger = logging.getLogger("bazis")
@@ -183,6 +187,17 @@ def _rename_folder_if_needed(folder_name: str, target_name: str) -> None:
     remove_order(folder_name)
     upsert_order(target_name)
     logger.info("[orders_sync] Папка переименована: %s -> %s", folder_name, target_name)
+
+    if PLUS_SUFFIX_RE.search(target_name) and not PLUS_SUFFIX_RE.search(folder_name):
+        order_key = normalize_order_key(target_name)
+        override = get_overrides_map([order_key]).get(order_key)
+        manager_name = override or get_manager_from_name(target_name)
+        log_order_event(
+            "manager_confirmed",
+            order_name=target_name,
+            manager=manager_name,
+            new_value=target_name,
+        )
 
 
 def reconcile_folder_names(statuses: List[ExternalOrderRecord]) -> None:

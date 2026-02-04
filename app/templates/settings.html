@@ -83,6 +83,11 @@ data-managers='{{ config_managers | tojson }}'
         </div>
 
         <div class="settings-field settings-field--wide">
+          <label class="field-label" for="not_given_dir">Папка «НЕ ДАЛИ В РАБОТУ»</label>
+          <input type="text" class="input" id="not_given_dir" name="not_given_dir" placeholder="\\\\SERVER\\no-work" value="{{ config.get('paths', {}).get('not_given_dir', '') }}">
+        </div>
+
+        <div class="settings-field settings-field--wide">
           <label class="field-label" for="facades_dir">Папка для facades_list.txt</label>
           <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
         </div>
@@ -111,6 +116,12 @@ data-managers='{{ config_managers | tojson }}'
         <div class="settings-field">
           <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
           <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="telegram_chat_ids">Telegram Chat IDs (по одному в строке)</label>
+          <textarea id="telegram_chat_ids" name="telegram_chat_ids" class="input input--mono" placeholder="123456789">{{ chat_ids_text }}</textarea>
+          <p class="hint">Допустимы только числа и знак минус (для групп).</p>
         </div>
 
         <div class="settings-field settings-field--wide">
@@ -168,6 +179,34 @@ data-managers='{{ config_managers | tojson }}'
         <button type="submit" class="btn btn--primary">💾 Сохранить</button>
       </div>
     </form>
+
+    {% if role_perms.can_manage_db %}
+    <section class="card card--subtle" aria-labelledby="db-tools-title">
+      <div class="card-header-between">
+        <div>
+          <h2 id="db-tools-title" class="section-title">База данных</h2>
+          <p class="hint">Экспорт и импорт доступны только администраторам.</p>
+        </div>
+      </div>
+      <div class="db-tools">
+        <div class="db-tools__actions">
+          <a class="btn btn--ghost btn--compact" href="{{ url_for('settings.export_db') }}">⬇️ Выгрузить DB</a>
+        </div>
+        <form action="{{ url_for('settings.import_db') }}" method="POST" enctype="multipart/form-data" class="db-tools__actions" id="dbImportForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="confirm" value="0">
+          <input type="file" name="db_file" class="input input--compact" accept=".db,.sqlite,.sqlite3" required>
+          <label class="checkbox-row">
+            <input type="checkbox" name="confirm_checkbox" value="1">
+            <div class="checkbox-row__content">
+              <span class="checkbox-row__label">Я понимаю, что текущая база будет заменена</span>
+            </div>
+          </label>
+          <button type="submit" class="btn btn--primary btn--compact">⬆️ Импортировать</button>
+        </form>
+      </div>
+    </section>
+    {% endif %}
 
     <section class="card card--subtle audit-card" aria-labelledby="audit-log-title">
       <div class="card-header-between">
@@ -321,6 +360,29 @@ data-managers='{{ config_managers | tojson }}'
       <span id="metricsStatus" class="text-muted"></span>
     </div>
 
+    <div class="metrics-range" data-metrics-range>
+      <button type="button" class="btn btn--ghost btn--compact is-active" data-range="day">День</button>
+      <button type="button" class="btn btn--ghost btn--compact" data-range="week">Неделя</button>
+      <button type="button" class="btn btn--ghost btn--compact" data-range="month">Месяц</button>
+    </div>
+
+    <div class="metrics-summary">
+      <div class="metrics-card">
+        <h3 class="section-subtitle">Подтверждения менеджеров</h3>
+        <table>
+          <thead><tr><th>Менеджер</th><th>Кол-во</th></tr></thead>
+          <tbody id="metrics-confirmed-table"></tbody>
+        </table>
+      </div>
+      <div class="metrics-card">
+        <h3 class="section-subtitle">Обработка технологов</h3>
+        <table>
+          <thead><tr><th>Технолог</th><th>Кол-во</th></tr></thead>
+          <tbody id="metrics-processed-table"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="metrics-grid">
       <div class="metrics-card">
         <h3 class="section-subtitle">Server</h3>
@@ -421,12 +483,14 @@ data-managers='{{ config_managers | tojson }}'
       [
         ('can_manage_users', 'Может управлять пользователями', 'Создание, редактирование и деактивация учётных записей.'),
         ('can_edit_paths', 'Может менять пути/папки и конфиг', 'Изменение путей, сетевых настроек и токенов.'),
+        ('can_manage_db', 'Может экспортировать/импортировать базу', 'Доступ к резервному копированию и восстановлению БД.'),
       ]
     ),
     (
       'Операции с заказами',
       [
         ('can_toggle_order_options', 'Может менять настройки мониторинга заказов', 'Доступ к системным настройкам мониторинга.'),
+        ('can_edit_order_manager', 'Может менять менеджера заказа', 'Разрешено вручную назначать менеджера конкретному заказу.'),
       ]
     )
   ] %}

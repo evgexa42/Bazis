@@ -69,4 +69,24 @@ data-managers='{{ config_managers | tojson }}'
       </table>
     </div>
   </section>
+
+  <div class="modal-overlay" id="managerOverrideModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="managerOverrideTitle">
+      <header class="modal-card__header">
+        <h3 id="managerOverrideTitle" class="section-subtitle">Менеджер заказа</h3>
+        <button type="button" class="btn btn--ghost btn--compact modal-close" aria-label="Закрыть">✕</button>
+      </header>
+      <div class="modal-card__body">
+        <label class="field">
+          <span class="field-label">Выберите менеджера</span>
+          <select id="managerOverrideSelect" class="select select--compact"></select>
+        </label>
+        <p class="hint">Изменение применяется только к этому заказу.</p>
+      </div>
+      <div class="modal-card__footer">
+        <button type="button" class="btn btn--ghost btn--compact modal-cancel">Отмена</button>
+        <button type="button" class="btn btn--primary btn--compact" id="managerOverrideSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
 {% endblock %}

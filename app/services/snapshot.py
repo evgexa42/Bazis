@@ -24,6 +24,7 @@ from app.services.order_times import (
 from app.services.order_numbers import extract_order_number_from_folder
 from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
+from app.dal.order_manager_overrides import get_overrides_map
 from app.services import telegram as telegram_service
 from app.services.telegram import folder_has_ready_marker, technologist_from_folder
 
@@ -114,6 +115,30 @@ def parse_folder_entry(
         "order_key": order_key,
 }
 
+
+def _apply_manager_overrides(entries: List[Dict]) -> None:
+    if not entries:
+        return
+    order_keys = []
+    for item in entries:
+        key = item.get("order_key") or normalize_order_key(item.get("name") or "")
+        if key:
+            item["order_key"] = key
+            order_keys.append(key)
+
+    if not order_keys:
+        return
+
+    overrides = get_overrides_map(order_keys)
+    for item in entries:
+        key = item.get("order_key") or ""
+        override = overrides.get(key)
+        if override:
+            item["manager"] = override
+            item["manager_override"] = True
+        else:
+            item.pop("manager_override", None)
+
 INDEX_TTL = 300.0
 _index_lock = threading.Lock()
 _index_access_lock = threading.RLock()
@@ -183,6 +208,8 @@ def build_orders_snapshot():
         folder_data = order_status.enrich_orders(folder_data)
     except Exception as exc:  # pragma: no cover - защитная логика
         logger.warning("[snapshot] enrich_orders failed, fallback to raw data", exc_info=exc)
+
+    _apply_manager_overrides(folder_data)
 
     dt = (perf_counter() - t0) * 1000.0
     with bazis_app.metrics_lock:
@@ -293,6 +320,7 @@ def upsert_order(folder_name: str) -> bool:
         logger.warning("[order_times] Не удалось обновить время для %s", folder_name, exc_info=exc)
 
     parsed = order_status.enrich_orders([parsed])[0]
+    _apply_manager_overrides([parsed])
     changed, applied_snapshot, version, last_snapshot_ts, existed = _merge_order(parsed)
     if changed:
         payload = build_orders_payload(
@@ -309,6 +337,51 @@ def upsert_order(folder_name: str) -> bool:
                 new_value=parsed.get("status"),
             )
     return changed
+
+
+def update_order_manager_override(order_key: str, manager_name: Optional[str], resolved_manager: Optional[str] = None):
+    if not order_key:
+        return None
+
+    updated_item = None
+    changed = False
+
+    with bazis_app.orders_snapshot_lock:
+        snapshot = list(bazis_app.orders_snapshot)
+
+        for idx, item in enumerate(snapshot):
+            key = item.get("order_key") or normalize_order_key(item.get("name") or "")
+            if key != order_key:
+                continue
+
+            if manager_name:
+                if item.get("manager") != manager_name or not item.get("manager_override"):
+                    item["manager"] = manager_name
+                    item["manager_override"] = True
+                    changed = True
+            else:
+                auto_manager = resolved_manager or get_manager_from_name(item.get("name") or "")
+                if item.get("manager") != auto_manager or item.get("manager_override"):
+                    item["manager"] = auto_manager
+                    item.pop("manager_override", None)
+                    changed = True
+
+            snapshot[idx] = item
+            updated_item = item
+            break
+
+        if changed:
+            changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot, lock_held=True)
+
+    if changed and updated_item is not None:
+        payload = build_orders_payload(
+            folders=applied_snapshot,
+            version=version,
+            last_snapshot_ts=last_snapshot_ts,
+        )
+        sse_broadcast(payload)
+
+    return updated_item
 
 
 def remove_order(folder_name: str) -> bool:

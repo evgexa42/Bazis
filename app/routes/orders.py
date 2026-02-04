@@ -28,6 +28,7 @@ from app import (
     sse_clients_lock,
 )
 from app.dal.permissions import has_permission, permissions_required
+from app.dal.order_manager_overrides import delete_override, set_override
 from app.services.snapshot import (
     build_orders_payload,
     calculate_period_cutoff,
@@ -35,8 +36,11 @@ from app.services.snapshot import (
     remove_order,
     collect_month_scope,
     search_in_index,
+    update_order_manager_override,
     upsert_order,
 )
+from app.services.order_times import normalize_order_key
+from app.services.audit import log_order_event
 from app.services.telegram import (
     folder_has_ready_marker,
     technologist_from_folder,
@@ -118,6 +122,14 @@ def _find_order_in_snapshot(order_key: str):
     return None
 
 
+def _find_order_by_key(order_key: str):
+    for order in _snapshot_copy():
+        key = order.get("order_key") or normalize_order_key(order.get("name") or "")
+        if key == order_key:
+            return order
+    return None
+
+
 orders_bp = Blueprint("orders", __name__)
 
 
@@ -154,6 +166,59 @@ def data():
     payload = build_orders_payload(visible_manager, requested_manager)
 
     return jsonify(payload)
+
+
+@orders_bp.route("/api/managers", methods=["GET"])
+@permissions_required("can_edit_order_manager")
+def managers_list():
+    managers = list(dict.fromkeys([name for name in app_config.MANAGER_NAMES if name]))
+    if "Неизвестно" not in managers:
+        managers.append("Неизвестно")
+    return jsonify({"managers": managers})
+
+
+@orders_bp.route("/api/orders/<order_key>/manager", methods=["POST"])
+@permissions_required("can_edit_order_manager")
+def update_order_manager(order_key: str):
+    payload = request.get_json(silent=True) or {}
+    manager_name = (payload.get("manager_name") or payload.get("manager_id") or "").strip()
+    order_name = (payload.get("order_name") or "").strip()
+
+    allowed = set(app_config.MANAGER_NAMES)
+    allowed.add("Неизвестно")
+    if manager_name and manager_name not in allowed:
+        return jsonify({"ok": False, "error": "Недопустимый менеджер."}), 400
+
+    previous = _find_order_by_key(order_key) or {}
+    old_manager = previous.get("manager")
+
+    if manager_name:
+        set_override(order_key, manager_name, updated_by=session.get("user"))
+    else:
+        delete_override(order_key)
+
+    resolved_manager = get_manager_from_name(order_name or previous.get("name") or "")
+    updated = update_order_manager_override(order_key, manager_name or None, resolved_manager=resolved_manager)
+    if not updated:
+        return jsonify({"ok": False, "error": "Заказ не найден."}), 404
+
+    log_order_event(
+        "manager_override",
+        order_name=order_name or updated.get("name") or order_key,
+        manager=manager_name or resolved_manager,
+        old_value=old_manager or "",
+        new_value=manager_name or "",
+        user=session.get("user"),
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "order_key": order_key,
+            "manager": updated.get("manager"),
+            "manager_override": bool(updated.get("manager_override")),
+        }
+    )
 
 
 @orders_bp.route("/search", methods=["GET", "POST"])

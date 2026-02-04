@@ -33,6 +33,8 @@ const APP_CONFIG = (() => {
     canAccessSearch: body?.dataset?.canAccessSearch === '1',
     canEditPaths: body?.dataset?.canEditPaths === '1',
     canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
+    canEditOrderManager: body?.dataset?.canEditOrderManager === '1',
+    canManageDb: body?.dataset?.canManageDb === '1',
   };
 
   return { managers, currentUser, currentRole, permissions };
@@ -124,6 +126,9 @@ const OrdersPage = (() => {
   let previousOrders = new Map();
   let sseStatus = { root: null, dot: null, text: null };
   let orderTimesTimer = null;
+  let managerEditState = null;
+  let managerModal = null;
+  let cachedManagers = null;
 
   function init() {
     const table = document.getElementById('orders');
@@ -146,7 +151,10 @@ const OrdersPage = (() => {
       searchInput.addEventListener('focus', () => searchInput.classList.add('is-focused'));
       searchInput.addEventListener('blur', () => searchInput.classList.remove('is-focused'));
     }
-	startOrderTimesTicker();
+    if (APP_CONFIG.permissions.canEditOrderManager) {
+      setupManagerEditor();
+    }
+    startOrderTimesTicker();
     startSSE();
   }
 
@@ -535,10 +543,27 @@ const OrdersPage = (() => {
     tr.appendChild(nameTd);
 
     const managerTd = document.createElement('td');
-    const managerDiv = document.createElement('div');
-    managerDiv.className = 'table-secondary';
+    const managerWrapper = document.createElement('div');
+    managerWrapper.className = 'order-manager';
+    if (item.manager_override) {
+      managerWrapper.classList.add('order-manager--override');
+    }
+    const managerDiv = document.createElement('span');
+    managerDiv.className = 'table-secondary order-manager-value';
     managerDiv.textContent = item.manager || '—';
-    managerTd.appendChild(managerDiv);
+    managerWrapper.appendChild(managerDiv);
+    const overrideKey = item.order_key || '';
+    if (APP_CONFIG.permissions.canEditOrderManager && overrideKey) {
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn--ghost btn--compact manager-edit-btn';
+      editBtn.title = 'Редактировать менеджера';
+      editBtn.dataset.orderKey = overrideKey;
+      editBtn.dataset.orderName = item.name || item.display_name || '';
+      editBtn.textContent = '✏️';
+      managerWrapper.appendChild(editBtn);
+    }
+    managerTd.appendChild(managerWrapper);
     tr.appendChild(managerTd);
 
     const statusTd = document.createElement('td');
@@ -659,6 +684,105 @@ const OrdersPage = (() => {
     return item.path || item.order_key || item.name || item.id || item.modified || Math.random().toString(16).slice(2);
   }
 
+  function setupManagerEditor() {
+    const modal = document.getElementById('managerOverrideModal');
+    const select = document.getElementById('managerOverrideSelect');
+    const saveBtn = document.getElementById('managerOverrideSave');
+    const table = document.getElementById('orders');
+    if (!modal || !select || !saveBtn || !table) return;
+
+    managerModal = { modal, select, saveBtn };
+    table.addEventListener('click', handleManagerEditClick);
+    modal.addEventListener('click', event => {
+      if (event.target === modal || event.target.closest('.modal-close') || event.target.closest('.modal-cancel')) {
+        closeManagerModal();
+      }
+    });
+    saveBtn.addEventListener('click', submitManagerOverride);
+    loadManagersList();
+  }
+
+  function handleManagerEditClick(event) {
+    const button = event.target.closest('.manager-edit-btn');
+    if (!button) return;
+    const orderKey = button.dataset.orderKey || '';
+    if (!orderKey) return;
+    const orderName = button.dataset.orderName || '';
+    const row = button.closest('tr');
+    const currentValue = row?.querySelector('.order-manager-value')?.textContent?.trim() || '';
+    openManagerModal({ orderKey, orderName, currentValue, row });
+  }
+
+  async function loadManagersList() {
+    if (cachedManagers) return cachedManagers;
+    try {
+      const response = await fetch('/api/managers', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!response.ok) throw new Error('Failed to load managers');
+      const data = await response.json();
+      cachedManagers = Array.isArray(data?.managers) ? data.managers : [];
+    } catch (error) {
+      console.warn('Managers list load failed', error);
+      cachedManagers = APP_CONFIG.managers || [];
+    }
+    return cachedManagers;
+  }
+
+  async function openManagerModal(state) {
+    if (!managerModal) return;
+    managerEditState = state;
+    const managers = await loadManagersList();
+    const options = ['Авто', ...managers.filter(Boolean)];
+    managerModal.select.innerHTML = '';
+    options.forEach(name => {
+      const option = document.createElement('option');
+      option.value = name === 'Авто' ? '' : name;
+      option.textContent = name;
+      managerModal.select.appendChild(option);
+    });
+    const current = (state.currentValue || '').trim();
+    managerModal.select.value = options.includes(current) ? current : '';
+    managerModal.modal.classList.add('is-visible');
+    managerModal.modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeManagerModal() {
+    if (!managerModal) return;
+    managerModal.modal.classList.remove('is-visible');
+    managerModal.modal.setAttribute('aria-hidden', 'true');
+    managerEditState = null;
+  }
+
+  async function submitManagerOverride() {
+    if (!managerEditState || !managerModal) return;
+    const managerName = managerModal.select.value;
+    const orderKey = managerEditState.orderKey;
+    const payload = withCsrfBody({
+      manager_name: managerName,
+      order_name: managerEditState.orderName,
+    });
+
+    try {
+      const response = await fetch(`/api/orders/${encodeURIComponent(orderKey)}/manager`, {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || 'Update failed');
+      }
+      const row = managerEditState.row;
+      const managerLabel = row?.querySelector('.order-manager-value');
+      if (managerLabel) {
+        managerLabel.textContent = data.manager || '—';
+      }
+      closeManagerModal();
+    } catch (error) {
+      console.error('Manager override failed', error);
+      window.alert('Не удалось обновить менеджера.');
+    }
+  }
+
   return {
     init,
     setStatusFilter,
@@ -669,6 +793,7 @@ const OrdersPage = (() => {
 
 const SettingsPage = (() => {
   let metricsTimer = null;
+  let orderMetricsRange = 'day';
 
   function init() {
     const tabs = document.querySelectorAll('.tab-btn');
@@ -683,6 +808,8 @@ const SettingsPage = (() => {
     if (activeTab) {
       activateTab(activeTab, tabs, panels, false);
     }
+    setupMetricsRange();
+    setupDbImport();
   }
 
   function activateTab(tab, tabs, panels, manageMetrics = true) {
@@ -912,6 +1039,73 @@ const SettingsPage = (() => {
     }
   }
 
+  function setupMetricsRange() {
+    const rangeContainer = document.querySelector('[data-metrics-range]');
+    if (!rangeContainer) return;
+    const buttons = rangeContainer.querySelectorAll('[data-range]');
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        orderMetricsRange = button.dataset.range || 'day';
+        buttons.forEach(btn => btn.classList.toggle('is-active', btn === button));
+        loadOrderMetrics();
+      });
+    });
+  }
+
+  async function loadOrderMetrics() {
+    const metricsPanel = document.querySelector('[data-tab-panel="metrics"].is-active');
+    if (!metricsPanel) return;
+    try {
+      const response = await fetch(`/metrics/api?range=${encodeURIComponent(orderMetricsRange)}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      if (!response.ok) throw new Error('Response not ok');
+      const data = await response.json();
+      fillMetricsTable('metrics-confirmed-table', data?.confirmed_by_manager || [], 'Нет данных');
+      fillMetricsTable('metrics-processed-table', data?.processed_by_technologist || [], 'Нет данных');
+    } catch (error) {
+      console.warn('Order metrics load failed', error);
+      fillMetricsTable('metrics-confirmed-table', [], 'Ошибка');
+      fillMetricsTable('metrics-processed-table', [], 'Ошибка');
+    }
+  }
+
+  function fillMetricsTable(id, items, emptyText) {
+    const tbody = document.getElementById(id);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!items.length) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="2" class="table-secondary">${emptyText}</td>`;
+      tbody.appendChild(row);
+      return;
+    }
+    items.forEach(item => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${item.name || '—'}</td><td>${item.count || 0}</td>`;
+      tbody.appendChild(row);
+    });
+  }
+
+  function setupDbImport() {
+    const form = document.getElementById('dbImportForm');
+    if (!form) return;
+    form.addEventListener('submit', async event => {
+      const confirmField = form.querySelector('input[name="confirm"]');
+      if (confirmField?.value === '1') return;
+      event.preventDefault();
+      const checkbox = form.querySelector('input[name="confirm_checkbox"]');
+      if (!checkbox?.checked) {
+        window.alert('Подтвердите замену базы данных.');
+        return;
+      }
+      const approved = await ConfirmDialog.confirm('Импортировать базу данных и заменить текущую?');
+      if (!approved) return;
+      if (confirmField) confirmField.value = '1';
+      form.submit();
+    });
+  }
+
   async function loadMetrics() {
     const metricsPanel = document.querySelector('[data-tab-panel="metrics"].is-active');
     if (!metricsPanel) return;
@@ -959,6 +1153,7 @@ const SettingsPage = (() => {
       buildThreadsTable(data?.threads, nowSec);
       buildEndpointsTable(data?.requests?.per_endpoint);
       buildErrorsList(data?.errors?.last_items);
+      loadOrderMetrics();
     } catch (error) {
       console.error('Metrics load failed', error);
       setStatus('Не удалось обновить метрики', true);

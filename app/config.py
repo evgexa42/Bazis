@@ -17,9 +17,15 @@ DEFAULT_CONFIG = {
         "debug": False,
         "secret_key": "dev-secret-key",
     },
-    "telegram": {"token": "", "chat_id": "", "ignored_folders": ["Архив", "2025"]},
+    "telegram": {
+        "token": "",
+        "chat_id": "",
+        "chat_ids": [],
+        "ignored_folders": ["Архив", "2025"],
+    },
     "paths": {
         "orders": "",
+        "not_given_dir": "",
         "facades_dir": "",
         "prisadka_root": "",
         "desene_cpu_root": "",
@@ -59,8 +65,10 @@ PRISADKA_ROOT = ""
 DESENE_CPU_ROOT = ""
 PRISADKA_CLIENT_ROOT = ""
 FACADES_LIST_DIR = ""
+NOT_GIVEN_DIR = ""
 TELEGRAM_TOKEN = ""
 CHAT_ID = ""
+CHAT_IDS: list[str] = []
 TELEGRAM_IGNORED_FOLDERS: list[str] = []
 SERVER_HOST = DEFAULT_CONFIG["server"]["host"]
 SERVER_PORT = DEFAULT_CONFIG["server"]["port"]
@@ -165,6 +173,15 @@ def _parse_telegram_ignored(value) -> list[str]:
     return []
 
 
+def _parse_chat_ids(value) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        tokens = [line.strip() for line in value.splitlines() if line.strip()]
+        return tokens or [value.strip()]
+    return []
+
+
 def _parse_search_folders(value) -> dict:
     if isinstance(value, dict):
         return _parse_str_dict(value)
@@ -187,6 +204,7 @@ def _parse_paths_config(value: dict) -> dict:
         value = {}
 
     orders_path = str(value.get("orders") or "").strip()
+    not_given_dir = str(value.get("not_given_dir") or "").strip()
     facades_dir = str(value.get("facades_dir") or "").strip()
     prisadka_root = str(value.get("prisadka_root") or "").strip()
     desene_cpu_root = str(value.get("desene_cpu_root") or "").strip()
@@ -196,6 +214,7 @@ def _parse_paths_config(value: dict) -> dict:
 
     return {
         "orders": orders_path,
+        "not_given_dir": not_given_dir,
         "facades_dir": facades_dir,
         "prisadka_root": prisadka_root,
         "desene_cpu_root": desene_cpu_root,
@@ -218,9 +237,14 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged.setdefault("telegram", {})
     merged["telegram"]["token"] = str(merged["telegram"].get("token") or "").strip()
     merged["telegram"]["chat_id"] = str(merged["telegram"].get("chat_id") or "").strip()
+    merged["telegram"]["chat_ids"] = _parse_chat_ids(merged["telegram"].get("chat_ids"))
     merged["telegram"]["ignored_folders"] = _parse_telegram_ignored(
         merged["telegram"].get("ignored_folders")
     )
+    if not merged["telegram"]["chat_ids"] and merged["telegram"]["chat_id"]:
+        merged["telegram"]["chat_ids"] = [merged["telegram"]["chat_id"]]
+    if merged["telegram"]["chat_ids"] and not merged["telegram"]["chat_id"]:
+        merged["telegram"]["chat_id"] = merged["telegram"]["chat_ids"][0]
 
     merged.setdefault("paths", {})
     parsed_paths = _parse_paths_config(merged["paths"])
@@ -303,8 +327,8 @@ def apply_config(config):
 
     global CONFIG
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
-    global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
-    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR, NOT_GIVEN_DIR
+    global TELEGRAM_TOKEN, CHAT_ID, CHAT_IDS, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
     global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
@@ -327,7 +351,11 @@ def apply_config(config):
     DEBUG_MODE = _parse_bool(server.get("debug"), DEFAULT_CONFIG["server"]["debug"])
 
     TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", telegram_cfg.get("token", ""))
-    CHAT_ID = str(telegram_cfg.get("chat_id", "")).strip()
+    CHAT_IDS = _parse_chat_ids(telegram_cfg.get("chat_ids"))
+    if not CHAT_IDS and telegram_cfg.get("chat_id"):
+        CHAT_IDS = [str(telegram_cfg.get("chat_id")).strip()]
+    CHAT_IDS = [cid for cid in CHAT_IDS if cid]
+    CHAT_ID = CHAT_IDS[0] if CHAT_IDS else str(telegram_cfg.get("chat_id", "")).strip()
     TELEGRAM_IGNORED_FOLDERS[:] = telegram_cfg.get("ignored_folders", [])
 
     FOLDER_PATH = paths.get("orders") or ""
@@ -336,6 +364,7 @@ def apply_config(config):
     DESENE_CPU_ROOT = paths.get("desene_cpu_root") or ""
     PRISADKA_CLIENT_ROOT = paths.get("prisadka_client_root") or ""
     FACADES_LIST_DIR = paths.get("facades_list_dir") or FACADES_DIR
+    NOT_GIVEN_DIR = paths.get("not_given_dir") or ""
     FACADES_FILE = (
         os.path.join(FACADES_DIR, "facades_list.txt") if FACADES_DIR else "facades_list.txt"
     )
@@ -397,6 +426,7 @@ def apply_config(config):
         ("DESENE CPU", DESENE_CPU_ROOT),
         ("Присадка клиента", PRISADKA_CLIENT_ROOT),
         ("Папка facades_list", FACADES_LIST_DIR),
+        ("Папка «НЕ ДАЛИ В РАБОТУ»", NOT_GIVEN_DIR),
     ]:
         if path and not os.path.exists(path):
             warning = f"{label} '{path}' не найден"
@@ -436,7 +466,9 @@ __all__ = [
     "FACADES_DIR",
     "FACADES_FILE",
     "FACADES_LIST_DIR",
+    "NOT_GIVEN_DIR",
     "CHAT_ID",
+    "CHAT_IDS",
     "TELEGRAM_TOKEN",
     "TELEGRAM_IGNORED_FOLDERS",
     "SERVER_PORT",

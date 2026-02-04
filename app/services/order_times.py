@@ -7,7 +7,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Iterable, Optional
 
 from app.dal.db import DB_PATH
-from app.services.telegram import folder_has_ready_marker
+import app.config as app_config
+from app.services.audit import log_order_event
 
 BRACKET_MARK_RE = re.compile(r"\[[^\]]*?\]")
 ORDER_NUMBER_RE = re.compile(r"^(\d+-\d+)\b")
@@ -37,6 +38,24 @@ def normalize_order_key(folder_name: str) -> str:
     if match:
         return match.group(1)
     return cleaned
+
+
+def _folder_has_ready_marker(folder_name: str) -> bool:
+    if not app_config.TECHNOLOGIST_MARKERS:
+        return "[$]" in (folder_name or "")
+    for marker in app_config.TECHNOLOGIST_MARKERS:
+        if f"[{marker}]" in folder_name:
+            return True
+    return "[$]" in (folder_name or "")
+
+
+def _technologist_from_folder(folder_name: str) -> str:
+    for marker, name in app_config.TECHNOLOGIST_MARKERS.items():
+        if f"[{marker}]" in folder_name:
+            return name
+    if "[$]" in (folder_name or ""):
+        return "Технолог"
+    return "Неизвестно"
 
 
 def now_iso() -> str:
@@ -142,23 +161,47 @@ def mark_processed(order_key: str) -> Optional[str]:
 
 
 def update_processed_from_name(folder_name: str) -> Optional[str]:
-    if not folder_name or not folder_has_ready_marker(folder_name):
+    if not folder_name or not _folder_has_ready_marker(folder_name):
         return None
     order_key = normalize_order_key(folder_name)
-    return mark_processed(order_key)
+    if not order_key:
+        return None
+    was_processed = False
+    conn = get_sqlite_connection()
+    try:
+        ensure_order_times_table(conn)
+        row = conn.execute(
+            "SELECT processed_at FROM order_times WHERE order_key = ?",
+            (order_key,),
+        ).fetchone()
+        was_processed = bool(row and row[0])
+    finally:
+        conn.close()
+
+    processed_at = mark_processed(order_key)
+    if processed_at and not was_processed:
+        log_order_event(
+            "technologist_processed",
+            order_name=folder_name,
+            manager=_technologist_from_folder(folder_name),
+            new_value=processed_at,
+        )
+    return processed_at
 
 
 def update_processed_for_names(folder_names: Iterable[str]) -> None:
-    names = [name for name in folder_names if folder_has_ready_marker(name)]
+    names = [name for name in folder_names if _folder_has_ready_marker(name)]
     if not names:
         return
 
     now = now_iso()
     rows = []
+    key_to_name = {}
     for folder_name in names:
         order_key = normalize_order_key(folder_name)
         if not order_key:
             continue
+        key_to_name[order_key] = folder_name
         rows.append((order_key, now, now, now, now))
 
     if not rows:
@@ -167,6 +210,14 @@ def update_processed_for_names(folder_names: Iterable[str]) -> None:
     conn = get_sqlite_connection()
     try:
         ensure_order_times_table(conn)
+        placeholders = ",".join("?" for _ in key_to_name)
+        existing: dict[str, bool] = {}
+        if placeholders:
+            for row in conn.execute(
+                f"SELECT order_key, processed_at FROM order_times WHERE order_key IN ({placeholders})",
+                list(key_to_name.keys()),
+            ):
+                existing[row[0]] = bool(row[1])
         conn.executemany(
             """
             INSERT INTO order_times(order_key, created_at, processed_at, last_seen_at, updated_at)
@@ -184,6 +235,15 @@ def update_processed_for_names(folder_names: Iterable[str]) -> None:
         conn.commit()
     finally:
         conn.close()
+
+    for order_key, folder_name in key_to_name.items():
+        if not existing.get(order_key):
+            log_order_event(
+                "technologist_processed",
+                order_name=folder_name,
+                manager=_technologist_from_folder(folder_name),
+                new_value=now,
+            )
 
 
 def cleanup_expired_records(ttl_days: int) -> int:
