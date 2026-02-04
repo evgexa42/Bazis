@@ -1,7 +1,10 @@
 import json
 import os
 import queue
+import sqlite3
 import threading
+import time
+from datetime import datetime
 from typing import List, Optional
 
 from telegram import Bot
@@ -9,6 +12,8 @@ from telegram import Bot
 import app as bazis_app
 import app.config as app_config
 from app import get_manager_from_name, logger
+from app.dal.db import DB_PATH
+from app.dal.external_orders import load_status_map
 from app.dal.database import load_messages as load_messages_from_db
 from app.dal.database import replace_messages as replace_messages_in_db
 
@@ -17,10 +22,15 @@ messages: List[dict] = []
 messages_lock = threading.Lock()
 tg_queue: "queue.Queue[tuple]" = queue.Queue(maxsize=1000)
 _disabled_warning_logged = False
+_polling_started = False
+_polling_lock = threading.Lock()
+_last_update_id: Optional[int] = None
+
+MAX_NEW_ORDERS = 30
 
 
 def _telegram_configured() -> bool:
-    return bot is not None and bool(app_config.CHAT_ID)
+    return bot is not None and bool(_get_chat_ids())
 
 
 def _log_disabled_once() -> None:
@@ -95,12 +105,225 @@ def start_worker_once():
         threading.Thread(target=_worker, daemon=True).start()
         _worker_started = True
 
+
+def _get_chat_ids() -> list[str]:
+    chat_ids = list(app_config.TELEGRAM_CHAT_IDS or [])
+    if not chat_ids and app_config.CHAT_ID:
+        chat_ids = [app_config.CHAT_ID]
+    return chat_ids
+
+
+def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _format_datetime(value: Optional[str]) -> str:
+    parsed = _parse_iso_datetime(value)
+    if not parsed:
+        return value or ""
+    return parsed.strftime("%Y-%m-%d %H:%M")
+
+
+def _fetch_order_times(limit: Optional[int] = None) -> list[dict]:
+    rows: list[dict] = []
+    conn: Optional[sqlite3.Connection] = None
+    try:
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
+        cur = conn.cursor()
+        # Читаем данные только из SQLite (никакой файловой логики).
+        sql = (
+            "SELECT order_key, created_at, processed_at, last_display_name "
+            "FROM order_times ORDER BY created_at DESC"
+        )
+        params: tuple = ()
+        if limit:
+            sql += " LIMIT ?"
+            params = (limit,)
+        for order_key, created_at, processed_at, last_display_name in cur.execute(sql, params).fetchall():
+            rows.append(
+                {
+                    "order_key": order_key,
+                    "created_at": created_at,
+                    "processed_at": processed_at,
+                    "last_display_name": last_display_name,
+                }
+            )
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        try:
+            if conn is not None:
+                conn.close()
+        except Exception:
+            pass
+    return rows
+
+
+def _build_status_message() -> str:
+    orders = _fetch_order_times()
+    status_map = load_status_map()
+    total = len(orders)
+    ready_count = 0
+    processed_count = 0
+    confirmed_count = 0
+    manager_counts: dict[str, int] = {}
+    tech_counts: dict[str, int] = {}
+
+    for row in orders:
+        display_name = row.get("last_display_name") or ""
+        order_key = row.get("order_key") or ""
+        processed_at = row.get("processed_at")
+        status = status_map.get(order_key)
+
+        is_cancelled = bool(status and status.cancelled)
+        is_confirmed = bool(status and status.approved and not is_cancelled)
+        has_ready_marker = folder_has_ready_marker(display_name)
+
+        if processed_at:
+            processed_count += 1
+        if is_confirmed:
+            confirmed_count += 1
+        if has_ready_marker and not is_confirmed and not is_cancelled:
+            ready_count += 1
+
+        manager = get_manager_from_name(display_name) or "Неизвестно"
+        manager_counts[manager] = manager_counts.get(manager, 0) + 1
+
+        technologist = technologist_from_folder(display_name) or "Неизвестно"
+        tech_counts[technologist] = tech_counts.get(technologist, 0) + 1
+
+    def format_top_counts(title: str, items: dict[str, int], limit: int = 5) -> list[str]:
+        if not items:
+            return [f"{title}: нет данных"]
+        sorted_items = sorted(items.items(), key=lambda item: item[1], reverse=True)
+        lines = [title + ":"]
+        for name, count in sorted_items[:limit]:
+            lines.append(f"• {name}: {count}")
+        if len(sorted_items) > limit:
+            lines.append(f"… ещё {len(sorted_items) - limit}")
+        return lines
+
+    lines = [
+        "📊 Статус",
+        f"Всего заказов: {total}",
+        f"Готовых: {ready_count}",
+        f"Обработанных технологом: {processed_count}",
+        f"Подтверждённых: {confirmed_count}",
+        "",
+    ]
+    lines.extend(format_top_counts("Менеджеры", manager_counts))
+    lines.append("")
+    lines.extend(format_top_counts("Технологи", tech_counts))
+    return "\n".join(lines).strip()
+
+
+def _build_new_orders_message(limit: int = MAX_NEW_ORDERS) -> str:
+    orders = _fetch_order_times()
+    status_map = load_status_map()
+    lines = ["🆕 Новые заказы"]
+    count = 0
+
+    for row in orders:
+        if count >= limit:
+            break
+        display_name = row.get("last_display_name") or ""
+        order_key = row.get("order_key") or ""
+        if not order_key:
+            continue
+        status = status_map.get(order_key)
+
+        is_cancelled = bool(status and status.cancelled)
+        is_confirmed = bool(status and status.approved and not is_cancelled)
+        has_ready_marker = folder_has_ready_marker(display_name)
+
+        if is_cancelled or is_confirmed or has_ready_marker:
+            continue
+
+        created_at = _format_datetime(row.get("created_at"))
+        manager = get_manager_from_name(display_name) or "Неизвестно"
+        lines.append(f"• {order_key} | {manager} | {created_at}")
+        count += 1
+
+    if count == 0:
+        lines.append("Нет новых заказов.")
+
+    return "\n".join(lines)
+
+
+def _handle_command(text: str, chat_id: str) -> None:
+    command = text.strip().split()[0] if text else ""
+    if not command.startswith("/"):
+        return
+    if "@" in command:
+        command = command.split("@", 1)[0]
+    command = command.lower()
+
+    if command == "/status":
+        response = _build_status_message()
+    elif command == "/new":
+        response = _build_new_orders_message()
+    else:
+        return
+
+    try:
+        bot.send_message(chat_id=chat_id, text=response)
+    except Exception as exc:
+        logger.exception("[TG command] Ошибка отправки ответа (%s)", exc)
+
+
+def _poll_updates() -> None:
+    global _last_update_id
+    while True:
+        if not _telegram_configured():
+            time.sleep(5)
+            continue
+        try:
+            # Long polling, чтобы не перегружать API Telegram.
+            updates = bot.get_updates(offset=_last_update_id, timeout=20)
+        except Exception as exc:  # pragma: no cover - сеть/ошибки API
+            logger.exception("[TG polling] Ошибка получения обновлений", exc_info=exc)
+            time.sleep(5)
+            continue
+
+        for update in updates:
+            _last_update_id = update.update_id + 1
+            message = getattr(update, "message", None)
+            if not message:
+                continue
+            text = getattr(message, "text", None)
+            if not text:
+                continue
+            chat_id = str(getattr(message, "chat_id", "")).strip()
+            if not chat_id:
+                continue
+            if chat_id not in _get_chat_ids():
+                continue
+            _handle_command(text, chat_id)
+
+
+def start_polling_once() -> None:
+    global _polling_started
+    if _polling_started:
+        return
+    with _polling_lock:
+        if _polling_started:
+            return
+        threading.Thread(target=_poll_updates, daemon=True).start()
+        _polling_started = True
+
+
 def init_bot(token: str) -> None:
     global bot, _disabled_warning_logged
     _disabled_warning_logged = False
-    if token and app_config.CHAT_ID:
+    if token and _get_chat_ids():
         bot = _create_bot(token)
         start_worker_once()
+        start_polling_once()
     else:
         bot = None
 
@@ -190,25 +413,37 @@ def send_telegram_message(msg: str, folder_name: str) -> None:
     if not _telegram_configured():
         _log_disabled_once()
         return
-    try:
-        sent = bot.send_message(chat_id=app_config.CHAT_ID, text=msg)
-        entry = {
-            "folder": folder_name,
-            "order_key": order_key_from_name(folder_name),
-            "chat_id": app_config.CHAT_ID,
-            "message_id": sent.message_id,
-        }
-        with messages_lock:
-            messages.append(entry)
-            snapshot = list(messages)
-        save_messages(snapshot)
+    chat_ids = _get_chat_ids()
+    if not chat_ids:
+        return
+
+    new_entries: list[dict] = []
+    for chat_id in chat_ids:
+        try:
+            sent = bot.send_message(chat_id=chat_id, text=msg)
+        except Exception as exc:
+            logger.exception("[Telegram Error] %s", exc)
+            continue
+        new_entries.append(
+            {
+                "folder": folder_name,
+                "order_key": order_key_from_name(folder_name),
+                "chat_id": chat_id,
+                "message_id": sent.message_id,
+            }
+        )
         logger.info(
             "[TG] Сообщение отправлено и сохранено для %s -> id %s",
             folder_name,
             sent.message_id,
         )
-    except Exception as exc:
-        logger.exception("[Telegram Error] %s", exc)
+
+    if not new_entries:
+        return
+    with messages_lock:
+        messages.extend(new_entries)
+        snapshot = list(messages)
+    save_messages(snapshot)
 
 
 def delete_telegram_message(folder_name: str) -> None:
@@ -267,35 +502,55 @@ def find_message_entry(old_name: str, new_name: Optional[str] = None):
     return None
 
 
-def update_message_for_folder(old_name: str, new_name: str) -> bool:
-    entry = find_message_entry(old_name, new_name)
-    if not entry:
-        return False
+def _find_message_entries(old_name: str, new_name: Optional[str] = None) -> List[dict]:
+    keys = set()
+    if old_name:
+        keys.add(order_key_from_name(old_name))
+    if new_name:
+        keys.add(order_key_from_name(new_name))
 
-    chat_id = entry.get("chat_id")
-    message_id = entry.get("message_id")
-    if chat_id is None or message_id is None:
+    with messages_lock:
+        return [
+            entry
+            for entry in messages
+            if entry.get("folder") == old_name
+            or (keys and entry.get("order_key") in keys)
+        ]
+
+
+def update_message_for_folder(old_name: str, new_name: str) -> bool:
+    entries = _find_message_entries(old_name, new_name)
+    if not entries:
         return False
 
     new_text = build_order_message(new_name)
     if not _telegram_configured():
         return False
 
-    try:
-        bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=new_text)
-        logger.info("[TG] Сообщение %s обновлено для %s", message_id, new_name)
-    except Exception as exc:
-        logger.exception("[TG edit error] %s (folder=%s -> %s)", exc, old_name, new_name)
-        return False
+    updated = False
+    updated_entries: list[dict] = []
+    for entry in entries:
+        chat_id = entry.get("chat_id")
+        message_id = entry.get("message_id")
+        if chat_id is None or message_id is None:
+            continue
+        try:
+            bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=new_text)
+            logger.info("[TG] Сообщение %s обновлено для %s", message_id, new_name)
+            updated_entries.append(entry)
+            updated = True
+        except Exception as exc:
+            logger.exception("[TG edit error] %s (folder=%s -> %s)", exc, old_name, new_name)
 
     with messages_lock:
-        if entry in messages:
-            entry["folder"] = new_name
-            entry["order_key"] = order_key_from_name(new_name)
+        for entry in updated_entries:
+            if entry in messages:
+                entry["folder"] = new_name
+                entry["order_key"] = order_key_from_name(new_name)
         snapshot = list(messages)
 
     save_messages(snapshot)
-    return True
+    return updated
 
 
 def handle_moved_notification(old_name: str, new_name: str, already_known: bool) -> None:
