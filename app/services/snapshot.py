@@ -5,7 +5,7 @@ import re
 import sqlite3
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from time import perf_counter
 from typing import Dict, List, Optional, Set, Tuple
 from zoneinfo import ZoneInfo
@@ -14,6 +14,13 @@ import app as bazis_app
 import app.config as app_config
 from app import get_manager_from_name, heartbeat, logger, measure_time, sse_broadcast
 from app.services import order_status
+from app.services.order_times import (
+    cleanup_expired_records,
+    fetch_order_times,
+    normalize_order_key,
+    update_processed_for_names,
+    upsert_orders_seen,
+)
 from app.services.order_numbers import extract_order_number_from_folder
 from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
@@ -90,6 +97,7 @@ def parse_folder_entry(
     confirmed = folder_name.endswith("+")
     status = "Подтвержден" if confirmed else ("Готов" if folder_has_ready_marker(folder_name) else "Новый")
     order_number = extract_order_number_from_folder(folder_name) or ""
+    order_key = normalize_order_key(folder_name)
 
     days_ago = int((now_ts - mtime_ts) // 86400)
 
@@ -103,6 +111,7 @@ def parse_folder_entry(
         "days": days_ago,
         "confirmed": confirmed,
         "order_number": order_number,
+        "order_key": order_key,
 }
 
 INDEX_TTL = 300.0
@@ -198,6 +207,16 @@ def refresh_orders_snapshot(force: bool = False):
     snapshot = build_orders_snapshot()
     changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot)
 
+    try:
+        folder_names = [item.get("name") or "" for item in applied_snapshot]
+        upsert_orders_seen(folder_names)
+        update_processed_for_names(folder_names)
+        cleanup_expired_records(app_config.ORDER_TIMES_TTL_DAYS)
+    except Exception as exc:  # pragma: no cover - защитная логика
+        logger.warning("[order_times] Обновление временных меток не удалось", exc_info=exc)
+
+    _attach_order_times(applied_snapshot)
+
     if changed:
         manager_stats = {name: 0 for name in app_config.MANAGER_NAMES}
         manager_stats["Неизвестно"] = manager_stats.get("Неизвестно", 0)
@@ -267,6 +286,12 @@ def upsert_order(folder_name: str) -> bool:
     if not parsed:
         return remove_order(folder_name)
 
+    try:
+        upsert_orders_seen([folder_name])
+        update_processed_for_names([folder_name])
+    except Exception as exc:  # pragma: no cover - защитная логика
+        logger.warning("[order_times] Не удалось обновить время для %s", folder_name, exc_info=exc)
+
     parsed = order_status.enrich_orders([parsed])[0]
     changed, applied_snapshot, version, last_snapshot_ts, existed = _merge_order(parsed)
     if changed:
@@ -330,6 +355,52 @@ def _apply_manager_filter(folders, visible_manager, requested_manager):
     return folders, applied_manager_filter
 
 
+def _parse_iso(ts_value: Optional[str]) -> Optional[datetime]:
+    if not ts_value:
+        return None
+    try:
+        return datetime.fromisoformat(ts_value)
+    except ValueError:
+        return None
+
+
+def _attach_order_times(folders: List[Dict]) -> None:
+    if not folders:
+        return
+
+    order_keys = []
+    for folder in folders:
+        order_key = folder.get("order_key") or normalize_order_key(folder.get("name") or "")
+        if order_key:
+            folder["order_key"] = order_key
+            order_keys.append(order_key)
+
+    if not order_keys:
+        return
+
+    times_map = fetch_order_times(order_keys)
+    now = datetime.now(timezone.utc)
+
+    for folder in folders:
+        order_key = folder.get("order_key") or ""
+        record = times_map.get(order_key)
+        if not record:
+            continue
+        folder["created_at"] = record.created_at
+        folder["processed_at"] = record.processed_at
+        if record.processed_at:
+            folder["is_processed"] = True
+
+        created_dt = _parse_iso(record.created_at)
+        processed_dt = _parse_iso(record.processed_at) if record.processed_at else None
+        if created_dt:
+            end_dt = processed_dt or now
+            elapsed = int(max(0, (end_dt - created_dt).total_seconds()))
+            folder["elapsed_seconds"] = elapsed
+            if processed_dt:
+                folder["processing_seconds"] = int(max(0, (processed_dt - created_dt).total_seconds()))
+
+
 def build_orders_payload(visible_manager=None, requested_manager="Все", folders=None, version=None, last_snapshot_ts=None):
     if folders is None:
         folders = get_orders_snapshot(ttl=bazis_app.SNAPSHOT_TTL)
@@ -338,6 +409,7 @@ def build_orders_payload(visible_manager=None, requested_manager="Все", folde
             version = bazis_app.orders_version if version is None else version
             last_snapshot_ts = bazis_app.last_snapshot_ts if last_snapshot_ts is None else last_snapshot_ts
     folders, _ = _apply_manager_filter(folders, visible_manager, requested_manager)
+    _attach_order_times(folders)
 
     total_orders = len(folders)
     manager_stats = {name: 0 for name in app_config.MANAGER_NAMES}

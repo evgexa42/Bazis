@@ -720,6 +720,12 @@ select:focus {
   gap: 8px;
 }
 
+.order-times {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .priced-mark {
   display: inline-flex;
   align-items: center;

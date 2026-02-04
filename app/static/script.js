@@ -123,6 +123,7 @@ const OrdersPage = (() => {
   let pollingBackoff = 3000;
   let previousOrders = new Map();
   let sseStatus = { root: null, dot: null, text: null };
+  let orderTimesTimer = null;
 
   function init() {
     const table = document.getElementById('orders');
@@ -145,6 +146,7 @@ const OrdersPage = (() => {
       searchInput.addEventListener('focus', () => searchInput.classList.add('is-focused'));
       searchInput.addEventListener('blur', () => searchInput.classList.remove('is-focused'));
     }
+	startOrderTimesTicker();
     startSSE();
   }
 
@@ -454,6 +456,7 @@ const OrdersPage = (() => {
 
     newRows.forEach(row => table.appendChild(row));
     previousOrders = new Map(filtered.map(item => [getOrderKey(item), item]));
+	updateAllOrderTimes();
   }
 
   function hasOrderChanged(prev, next) {
@@ -524,6 +527,11 @@ const OrdersPage = (() => {
     nameText.textContent = item.display_name || item.name || '';
     nameDiv.appendChild(nameText);
     nameTd.appendChild(nameDiv);
+
+    const timesDiv = buildOrderTimes(item);
+    if (timesDiv) {
+      nameTd.appendChild(timesDiv);
+    }
     tr.appendChild(nameTd);
 
     const managerTd = document.createElement('td');
@@ -553,6 +561,89 @@ const OrdersPage = (() => {
     daysDiv.textContent = item.days ?? '—';
     daysTd.appendChild(daysDiv);
     tr.appendChild(daysTd);
+  }
+
+  function buildOrderTimes(item) {
+    const createdAt = item?.created_at;
+    const processedAt = item?.processed_at;
+    if (!createdAt && !processedAt) {
+      return null;
+    }
+
+    const container = document.createElement('div');
+    container.className = 'order-times';
+    if (createdAt) container.dataset.createdAt = createdAt;
+    if (processedAt) container.dataset.processedAt = processedAt;
+    updateOrderTimesElement(container, createdAt, processedAt);
+    return container;
+  }
+
+  function startOrderTimesTicker() {
+    if (orderTimesTimer) return;
+    orderTimesTimer = setInterval(updateAllOrderTimes, 60000);
+  }
+
+  function updateAllOrderTimes() {
+    const nodes = document.querySelectorAll('.order-times');
+    if (!nodes.length) return;
+    nodes.forEach(node => {
+      updateOrderTimesElement(node, node.dataset.createdAt, node.dataset.processedAt);
+    });
+  }
+
+  function updateOrderTimesElement(node, createdAt, processedAt) {
+    const createdDate = parseIsoDate(createdAt);
+    const processedDate = parseIsoDate(processedAt);
+    if (!createdDate) {
+      node.textContent = 'Создан: —';
+      return;
+    }
+
+    const createdText = formatDateTime(createdDate);
+    if (processedDate) {
+      const processedText = formatDateTime(processedDate);
+      const seconds = Math.max(0, Math.floor((processedDate - createdDate) / 1000));
+      node.textContent = `Создан: ${createdText} • Обработан: ${processedText} • На обработку: ${formatDuration(seconds)}`;
+      return;
+    }
+
+    const now = new Date();
+    const seconds = Math.max(0, Math.floor((now - createdDate) / 1000));
+    node.textContent = `Создан: ${createdText} • Прошло: ${formatDuration(seconds)}`;
+  }
+
+  function parseIsoDate(value) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  }
+
+  function formatDateTime(date) {
+    if (!date) return '—';
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+  }
+
+  function formatDuration(totalSeconds) {
+    let seconds = Math.max(0, Number(totalSeconds) || 0);
+    const days = Math.floor(seconds / 86400);
+    seconds -= days * 86400;
+    const hours = Math.floor(seconds / 3600);
+    seconds -= hours * 3600;
+    const minutes = Math.floor(seconds / 60);
+
+    if (days > 0) {
+      return `${days}д ${hours}ч ${minutes}м`;
+    }
+    if (hours > 0) {
+      return `${hours}ч ${minutes}м`;
+    }
+    return `${minutes}м`;
   }
 
   function getPricedInfo(item) {

@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
     "search": {"months": 6},
     "features": {"order_confirmation": False},
     "retention": {"logs_days": 30, "journal_days": 90},
+    "orders_times": {"ttl_days": 30},
     "orders_sync": {
         "pg_url": "",
         "poll_seconds": 30,
@@ -70,6 +71,7 @@ MANAGER_NAMES: list[str] = []
 TECHNOLOGIST_MARKERS: dict = {}
 LOG_RETENTION_DAYS = DEFAULT_CONFIG["retention"]["logs_days"]
 JOURNAL_RETENTION_DAYS = DEFAULT_CONFIG["retention"]["journal_days"]
+ORDER_TIMES_TTL_DAYS = DEFAULT_CONFIG["orders_times"]["ttl_days"]
 ORDERS_PG_URL = ""
 ORDERS_PG_POLL_SECONDS = DEFAULT_CONFIG["orders_sync"]["poll_seconds"]
 ORDERS_PG_TAIL_DAYS = DEFAULT_CONFIG["orders_sync"]["tail_days"]
@@ -247,6 +249,11 @@ def _ensure_complete_config(raw_config: dict) -> dict:
         ),
     )
 
+    merged.setdefault("orders_times", {})
+    merged["orders_times"]["ttl_days"] = max(
+        1, _parse_int(merged["orders_times"].get("ttl_days"), DEFAULT_CONFIG["orders_times"]["ttl_days"])
+    )
+
     merged.setdefault("orders_sync", {})
     merged["orders_sync"]["pg_url"] = str(merged["orders_sync"].get("pg_url") or "").strip()
     merged["orders_sync"]["poll_seconds"] = max(
@@ -302,6 +309,7 @@ def apply_config(config):
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
     global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
     global ORDERS_APPROVED_PLUS_RENAME, ORDERS_ANULAT_RENAME_TECH_MARKER
+    global ORDER_TIMES_TTL_DAYS
 
     normalized = _ensure_complete_config(config)
     CONFIG.clear()
@@ -344,6 +352,15 @@ def apply_config(config):
 
     LOG_RETENTION_DAYS = retention_cfg.get("logs_days", DEFAULT_CONFIG["retention"]["logs_days"])
     JOURNAL_RETENTION_DAYS = retention_cfg.get("journal_days", DEFAULT_CONFIG["retention"]["journal_days"])
+
+    orders_times_cfg = normalized.get("orders_times", {})
+    ORDER_TIMES_TTL_DAYS = max(
+        1,
+        _parse_int(
+            orders_times_cfg.get("ttl_days"),
+            DEFAULT_CONFIG["orders_times"]["ttl_days"],
+        ),
+    )
 
     orders_sync_cfg = normalized.get("orders_sync", {})
     ORDERS_PG_URL = os.environ.get("ORDERS_PG_URL", orders_sync_cfg.get("pg_url", ""))
@@ -439,6 +456,7 @@ __all__ = [
     "ORDERS_ANULAT_RENAME_TECH_MARKER",
     "LOG_RETENTION_DAYS",
     "JOURNAL_RETENTION_DAYS",
+    "ORDER_TIMES_TTL_DAYS",
     "apply_config",
     "save_config",
     "load_config",
