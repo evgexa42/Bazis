@@ -33,6 +33,7 @@ const APP_CONFIG = (() => {
     canAccessSearch: body?.dataset?.canAccessSearch === '1',
     canEditPaths: body?.dataset?.canEditPaths === '1',
     canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
+    canEditOrderManager: body?.dataset?.canEditOrderManager === '1',
   };
 
   return { managers, currentUser, currentRole, permissions };
@@ -124,6 +125,8 @@ const OrdersPage = (() => {
   let previousOrders = new Map();
   let sseStatus = { root: null, dot: null, text: null };
   let orderTimesTimer = null;
+  let managerDialog = { root: null, select: null, save: null, cancel: null, orderKey: '' };
+  let managerOptions = Array.isArray(APP_CONFIG.managers) ? [...APP_CONFIG.managers] : [];
 
   function init() {
     const table = document.getElementById('orders');
@@ -135,6 +138,8 @@ const OrdersPage = (() => {
 
     highlightActiveFilter(currentStatus);
     highlightSortButtons();
+
+    ensureManagerOptions();
 
     const managerSelect = document.getElementById('managerSelect');
     if (managerSelect && currentManager !== 'Все') {
@@ -148,6 +153,19 @@ const OrdersPage = (() => {
     }
 	startOrderTimesTicker();
     startSSE();
+  }
+
+  async function ensureManagerOptions() {
+    if (managerOptions.length) return;
+    try {
+      const response = await fetch('/api/managers');
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && Array.isArray(payload?.managers)) {
+        managerOptions = payload.managers.map(name => `${name}`.trim()).filter(Boolean);
+      }
+    } catch (error) {
+      console.warn('Не удалось загрузить список менеджеров', error);
+    }
   }
 
   function loadData() {
@@ -535,10 +553,25 @@ const OrdersPage = (() => {
     tr.appendChild(nameTd);
 
     const managerTd = document.createElement('td');
+    const managerWrap = document.createElement('div');
+    managerWrap.className = 'manager-cell';
+
     const managerDiv = document.createElement('div');
-    managerDiv.className = 'table-secondary';
+    managerDiv.className = 'table-secondary manager-cell__name';
     managerDiv.textContent = item.manager || '—';
-    managerTd.appendChild(managerDiv);
+    managerWrap.appendChild(managerDiv);
+
+    if (APP_CONFIG.permissions.canEditOrderManager) {
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn--ghost btn--compact manager-edit-btn';
+      editBtn.textContent = '✎';
+      editBtn.title = 'Редактировать менеджера';
+      editBtn.addEventListener('click', () => openManagerDialog(item));
+      managerWrap.appendChild(editBtn);
+    }
+
+    managerTd.appendChild(managerWrap);
     tr.appendChild(managerTd);
 
     const statusTd = document.createElement('td');
@@ -561,6 +594,150 @@ const OrdersPage = (() => {
     daysDiv.textContent = item.days ?? '—';
     daysTd.appendChild(daysDiv);
     tr.appendChild(daysTd);
+  }
+
+  async function openManagerDialog(item) {
+    if (!APP_CONFIG.permissions.canEditOrderManager) return;
+    await ensureManagerOptions();
+    ensureManagerDialog();
+    managerDialog.orderKey = item?.order_key || item?.name || '';
+    if (!managerDialog.orderKey) return;
+
+    fillManagerSelect(managerDialog.select, item?.manager || '');
+    managerDialog.root?.classList.add('is-visible');
+  }
+
+  function ensureManagerDialog() {
+    if (managerDialog.root) return;
+
+    const dialog = document.createElement('div');
+    dialog.className = 'confirm-overlay manager-override-overlay';
+    dialog.innerHTML = `
+      <div class="confirm-modal manager-override-modal" role="dialog" aria-modal="true">
+        <h3 class="section-subtitle">Менеджер</h3>
+        <label class="field">
+          <span class="field-label">Менеджер</span>
+          <select class="select manager-override-select"></select>
+        </label>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn--primary btn--compact" data-manager-save>Сохранить</button>
+          <button type="button" class="btn btn--ghost btn--compact" data-manager-cancel>Отмена</button>
+        </div>
+      </div>
+    `;
+
+    dialog.addEventListener('click', event => {
+      if (event.target?.dataset?.managerCancel !== undefined || event.target === dialog) {
+        closeManagerDialog();
+      }
+      if (event.target?.dataset?.managerSave !== undefined) {
+        saveManagerOverride();
+      }
+    });
+
+    document.body.appendChild(dialog);
+
+    managerDialog.root = dialog;
+    managerDialog.select = dialog.querySelector('.manager-override-select');
+    managerDialog.save = dialog.querySelector('[data-manager-save]');
+    managerDialog.cancel = dialog.querySelector('[data-manager-cancel]');
+  }
+
+  function closeManagerDialog() {
+    managerDialog.root?.classList.remove('is-visible');
+  }
+
+  function fillManagerSelect(select, current) {
+    if (!select) return;
+
+    const options = getManagerOptions(current);
+    select.innerHTML = '';
+    options.forEach(name => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      select.appendChild(option);
+    });
+    select.value = current && options.includes(current) ? current : options[0] || '';
+  }
+
+  function getManagerOptions(current) {
+    const base = Array.isArray(managerOptions) ? [...managerOptions] : [];
+    if (!base.includes('Неизвестно')) {
+      base.push('Неизвестно');
+    }
+    if (current && !base.includes(current)) {
+      base.unshift(current);
+    }
+    return base;
+  }
+
+  async function saveManagerOverride() {
+    const orderKey = managerDialog.orderKey;
+    const select = managerDialog.select;
+    if (!orderKey || !select) return;
+
+    const managerName = select.value || '';
+    if (!managerName) return;
+
+    if (managerDialog.save) managerDialog.save.disabled = true;
+    try {
+      const payload = await postJson(
+        `/api/orders/${encodeURIComponent(orderKey)}/manager`,
+        { manager_name: managerName }
+      );
+      updateOrderFromResponse(payload?.order);
+      closeManagerDialog();
+      pushToast('Менеджер обновлён', managerName, 'success');
+    } catch (error) {
+      pushToast('Ошибка', error?.message || 'Не удалось обновить менеджера.', 'error');
+    } finally {
+      if (managerDialog.save) managerDialog.save.disabled = false;
+    }
+  }
+
+  function updateOrderFromResponse(updated) {
+    if (!updated) return;
+    const updatedKey = updated.order_key || updated.name || '';
+    if (!updatedKey) return;
+
+    allData = (allData || []).map(item => {
+      const itemKey = item?.order_key || item?.name || '';
+      if (!itemKey || itemKey !== updatedKey) return item;
+      return { ...item, ...updated };
+    });
+    render();
+  }
+
+  function postJson(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }),
+      body: JSON.stringify(withCsrfBody(body))
+    }).then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Запрос завершился с ошибкой.');
+      }
+      return payload;
+    });
+  }
+
+  function pushToast(title, desc, type = 'info') {
+    const stack = document.getElementById('toastStack');
+    if (!stack) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `
+      <div class="toast__title">${title || 'Сообщение'}</div>
+      <div class="toast__desc">${desc || ''}</div>
+      <button class="toast__close" aria-label="Закрыть">✕</button>
+    `;
+    toast.querySelector('.toast__close')?.addEventListener('click', () => toast.remove());
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+    setTimeout(() => toast.remove(), 4200);
   }
 
   function buildOrderTimes(item) {

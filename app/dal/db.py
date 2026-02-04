@@ -51,6 +51,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_view_priced": 1,
         "can_mark_priced": 0,
         "can_view_priced_panel": 1,
+        "can_edit_order_manager": 1,
     },
     "technologist": {
         "can_access_settings": 1,
@@ -65,6 +66,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_view_priced": 1,
         "can_mark_priced": 0,
         "can_view_priced_panel": 1,
+        "can_edit_order_manager": 1,
     },
     "manager": {
         "can_access_settings": 0,
@@ -79,6 +81,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_view_priced": 1,
         "can_mark_priced": 1,
         "can_view_priced_panel": 1,
+        "can_edit_order_manager": 0,
     },
 }
 
@@ -113,6 +116,7 @@ class RolePermission(Base):
     can_view_priced = Column(Integer, nullable=False, default=0)
     can_mark_priced = Column(Integer, nullable=False, default=0)
     can_view_priced_panel = Column(Integer, nullable=False, default=0)
+    can_edit_order_manager = Column(Integer, nullable=False, default=0)
 
 
 class OrderEvent(Base):
@@ -170,6 +174,7 @@ def _ensure_role_permissions_columns() -> None:
         "can_view_priced": 0,
         "can_mark_priced": 0,
         "can_view_priced_panel": 0,
+        "can_edit_order_manager": 0,
     }
 
     missing = [name for name in new_columns if name not in columns]
@@ -210,6 +215,7 @@ def init_db() -> None:
     import app.dal.database  # noqa: F401
     import app.dal.external_orders  # noqa: F401
     import app.dal.manager_priced  # noqa: F401
+    import app.dal.order_manager_override  # noqa: F401
 
     Base.metadata.create_all(engine)
     _ensure_role_permissions_columns()
