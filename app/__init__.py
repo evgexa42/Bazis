@@ -204,6 +204,7 @@ def start_background_services():
         return
 
     from app.services import monitor as monitor_service
+    from app.services import orders_auto_confirm
     from app.services import order_status
     from app.services import orders_sync
     from app.services import snapshot as snapshot_service
@@ -218,6 +219,7 @@ def start_background_services():
     monitor_service.initialize_known_state()
     monitor_service.start_observer_once()
     orders_sync.start_sync_worker()
+    orders_auto_confirm.start_auto_confirm_worker()
 
     services_started = True
 

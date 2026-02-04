@@ -123,6 +123,9 @@ def settings_page():
             pg_enabled = request.form.get("orders_sync_enabled") == "on"
             plus_rename = request.form.get("orders_plus_rename") == "on"
             anulat_rename = request.form.get("orders_anulat_rename") == "on"
+            not_given_folder = request.form.get("not_given_folder_path", "").strip()
+            orders_auto_confirm_dsn = request.form.get("orders_auto_confirm_dsn", "").strip()
+            orders_auto_confirm_query = request.form.get("orders_auto_confirm_query", "").strip()
 
             telegram_token = request.form.get("telegram_token", "").strip()
             telegram_chat = request.form.get("telegram_chat_id", "").strip()
@@ -177,6 +180,14 @@ def settings_page():
             orders_sync_cfg["approved_plus_rename"] = plus_rename
             orders_sync_cfg["anulat_rename_tech_marker"] = anulat_rename
 
+            if not not_given_folder:
+                errors.append("Путь к папке «НЕ ДАЛИ В РАБОТУ» не может быть пустым.")
+
+            auto_confirm_cfg = updated.setdefault("orders_auto_confirm", {})
+            auto_confirm_cfg["path_not_given_folder"] = not_given_folder
+            auto_confirm_cfg["pg_dsn"] = orders_auto_confirm_dsn
+            auto_confirm_cfg["query_template"] = orders_auto_confirm_query
+
         if not errors:
             save_config(updated)
             CONFIG.clear()
@@ -202,6 +213,9 @@ def settings_page():
             search_changed = old_config.get("paths", {}).get("search", {}) != updated.get("paths", {}).get("search", {})
             features_changed = old_config.get("features", {}) != updated.get("features", {})
             orders_sync_changed = old_config.get("orders_sync", {}) != updated.get("orders_sync", {})
+            auto_confirm_changed = (
+                old_config.get("orders_auto_confirm", {}) != updated.get("orders_auto_confirm", {})
+            )
             telegram_changed = old_config.get("telegram", {}) != updated.get("telegram", {})
 
             monitor_restart_required = paths_changed
@@ -219,6 +233,8 @@ def settings_page():
                 light_changes.append("флаги функций")
             if orders_sync_changed:
                 light_changes.append("параметры Orders (PostgreSQL)")
+            if auto_confirm_changed:
+                light_changes.append("параметры автоподтверждения")
             if telegram_changed:
                 light_changes.append("настройки Telegram")
             if paths_changed:

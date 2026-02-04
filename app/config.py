@@ -41,6 +41,11 @@ DEFAULT_CONFIG = {
         "approved_plus_rename": True,
         "anulat_rename_tech_marker": False,
     },
+    "orders_auto_confirm": {
+        "path_not_given_folder": "",
+        "pg_dsn": "",
+        "query_template": "",
+    },
 }
 
 logger = logging.getLogger("bazis")
@@ -78,6 +83,9 @@ ORDERS_PG_TAIL_DAYS = DEFAULT_CONFIG["orders_sync"]["tail_days"]
 ORDERS_SYNC_ENABLED = DEFAULT_CONFIG["orders_sync"]["enabled"]
 ORDERS_APPROVED_PLUS_RENAME = DEFAULT_CONFIG["orders_sync"]["approved_plus_rename"]
 ORDERS_ANULAT_RENAME_TECH_MARKER = DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"]
+ORDERS_AUTO_CONFIRM_PATH = ""
+ORDERS_AUTO_CONFIRM_DSN = ""
+ORDERS_AUTO_CONFIRM_QUERY = ""
 
 
 def deep_merge(base, extra):
@@ -274,6 +282,17 @@ def _ensure_complete_config(raw_config: dict) -> dict:
         DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"],
     )
 
+    merged.setdefault("orders_auto_confirm", {})
+    merged["orders_auto_confirm"]["path_not_given_folder"] = str(
+        merged["orders_auto_confirm"].get("path_not_given_folder") or ""
+    ).strip()
+    merged["orders_auto_confirm"]["pg_dsn"] = str(
+        merged["orders_auto_confirm"].get("pg_dsn") or ""
+    ).strip()
+    merged["orders_auto_confirm"]["query_template"] = str(
+        merged["orders_auto_confirm"].get("query_template") or ""
+    ).strip()
+
     return merged
 
 
@@ -309,6 +328,7 @@ def apply_config(config):
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
     global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
     global ORDERS_APPROVED_PLUS_RENAME, ORDERS_ANULAT_RENAME_TECH_MARKER
+    global ORDERS_AUTO_CONFIRM_PATH, ORDERS_AUTO_CONFIRM_DSN, ORDERS_AUTO_CONFIRM_QUERY
     global ORDER_TIMES_TTL_DAYS
 
     normalized = _ensure_complete_config(config)
@@ -378,6 +398,13 @@ def apply_config(config):
         DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"],
     )
 
+    orders_auto_confirm_cfg = normalized.get("orders_auto_confirm", {})
+    ORDERS_AUTO_CONFIRM_PATH = orders_auto_confirm_cfg.get("path_not_given_folder", "")
+    ORDERS_AUTO_CONFIRM_DSN = os.environ.get(
+        "ORDERS_AUTO_CONFIRM_DSN", orders_auto_confirm_cfg.get("pg_dsn", "")
+    )
+    ORDERS_AUTO_CONFIRM_QUERY = orders_auto_confirm_cfg.get("query_template", "")
+
     MANAGER_NAMES[:] = normalized.get("managers", [])
     TECHNOLOGIST_MARKERS.clear()
     TECHNOLOGIST_MARKERS.update(normalized.get("technologists", {}))
@@ -407,6 +434,10 @@ def apply_config(config):
             warning = f"Путь поиска '{name}' -> '{folder}' недоступен"
             warnings.append(warning)
             logger.warning("[config] %s", warning)
+    if ORDERS_AUTO_CONFIRM_PATH and not os.path.exists(ORDERS_AUTO_CONFIRM_PATH):
+        warning = f"Путь автоподтверждения '{ORDERS_AUTO_CONFIRM_PATH}' недоступен"
+        warnings.append(warning)
+        logger.warning("[config] %s", warning)
 
     if has_app_context():
         try:
@@ -454,6 +485,9 @@ __all__ = [
     "ORDERS_SYNC_ENABLED",
     "ORDERS_APPROVED_PLUS_RENAME",
     "ORDERS_ANULAT_RENAME_TECH_MARKER",
+    "ORDERS_AUTO_CONFIRM_PATH",
+    "ORDERS_AUTO_CONFIRM_DSN",
+    "ORDERS_AUTO_CONFIRM_QUERY",
     "LOG_RETENTION_DAYS",
     "JOURNAL_RETENTION_DAYS",
     "ORDER_TIMES_TTL_DAYS",
