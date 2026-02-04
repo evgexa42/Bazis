@@ -27,8 +27,11 @@ from app import (
     sse_clients,
     sse_clients_lock,
 )
-from app.dal.permissions import has_permission, permissions_required
+from app.dal.permissions import permissions_required
+from app.dal.order_manager_override import upsert_override
+from app.security import csrf_error_response, validate_csrf_token
 from app.services.snapshot import (
+    apply_manager_override_to_snapshot,
     build_orders_payload,
     calculate_period_cutoff,
     refresh_search_index,
@@ -37,6 +40,8 @@ from app.services.snapshot import (
     search_in_index,
     upsert_order,
 )
+from app.services.order_times import normalize_order_key
+from app.services.audit import log_order_event
 from app.services.telegram import (
     folder_has_ready_marker,
     technologist_from_folder,
@@ -113,6 +118,9 @@ def _snapshot_copy():
 
 def _find_order_in_snapshot(order_key: str):
     for order in _snapshot_copy():
+        snapshot_key = order.get("order_key") or ""
+        if snapshot_key and snapshot_key == order_key:
+            return order
         if (order.get("name") or "") == order_key:
             return order
     return None
@@ -154,6 +162,62 @@ def data():
     payload = build_orders_payload(visible_manager, requested_manager)
 
     return jsonify(payload)
+
+
+@orders_bp.route("/api/managers")
+def api_managers():
+    return jsonify({"status": "ok", "managers": app_config.MANAGER_NAMES})
+
+
+@orders_bp.route("/api/orders/<order_key>/manager", methods=["POST"])
+@permissions_required("can_edit_order_manager")
+def update_order_manager(order_key: str):
+    ok, message = validate_csrf_token()
+    if not ok:
+        return csrf_error_response(message)
+
+    payload = request.get_json(silent=True) or {}
+    manager_name = (
+        payload.get("manager_name")
+        or payload.get("manager_id")
+        or payload.get("manager")
+        or ""
+    ).strip()
+    if not manager_name:
+        return jsonify({"status": "error", "message": "Менеджер не задан."}), 400
+
+    if manager_name not in app_config.MANAGER_NAMES:
+        return jsonify({"status": "error", "message": "Менеджер не найден."}), 400
+
+    normalized_key = normalize_order_key(order_key)
+    if not normalized_key:
+        return jsonify({"status": "error", "message": "Некорректный ключ заказа."}), 400
+
+    snapshot_item = _find_order_in_snapshot(normalized_key) or _find_order_in_snapshot(order_key)
+    if not snapshot_item:
+        return jsonify({"status": "error", "message": "Заказ не найден."}), 404
+
+    updated_by = session.get("user") or ""
+    record = upsert_override(normalized_key, manager_name, updated_by)
+    updated_at = record.updated_at.isoformat() if record and record.updated_at else ""
+
+    updated_item = apply_manager_override_to_snapshot(
+        normalized_key,
+        manager_name,
+        updated_by=updated_by,
+        updated_at=updated_at,
+    ) or dict(snapshot_item)
+    updated_item["manager"] = manager_name
+
+    log_order_event(
+        "manager_override",
+        order_name=snapshot_item.get("name") or normalized_key,
+        manager=manager_name,
+        old_value=snapshot_item.get("manager") or "",
+        new_value=manager_name,
+    )
+
+    return jsonify({"status": "ok", "order": updated_item})
 
 
 @orders_bp.route("/search", methods=["GET", "POST"])

@@ -2097,6 +2097,21 @@ code {
   color: var(--primary);
   font-weight: 700;
 }
+
+.manager-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.manager-edit-btn {
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.manager-override-modal .field {
+  margin: 12px 0 0;
+}
 /* Confirmation modal */
 .confirm-overlay {
   position: fixed;

@@ -24,6 +24,7 @@ from app.services.order_times import (
 from app.services.order_numbers import extract_order_number_from_folder
 from app.services.audit import log_order_event
 from app.dal.db import DB_PATH
+from app.dal.order_manager_override import get_overrides_map
 from app.services import telegram as telegram_service
 from app.services.telegram import folder_has_ready_marker, technologist_from_folder
 
@@ -114,6 +115,34 @@ def parse_folder_entry(
         "order_key": order_key,
 }
 
+
+def _apply_manager_overrides(entries: List[Dict]) -> None:
+    if not entries:
+        return
+
+    order_keys: list[str] = []
+    for entry in entries:
+        order_key = entry.get("order_key") or normalize_order_key(entry.get("name") or "")
+        if order_key:
+            entry["order_key"] = order_key
+            order_keys.append(order_key)
+
+    if not order_keys:
+        return
+
+    overrides = get_overrides_map(order_keys)
+    for entry in entries:
+        order_key = entry.get("order_key") or ""
+        record = overrides.get(order_key)
+        if not record:
+            continue
+        entry["manager"] = record.manager_name
+        entry["manager_override"] = True
+        entry["manager_override_by"] = record.updated_by or ""
+        entry["manager_override_at"] = (
+            record.updated_at.isoformat() if record.updated_at else ""
+        )
+
 INDEX_TTL = 300.0
 _index_lock = threading.Lock()
 _index_access_lock = threading.RLock()
@@ -183,6 +212,7 @@ def build_orders_snapshot():
         folder_data = order_status.enrich_orders(folder_data)
     except Exception as exc:  # pragma: no cover - защитная логика
         logger.warning("[snapshot] enrich_orders failed, fallback to raw data", exc_info=exc)
+    _apply_manager_overrides(folder_data)
 
     dt = (perf_counter() - t0) * 1000.0
     with bazis_app.metrics_lock:
@@ -293,6 +323,7 @@ def upsert_order(folder_name: str) -> bool:
         logger.warning("[order_times] Не удалось обновить время для %s", folder_name, exc_info=exc)
 
     parsed = order_status.enrich_orders([parsed])[0]
+    _apply_manager_overrides([parsed])
     changed, applied_snapshot, version, last_snapshot_ts, existed = _merge_order(parsed)
     if changed:
         payload = build_orders_payload(
@@ -436,6 +467,44 @@ def build_orders_payload(visible_manager=None, requested_manager="Все", folde
         "version": version,
         "last_snapshot_ts": last_snapshot_ts,
     }
+
+
+def apply_manager_override_to_snapshot(order_key: str, manager_name: str, updated_by: str = "", updated_at: str = "") -> Optional[Dict]:
+    if not order_key or not manager_name:
+        return None
+
+    normalized_key = normalize_order_key(order_key)
+    updated_item = None
+
+    with bazis_app.orders_snapshot_lock:
+        snapshot = list(bazis_app.orders_snapshot)
+        for idx, item in enumerate(snapshot):
+            item_key = item.get("order_key") or normalize_order_key(item.get("name") or "")
+            if item_key != normalized_key and (item.get("name") or "") != order_key:
+                continue
+            updated = dict(item)
+            updated["manager"] = manager_name
+            updated["manager_override"] = True
+            updated["manager_override_by"] = updated_by
+            updated["manager_override_at"] = updated_at
+            snapshot[idx] = updated
+            updated_item = updated
+            break
+
+        if updated_item is None:
+            return None
+
+        changed, applied_snapshot, version, last_snapshot_ts = _apply_snapshot(snapshot, lock_held=True)
+
+    if changed:
+        payload = build_orders_payload(
+            folders=applied_snapshot,
+            version=version,
+            last_snapshot_ts=last_snapshot_ts,
+        )
+        sse_broadcast(payload)
+
+    return updated_item
 
 
 def get_sqlite_connection(retries: int = 3, retry_delay: float = 0.25):
