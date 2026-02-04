@@ -2,6 +2,7 @@
 import logging
 import time
 from copy import deepcopy
+import re
 
 from flask import (
     Blueprint,
@@ -90,6 +91,19 @@ def settings_page():
                     mapping[key] = val
             return mapping
 
+        def parse_chat_ids(value: str) -> tuple[list[str], list[str]]:
+            cleaned: list[str] = []
+            invalid: list[str] = []
+            for line in (value or "").replace(",", "\n").splitlines():
+                candidate = line.strip()
+                if not candidate:
+                    continue
+                if re.fullmatch(r"-?\d+", candidate):
+                    cleaned.append(candidate)
+                else:
+                    invalid.append(candidate)
+            return cleaned, invalid
+
         updated = deepcopy(CONFIG)
         old_config = deepcopy(CONFIG)
         telegram_token = updated.get("telegram", {}).get("token", "")
@@ -125,7 +139,7 @@ def settings_page():
             anulat_rename = request.form.get("orders_anulat_rename") == "on"
 
             telegram_token = request.form.get("telegram_token", "").strip()
-            telegram_chat = request.form.get("telegram_chat_id", "").strip()
+            telegram_chat_raw = request.form.get("telegram_chat_id", "")
 
             paths_cfg = updated.setdefault("paths", {})
             if orders_path:
@@ -154,7 +168,14 @@ def settings_page():
 
             telegram_cfg = updated.setdefault("telegram", {})
             telegram_cfg["token"] = telegram_token
-            telegram_cfg["chat_id"] = telegram_chat
+            chat_ids, invalid_chat_ids = parse_chat_ids(telegram_chat_raw)
+            if invalid_chat_ids:
+                errors.append(
+                    "Telegram Chat ID должен содержать только цифры или знак минус: "
+                    + ", ".join(invalid_chat_ids)
+                )
+            telegram_cfg["chat_ids"] = chat_ids
+            telegram_cfg["chat_id"] = chat_ids[0] if chat_ids else ""
 
             orders_sync_cfg = updated.setdefault("orders_sync", {})
             orders_sync_cfg["pg_url"] = pg_url

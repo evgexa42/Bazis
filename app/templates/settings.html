@@ -110,7 +110,9 @@ data-managers='{{ config_managers | tojson }}'
 
         <div class="settings-field">
           <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
-          <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+          {% set chat_ids = config.get('telegram', {}).get('chat_ids') %}
+          <textarea class="input input--mono" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789">{% if chat_ids %}{{ chat_ids | join('\n') }}{% else %}{{ config.get('telegram', {}).get('chat_id', '') }}{% endif %}</textarea>
+          <p class="hint">По одному chat_id в строке, допускаются отрицательные ID.</p>
         </div>
 
         <div class="settings-field settings-field--wide">

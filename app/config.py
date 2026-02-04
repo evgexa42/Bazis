@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from copy import deepcopy
 
 from flask import current_app, has_app_context
@@ -17,7 +18,7 @@ DEFAULT_CONFIG = {
         "debug": False,
         "secret_key": "dev-secret-key",
     },
-    "telegram": {"token": "", "chat_id": "", "ignored_folders": ["Архив", "2025"]},
+    "telegram": {"token": "", "chat_id": "", "chat_ids": [], "ignored_folders": ["Архив", "2025"]},
     "paths": {
         "orders": "",
         "facades_dir": "",
@@ -61,6 +62,7 @@ PRISADKA_CLIENT_ROOT = ""
 FACADES_LIST_DIR = ""
 TELEGRAM_TOKEN = ""
 CHAT_ID = ""
+TELEGRAM_CHAT_IDS: list[str] = []
 TELEGRAM_IGNORED_FOLDERS: list[str] = []
 SERVER_HOST = DEFAULT_CONFIG["server"]["host"]
 SERVER_PORT = DEFAULT_CONFIG["server"]["port"]
@@ -165,6 +167,28 @@ def _parse_telegram_ignored(value) -> list[str]:
     return []
 
 
+def _parse_telegram_chat_ids(value, fallback: str | None = None) -> list[str]:
+    """Преобразует chat_id/chat_ids в список строковых ID."""
+    raw_items: list[str] = []
+    if isinstance(value, list):
+        raw_items = [str(item) for item in value]
+    elif isinstance(value, str):
+        prepared = value.replace(",", "\n")
+        raw_items = prepared.splitlines()
+
+    if fallback:
+        raw_items.append(str(fallback))
+
+    result: list[str] = []
+    for item in raw_items:
+        cleaned = str(item).strip()
+        if not cleaned:
+            continue
+        if re.fullmatch(r"-?\d+", cleaned):
+            result.append(cleaned)
+    return result
+
+
 def _parse_search_folders(value) -> dict:
     if isinstance(value, dict):
         return _parse_str_dict(value)
@@ -218,6 +242,10 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged.setdefault("telegram", {})
     merged["telegram"]["token"] = str(merged["telegram"].get("token") or "").strip()
     merged["telegram"]["chat_id"] = str(merged["telegram"].get("chat_id") or "").strip()
+    merged["telegram"]["chat_ids"] = _parse_telegram_chat_ids(
+        merged["telegram"].get("chat_ids"),
+        merged["telegram"]["chat_id"],
+    )
     merged["telegram"]["ignored_folders"] = _parse_telegram_ignored(
         merged["telegram"].get("ignored_folders")
     )
@@ -304,7 +332,7 @@ def apply_config(config):
     global CONFIG
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
     global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
-    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    global TELEGRAM_TOKEN, CHAT_ID, TELEGRAM_CHAT_IDS, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
     global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
@@ -328,6 +356,7 @@ def apply_config(config):
 
     TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", telegram_cfg.get("token", ""))
     CHAT_ID = str(telegram_cfg.get("chat_id", "")).strip()
+    TELEGRAM_CHAT_IDS = _parse_telegram_chat_ids(telegram_cfg.get("chat_ids"), CHAT_ID)
     TELEGRAM_IGNORED_FOLDERS[:] = telegram_cfg.get("ignored_folders", [])
 
     FOLDER_PATH = paths.get("orders") or ""
