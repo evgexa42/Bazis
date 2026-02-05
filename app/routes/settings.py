@@ -124,8 +124,6 @@ def settings_page():
             plus_rename = request.form.get("orders_plus_rename") == "on"
             anulat_rename = request.form.get("orders_anulat_rename") == "on"
             not_given_folder = request.form.get("not_given_folder_path", "").strip()
-            orders_auto_confirm_dsn = request.form.get("orders_auto_confirm_dsn", "").strip()
-            orders_auto_confirm_query = request.form.get("orders_auto_confirm_query", "").strip()
 
             telegram_token = request.form.get("telegram_token", "").strip()
             telegram_chat = request.form.get("telegram_chat_id", "").strip()
@@ -185,8 +183,6 @@ def settings_page():
 
             auto_confirm_cfg = updated.setdefault("orders_auto_confirm", {})
             auto_confirm_cfg["path_not_given_folder"] = not_given_folder
-            auto_confirm_cfg["pg_dsn"] = orders_auto_confirm_dsn
-            auto_confirm_cfg["query_template"] = orders_auto_confirm_query
 
         if not errors:
             save_config(updated)

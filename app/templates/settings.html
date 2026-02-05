@@ -125,18 +125,6 @@ data-managers='{{ config_managers | tojson }}'
           <p class="hint">Используется только для чтения статусов «посчитан/подтвержден/аннулирован».</p>
         </div>
 
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="orders_auto_confirm_dsn">PostgreSQL (Orders) DSN для автоподтверждения</label>
-          <input type="text" class="input" id="orders_auto_confirm_dsn" name="orders_auto_confirm_dsn" placeholder="postgresql://user:pass@host:5432/orders" value="{{ config.get('orders_auto_confirm', {}).get('pg_dsn', '') }}">
-          <p class="hint">Если пусто, автоподтверждение не выполняется.</p>
-        </div>
-
-        <div class="settings-field settings-field--wide">
-          <label class="field-label" for="orders_auto_confirm_query">SQL для проверки «дали в работу» (опционально)</label>
-          <textarea id="orders_auto_confirm_query" name="orders_auto_confirm_query" class="input input--mono" placeholder="SELECT approved FROM public.orders WHERE number = :order_number">{{ config.get('orders_auto_confirm', {}).get('query_template', '') }}</textarea>
-          <p class="hint">Оставьте пустым, чтобы использовать запрос по умолчанию из кода.</p>
-        </div>
-
         <div class="settings-field">
           <label class="field-label" for="orders_pg_poll_seconds">Интервал опроса, сек</label>
           <input type="number" min="5" class="input" id="orders_pg_poll_seconds" name="orders_pg_poll_seconds" value="{{ config.get('orders_sync', {}).get('poll_seconds', 30) }}">

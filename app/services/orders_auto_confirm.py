@@ -50,9 +50,9 @@ def _get_engine() -> Engine:
         if _pg_engine:
             return _pg_engine
 
-        dsn = app_config.ORDERS_AUTO_CONFIRM_DSN or app_config.ORDERS_PG_URL
+        dsn = app_config.ORDERS_PG_URL
         if not dsn:
-            raise RuntimeError("ORDERS_AUTO_CONFIRM_DSN is not configured")
+            raise RuntimeError("ORDERS_PG_URL is not configured")
 
         _pg_engine = create_engine(
             dsn,
@@ -87,11 +87,10 @@ def is_order_given_to_work(order_no: str) -> bool:
     if not order_no:
         return False
 
-    dsn = app_config.ORDERS_AUTO_CONFIRM_DSN or app_config.ORDERS_PG_URL
+    dsn = app_config.ORDERS_PG_URL
     if not dsn:
         return False
-
-    query = app_config.ORDERS_AUTO_CONFIRM_QUERY or DEFAULT_QUERY
+    query = DEFAULT_QUERY
 
     try:
         engine = _get_engine()
