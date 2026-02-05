@@ -46,6 +46,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_access_search": 1,
         "can_manage_users": 1,
         "can_edit_paths": 1,
+        "can_export_db": 1,
+        "can_import_db": 1,
         "can_toggle_order_options": 1,
         "can_confirm_orders": 1,
         "can_view_priced": 1,
@@ -61,6 +63,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_access_search": 1,
         "can_manage_users": 0,
         "can_edit_paths": 0,
+        "can_export_db": 0,
+        "can_import_db": 0,
         "can_toggle_order_options": 1,
         "can_confirm_orders": 1,
         "can_view_priced": 1,
@@ -76,6 +80,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_access_search": 1,
         "can_manage_users": 0,
         "can_edit_paths": 0,
+        "can_export_db": 0,
+        "can_import_db": 0,
         "can_toggle_order_options": 0,
         "can_confirm_orders": 1,
         "can_view_priced": 1,
@@ -111,6 +117,8 @@ class RolePermission(Base):
 
     can_manage_users = Column(Integer, nullable=False, default=0)
     can_edit_paths = Column(Integer, nullable=False, default=0)
+    can_export_db = Column(Integer, nullable=False, default=0)
+    can_import_db = Column(Integer, nullable=False, default=0)
     can_toggle_order_options = Column(Integer, nullable=False, default=0)
     can_confirm_orders = Column(Integer, nullable=False, default=0)
     can_view_priced = Column(Integer, nullable=False, default=0)
@@ -151,6 +159,8 @@ def _ensure_default_role_permissions() -> None:
             if role == "admin":
                 enforced["can_access_settings"] = 1
                 enforced["can_manage_users"] = 1
+                enforced["can_export_db"] = 1
+                enforced["can_import_db"] = 1
 
             if not record:
                 session.add(RolePermission(role=role, **enforced))
@@ -158,6 +168,8 @@ def _ensure_default_role_permissions() -> None:
                 if role == "admin":
                     record.can_access_settings = 1
                     record.can_manage_users = 1
+                    record.can_export_db = 1
+                    record.can_import_db = 1
                 else:
                     for field, value in enforced.items():
                         if getattr(record, field) is None:
@@ -170,6 +182,8 @@ def _ensure_role_permissions_columns() -> None:
     inspector = inspect(engine)
     columns = {col["name"] for col in inspector.get_columns("role_permissions")}
     new_columns = {
+        "can_export_db": 0,
+        "can_import_db": 0,
         "can_confirm_orders": 0,
         "can_view_priced": 0,
         "can_mark_priced": 0,

@@ -1,16 +1,20 @@
 
 import logging
+import os
+import shutil
 import time
 from copy import deepcopy
 
 from flask import (
     Blueprint,
+    abort,
     g,
     jsonify,
     redirect,
     render_template,
     request,
     session,
+    send_file,
     url_for,
 )
 
@@ -24,7 +28,7 @@ from app.config import (
     apply_config,
     save_config,
 )
-from app.dal.db import DEFAULT_ROLE_PERMISSIONS
+from app.dal.db import DEFAULT_ROLE_PERMISSIONS, DB_PATH, engine, init_db
 from app.dal.permissions import (
     PERMISSION_FIELDS,
     create_role,
@@ -448,11 +452,79 @@ def update_role_permissions():
     updates.setdefault("admin", {})
     updates["admin"]["can_access_settings"] = 1
     updates["admin"]["can_manage_users"] = 1
+    updates["admin"]["can_export_db"] = 1
+    updates["admin"]["can_import_db"] = 1
 
     save_role_permissions(updates)
     logger.info("[settings] Права ролей обновлены пользователем %s", session.get("user"))
     session["settings_status"] = "Права ролей обновлены."
 
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/settings/db/export", methods=["GET"])
+@login_required
+@permissions_required("can_export_db")
+def export_db():
+    if not os.path.exists(DB_PATH):
+        abort(404)
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    download_name = f"database-{timestamp}.db"
+    return send_file(DB_PATH, as_attachment=True, download_name=download_name)
+
+
+@settings_bp.route("/settings/db/import", methods=["POST"])
+@login_required
+@permissions_required("can_import_db")
+def import_db():
+    uploaded = request.files.get("db_file")
+    if not uploaded or not uploaded.filename:
+        session["settings_errors"] = ["Выберите файл базы данных для импорта."]
+        return redirect(url_for("settings.settings_page"))
+
+    base_dir = os.path.dirname(DB_PATH)
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    temp_path = os.path.join(base_dir, f".import-{timestamp}.db")
+    backup_path = os.path.join(base_dir, f"database.backup-{timestamp}.db")
+    backup_created = False
+
+    try:
+        uploaded.save(temp_path)
+        if os.path.getsize(temp_path) <= 0:
+            raise ValueError("Файл базы данных пуст.")
+
+        if os.path.exists(DB_PATH):
+            shutil.copy2(DB_PATH, backup_path)
+            backup_created = True
+
+        engine.dispose()
+        os.replace(temp_path, DB_PATH)
+        init_db()
+    except Exception as exc:
+        logger.error("[settings] Ошибка импорта базы данных: %s", exc)
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                logger.warning("[settings] Не удалось удалить временный файл импорта.")
+        if backup_created:
+            try:
+                shutil.copy2(backup_path, DB_PATH)
+                init_db()
+            except Exception as restore_exc:
+                logger.error("[settings] Ошибка восстановления базы из бэкапа: %s", restore_exc)
+        session["settings_errors"] = [f"Не удалось импортировать базу данных: {exc}"]
+        return redirect(url_for("settings.settings_page"))
+
+    backup_label = os.path.basename(backup_path) if backup_created else "не создавался"
+    session["settings_status"] = f"База данных импортирована. Бэкап: {backup_label}."
+    log_order_event(
+        "db_import",
+        order_name="database",
+        old_value=backup_label,
+        new_value=os.path.basename(DB_PATH),
+        user=session.get("user"),
+    )
     return redirect(url_for("settings.settings_page"))
 
 

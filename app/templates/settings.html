@@ -175,6 +175,57 @@ data-managers='{{ config_managers | tojson }}'
       </div>
     </form>
 
+    {% if role_perms.can_export_db or role_perms.can_import_db %}
+    <section class="card card--subtle db-settings-card" aria-labelledby="db-settings-title">
+      <div class="card-header-between">
+        <div>
+          <h2 id="db-settings-title" class="section-title">База данных</h2>
+          <p class="hint">Экспорт и импорт доступны только пользователям с отдельными правами.</p>
+        </div>
+      </div>
+      <div class="settings-grid">
+        {% if role_perms.can_export_db %}
+        <div class="settings-field settings-field--wide">
+          <label class="field-label">Экспорт</label>
+          <a href="{{ url_for('settings.export_db') }}" class="btn btn--secondary">Экспорт DB</a>
+          <p class="hint">Скачайте рабочий файл базы данных для резервного копирования.</p>
+        </div>
+        {% endif %}
+        {% if role_perms.can_import_db %}
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="db_import_file">Импорт</label>
+          <form action="{{ url_for('settings.import_db') }}" method="POST" enctype="multipart/form-data" data-db-import-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="file" id="db_import_file" name="db_file" class="input" accept=".db,.sqlite,.sqlite3,application/x-sqlite3" required>
+            <div class="settings-actions">
+              <button type="submit" class="btn btn--danger">Импорт DB</button>
+            </div>
+          </form>
+          <p class="hint">Перед заменой будет создан бэкап текущей базы данных.</p>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="confirm-overlay db-import-overlay" data-db-import-modal>
+      <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="db-import-title">
+        <h3 id="db-import-title" class="section-subtitle">Подтверждение импорта</h3>
+        <p class="confirm-message">Импорт заменит текущую базу данных. Бэкап будет создан автоматически.</p>
+        <label class="checkbox-row">
+          <input type="checkbox" data-db-import-confirm-check>
+          <div class="checkbox-row__content">
+            <span class="checkbox-row__label">Понимаю последствия</span>
+            <span class="checkbox-row__desc">Данные будут заменены, откат возможен только из бэкапа.</span>
+          </div>
+        </label>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn--danger" data-db-import-confirm disabled>Импортировать</button>
+          <button type="button" class="btn btn--ghost" data-db-import-cancel>Отмена</button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <section class="card card--subtle audit-card" aria-labelledby="audit-log-title">
       <div class="card-header-between">
         <div>
@@ -427,6 +478,13 @@ data-managers='{{ config_managers | tojson }}'
       [
         ('can_manage_users', 'Может управлять пользователями', 'Создание, редактирование и деактивация учётных записей.'),
         ('can_edit_paths', 'Может менять пути/папки и конфиг', 'Изменение путей, сетевых настроек и токенов.'),
+      ]
+    ),
+    (
+      'База данных',
+      [
+        ('can_export_db', 'Может экспортировать базу данных', 'Скачивание файла базы данных для резервного копирования.'),
+        ('can_import_db', 'Может импортировать базу данных', 'Загрузка файла базы данных с обязательным подтверждением.'),
       ]
     ),
     (
