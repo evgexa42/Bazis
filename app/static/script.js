@@ -860,6 +860,8 @@ const SettingsPage = (() => {
     if (activeTab) {
       activateTab(activeTab, tabs, panels, false);
     }
+
+    initDbImport();
   }
 
   function activateTab(tab, tabs, panels, manageMetrics = true) {
@@ -882,6 +884,59 @@ const SettingsPage = (() => {
     if (metricsTimer) return;
     metricsTimer = setInterval(loadMetrics, 5000);
     loadMetrics();
+  }
+
+  function initDbImport() {
+    const form = document.querySelector('[data-db-import-form]');
+    const modal = document.querySelector('[data-db-import-modal]');
+    if (!form || !modal) return;
+
+    const fileInput = form.querySelector('input[type="file"]');
+    const confirmCheck = modal.querySelector('[data-db-import-confirm-check]');
+    const confirmBtn = modal.querySelector('[data-db-import-confirm]');
+    const cancelBtn = modal.querySelector('[data-db-import-cancel]');
+
+    function setConfirmState() {
+      if (!confirmBtn) return;
+      const allowed = !!confirmCheck?.checked;
+      confirmBtn.disabled = !allowed;
+    }
+
+    function openModal() {
+      if (confirmCheck) confirmCheck.checked = false;
+      setConfirmState();
+      modal.classList.add('is-visible');
+    }
+
+    function closeModal() {
+      modal.classList.remove('is-visible');
+    }
+
+    form.addEventListener('submit', event => {
+      if (!fileInput?.files?.length) {
+        alert('Выберите файл базы данных для импорта.');
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      openModal();
+    });
+
+    confirmCheck?.addEventListener('change', setConfirmState);
+
+    confirmBtn?.addEventListener('click', () => {
+      if (confirmBtn.disabled) return;
+      closeModal();
+      form.submit();
+    });
+
+    cancelBtn?.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', event => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
   }
 
   function stopMetricsPolling() {

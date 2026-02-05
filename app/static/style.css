@@ -2147,6 +2147,46 @@ code {
   justify-content: flex-end;
 }
 
+.db-settings-card .settings-field {
+  display: grid;
+  gap: 8px;
+}
+
+.db-settings-card .settings-actions {
+  justify-content: flex-start;
+}
+
+.db-settings-card input[type="file"].input {
+  border: 1px dashed var(--border);
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.db-settings-card .btn {
+  align-self: flex-start;
+}
+
+.db-import-overlay .confirm-modal {
+  max-width: 520px;
+}
+
+.db-import-overlay .confirm-message {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.db-import-overlay .checkbox-row {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.db-import-overlay .confirm-actions {
+  margin-top: 8px;
+}
+
 .btn--ghost.btn--disabled {
   opacity: 0.5;
   pointer-events: none;
