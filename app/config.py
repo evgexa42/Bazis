@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from copy import deepcopy
 
 from flask import current_app, has_app_context
@@ -17,7 +18,7 @@ DEFAULT_CONFIG = {
         "debug": False,
         "secret_key": "dev-secret-key",
     },
-    "telegram": {"token": "", "chat_id": "", "ignored_folders": ["Архив", "2025"]},
+    "telegram": {"token": "", "chat_id": "", "chat_ids": [], "ignored_folders": ["Архив", "2025"]},
     "paths": {
         "orders": "",
         "facades_dir": "",
@@ -64,6 +65,7 @@ PRISADKA_CLIENT_ROOT = ""
 FACADES_LIST_DIR = ""
 TELEGRAM_TOKEN = ""
 CHAT_ID = ""
+TELEGRAM_CHAT_IDS: list[str] = []
 TELEGRAM_IGNORED_FOLDERS: list[str] = []
 SERVER_HOST = DEFAULT_CONFIG["server"]["host"]
 SERVER_PORT = DEFAULT_CONFIG["server"]["port"]
@@ -169,6 +171,33 @@ def _parse_telegram_ignored(value) -> list[str]:
     return []
 
 
+def _parse_telegram_chat_ids(value) -> list[str]:
+    """Возвращает список chat_id из строки/списка."""
+    candidates: list[str] = []
+    if isinstance(value, (list, tuple, set)):
+        for item in value:
+            token = str(item).strip()
+            if token:
+                candidates.append(token)
+    elif isinstance(value, str):
+        for line in value.splitlines():
+            for token in line.replace(",", " ").split():
+                token = token.strip()
+                if token:
+                    candidates.append(token)
+
+    cleaned: list[str] = []
+    seen = set()
+    for token in candidates:
+        if not re.fullmatch(r"-?\d+", token):
+            continue
+        if token in seen:
+            continue
+        cleaned.append(token)
+        seen.add(token)
+    return cleaned
+
+
 def _parse_search_folders(value) -> dict:
     if isinstance(value, dict):
         return _parse_str_dict(value)
@@ -221,7 +250,14 @@ def _ensure_complete_config(raw_config: dict) -> dict:
 
     merged.setdefault("telegram", {})
     merged["telegram"]["token"] = str(merged["telegram"].get("token") or "").strip()
-    merged["telegram"]["chat_id"] = str(merged["telegram"].get("chat_id") or "").strip()
+    raw_chat_ids = merged["telegram"].get("chat_ids")
+    raw_chat_id = merged["telegram"].get("chat_id")
+    if raw_chat_ids is None or raw_chat_ids == "" or raw_chat_ids == []:
+        parsed_chat_ids = _parse_telegram_chat_ids(raw_chat_id)
+    else:
+        parsed_chat_ids = _parse_telegram_chat_ids(raw_chat_ids)
+    merged["telegram"]["chat_ids"] = parsed_chat_ids
+    merged["telegram"]["chat_id"] = parsed_chat_ids[0] if parsed_chat_ids else ""
     merged["telegram"]["ignored_folders"] = _parse_telegram_ignored(
         merged["telegram"].get("ignored_folders")
     )
@@ -312,7 +348,7 @@ def apply_config(config):
     global CONFIG
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
     global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
-    global TELEGRAM_TOKEN, CHAT_ID, SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    global TELEGRAM_TOKEN, CHAT_ID, TELEGRAM_CHAT_IDS, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
     global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
@@ -336,7 +372,8 @@ def apply_config(config):
     DEBUG_MODE = _parse_bool(server.get("debug"), DEFAULT_CONFIG["server"]["debug"])
 
     TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", telegram_cfg.get("token", ""))
-    CHAT_ID = str(telegram_cfg.get("chat_id", "")).strip()
+    TELEGRAM_CHAT_IDS = list(telegram_cfg.get("chat_ids", []) or [])
+    CHAT_ID = str(TELEGRAM_CHAT_IDS[0]).strip() if TELEGRAM_CHAT_IDS else ""
     TELEGRAM_IGNORED_FOLDERS[:] = telegram_cfg.get("ignored_folders", [])
 
     FOLDER_PATH = paths.get("orders") or ""
@@ -452,6 +489,7 @@ __all__ = [
     "FACADES_FILE",
     "FACADES_LIST_DIR",
     "CHAT_ID",
+    "TELEGRAM_CHAT_IDS",
     "TELEGRAM_TOKEN",
     "TELEGRAM_IGNORED_FOLDERS",
     "SERVER_PORT",

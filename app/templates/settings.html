@@ -116,7 +116,12 @@ data-managers='{{ config_managers | tojson }}'
 
         <div class="settings-field">
           <label class="field-label" for="telegram_chat_id">Telegram Chat ID</label>
-          <input type="text" class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789" value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+          {% set telegram_chat_value = config.get('telegram', {}).get('chat_ids', config.get('telegram', {}).get('chat_id', '')) %}
+          {% if telegram_chat_value is not string %}
+            {% set telegram_chat_value = telegram_chat_value | join('\n') %}
+          {% endif %}
+          <textarea class="input" id="telegram_chat_id" name="telegram_chat_id" placeholder="123456789&#10;-1001234567890">{{ telegram_chat_value }}</textarea>
+          <p class="hint">По одному chat_id на строку. Пустые строки игнорируются.</p>
         </div>
 
         <div class="settings-field settings-field--wide">
