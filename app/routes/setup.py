@@ -1,5 +1,6 @@
 from copy import deepcopy
 import logging
+import re
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
@@ -67,10 +68,35 @@ def setup_page():
     technologists_form = _collect_accounts("technologist") if request.method == "POST" else []
 
     if request.method == "POST":
+        def parse_chat_ids(value: str) -> tuple[list[str], list[str]]:
+            cleaned: list[str] = []
+            invalid: list[str] = []
+            seen = set()
+            for line in value.splitlines():
+                for token in line.replace(",", " ").split():
+                    token = token.strip()
+                    if not token:
+                        continue
+                    if re.fullmatch(r"-?\d+", token):
+                        if token in seen:
+                            continue
+                        cleaned.append(token)
+                        seen.add(token)
+                    else:
+                        invalid.append(token)
+            return cleaned, invalid
+
         facades_dir = request.form.get("facades_dir", "").strip()
 
         telegram_token = request.form.get("telegram_token", "").strip()
-        telegram_chat = request.form.get("telegram_chat_id", "").strip()
+        telegram_chat_raw = request.form.get("telegram_chat_id", "").strip()
+        telegram_chat_ids, telegram_chat_invalid = parse_chat_ids(telegram_chat_raw)
+        if telegram_chat_invalid:
+            errors.append(
+                "Telegram Chat ID должен содержать только числа (можно с минусом). "
+                f"Неверные значения: {', '.join(telegram_chat_invalid)}."
+            )
+        telegram_chat = "\n".join(telegram_chat_ids)
 
         admin_username = (request.form.get("admin_username") or "").strip()
         admin_password = (request.form.get("admin_password") or "").strip()
