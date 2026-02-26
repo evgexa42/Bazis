@@ -230,6 +230,7 @@ def init_db() -> None:
     import app.dal.external_orders  # noqa: F401
     import app.dal.manager_priced  # noqa: F401
     import app.dal.order_manager_override  # noqa: F401
+    import app.dal.cpu_orders  # noqa: F401
 
     Base.metadata.create_all(engine)
     _ensure_role_permissions_columns()
