@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, abort, jsonify, request, session
+from flask import Blueprint, abort, jsonify, render_template, request, session
 
 import app.config as app_config
 from app.dal.cpu_orders import (
@@ -14,6 +14,16 @@ from app.dal.order_manager_override import upsert_override
 from app.services.cpu_monitor import sync_cpu_orders
 
 cpu_bp = Blueprint("cpu", __name__)
+
+
+@cpu_bp.route("/cpu", methods=["GET"])
+def cpu_page():
+    return render_template("cpu.html", cpu_view="active")
+
+
+@cpu_bp.route("/cpu/archive", methods=["GET"])
+def cpu_archive_page():
+    return render_template("cpu.html", cpu_view="archive")
 
 
 def _normalize_role() -> str:

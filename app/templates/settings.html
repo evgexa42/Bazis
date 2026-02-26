@@ -94,6 +94,20 @@ data-managers='{{ config_managers | tojson }}'
         </div>
 
         <div class="settings-field settings-field--wide">
+          <label class="field-label" for="desene_cpu_root">DESENE CPU: путь к папке</label>
+          <input type="text" class="input" id="desene_cpu_root" name="desene_cpu_root" placeholder="\\SERVER\homag\DESENE CPU\2025" value="{{ config.get('paths', {}).get('desene_cpu_root', '') }}">
+          <p class="hint">Используется мониторингом CPU для поиска готовых PDF по заказам.</p>
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="checkbox-row">
+            <input type="checkbox" name="cpu_monitoring_enabled" {% if config.get('features', {}).get('cpu_monitoring_enabled', False) %}checked{% endif %}>
+            <span>Включить DESENE CPU мониторинг</span>
+          </label>
+          <p class="hint">Права на действия задаются ролями в системе и проверяются сервером.</p>
+        </div>
+
+        <div class="settings-field settings-field--wide">
           <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
           <textarea id="search_folders" name="search_folders" class="input input--mono" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
           <p class="hint">Используйте по одному пути в строке: <code>Название=\\\\server\\share</code>.</p>
