@@ -14,8 +14,24 @@
   --surface: #ffffff;
   --surface-muted: #f1f5f9;
   --border: rgba(148, 163, 184, 0.35);
+  --border-color: var(--border); /* UI audit: shared border alias */
   --text: #0f172a;
   --text-muted: #475569;
+  --bg: #f8fafc; /* UI audit: base background token */
+  --panel-bg: var(--surface); /* UI audit: panel background token */
+  --space-1: 4px; /* UI audit: spacing scale */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --radius-1: 10px; /* UI audit: radius scale */
+  --radius-2: 18px;
+  --btn-padding-y: 9px; /* UI audit: button baseline */
+  --btn-padding-x: 18px;
+  --input-padding-y: 10px; /* UI audit: input baseline */
+  --input-padding-x: 12px;
+  --input-radius: 12px;
+  --input-height: 40px;
+  --card-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.4); /* UI audit: card shadow */
   --easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur-fast: 160ms;
   --dur-medium: 280ms;
@@ -93,9 +109,9 @@ h1 {
 
 .card {
   background: var(--surface);
-  border-radius: 18px;
+  border-radius: var(--radius-2);
   padding: 24px;
-  box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.4);
+  box-shadow: var(--card-shadow);
   border: 1px solid rgba(148, 163, 184, 0.25);
   transition: transform var(--dur-medium) var(--easing), box-shadow var(--dur-medium) var(--easing), border-color var(--dur-medium) var(--easing);
 }
@@ -149,13 +165,15 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 9px 18px;
+  padding: var(--btn-padding-y) var(--btn-padding-x);
   border-radius: 12px;
   border: 1px solid transparent;
   background: rgba(37, 99, 235, 0.08);
   color: var(--primary);
   font-weight: 600;
   font-size: 0.95rem;
+  line-height: 1.1;
+  min-height: var(--input-height);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--easing), box-shadow var(--dur-fast) var(--easing), background var(--dur-fast) var(--easing), border-color var(--dur-fast) var(--easing);
 }
@@ -173,6 +191,18 @@ h1 {
 .btn:active {
   transform: translateY(1px);
   box-shadow: 0 8px 18px -18px rgba(15, 23, 42, 0.45);
+}
+
+/* UI audit: consistent disabled buttons */
+.btn:disabled,
+.btn[disabled],
+.btn--disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn--primary {
@@ -309,11 +339,13 @@ input[type="number"],
 input[type="text"],
 select {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
+  padding: var(--input-padding-y) var(--input-padding-x);
+  border-radius: var(--input-radius);
+  border: 1px solid var(--border-color);
+  background: var(--surface);
   font-size: 1rem;
+  min-height: var(--input-height);
+  line-height: 1.4;
   transition: border-color var(--dur-fast) var(--easing), box-shadow var(--dur-fast) var(--easing), transform var(--dur-fast) var(--easing);
 }
 
@@ -327,6 +359,20 @@ select:focus {
   outline: none;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
   transform: translateY(-1px);
+}
+
+/* UI audit: disabled inputs look consistent */
+.input:disabled,
+.select:disabled,
+textarea:disabled,
+input[type="number"]:disabled,
+input[type="text"]:disabled,
+select:disabled {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .form-inline {
@@ -542,9 +588,9 @@ select:focus {
 .table-card {
   overflow: hidden;
   background: var(--surface);
-  border-radius: 18px;
+  border-radius: var(--radius-2);
   padding: 24px;
-  box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.4);
+  box-shadow: var(--card-shadow);
   border: 1px solid rgba(148, 163, 184, 0.25);
 }
 
@@ -580,6 +626,7 @@ select:focus {
   padding: 14px 18px;
   text-align: left;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  word-break: break-word;
 }
 
 .data-table th.table-checkbox,
@@ -1449,8 +1496,8 @@ code {
 .metrics-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
+  border-radius: var(--radius-2);
+  padding: var(--space-4);
   box-shadow: var(--card-shadow);
 }
 
@@ -1475,7 +1522,7 @@ code {
 .metrics-table th,
 .metrics-table td {
   text-align: left;
-  padding: 6px 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2038,6 +2085,17 @@ code {
 .copy-feedback.is-visible::before {
   content: '✔';
   margin-right: 6px;
+}
+
+/* UI audit: inline copy feedback for metrics toolbar */
+.errors-card__actions .copy-feedback {
+  position: static;
+  top: auto;
+  right: auto;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .search-grow {
