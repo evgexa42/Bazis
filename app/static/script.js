@@ -1997,3 +1997,332 @@ const ClientsTable = (() => {
 document.addEventListener('DOMContentLoaded', () => {
   ClientsTable.init();
 });
+
+const CpuPage = (() => {
+  let activeOrders = [];
+  let archiveOrders = [];
+  let query = '';
+  let manager = '';
+  let status = '';
+  let searchTimer = null;
+
+  function init() {
+    if (document.body?.dataset?.page !== 'cpu') return;
+
+    const searchInput = document.getElementById('cpuArchiveSearch');
+    const managerSelect = document.getElementById('cpuArchiveManager');
+    const statusSelect = document.getElementById('cpuArchiveStatus');
+
+    searchInput?.addEventListener('input', () => {
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        query = (searchInput.value || '').trim();
+        loadArchive();
+      }, 180);
+    });
+
+    managerSelect?.addEventListener('change', () => {
+      manager = managerSelect.value || '';
+      loadArchive();
+    });
+
+    statusSelect?.addEventListener('change', () => {
+      status = statusSelect.value || '';
+      loadArchive();
+    });
+
+    bindActions();
+
+    if (getView() === 'archive') {
+      loadArchive();
+    } else {
+      loadActive();
+    }
+  }
+
+  function getView() {
+    return document.body?.dataset?.cpuView === 'archive' ? 'archive' : 'active';
+  }
+
+  async function loadActive() {
+    try {
+      const response = await fetch('/api/cpu/orders');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        notify('Ошибка', payload?.message || 'Не удалось загрузить CPU заказы.', 'error');
+        return;
+      }
+      activeOrders = Array.isArray(payload?.orders) ? payload.orders : [];
+      renderActive();
+    } catch (error) {
+      notify('Ошибка', 'Сетевой сбой при загрузке активных CPU заказов.', 'error');
+    }
+  }
+
+  async function loadArchive() {
+    const params = new URLSearchParams({ query, manager, status });
+    try {
+      const response = await fetch(`/api/cpu/archive?${params.toString()}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        notify('Ошибка', payload?.message || 'Не удалось загрузить архив CPU.', 'error');
+        return;
+      }
+      archiveOrders = Array.isArray(payload?.orders) ? payload.orders : [];
+      renderArchive();
+    } catch (error) {
+      notify('Ошибка', 'Сетевой сбой при загрузке архива CPU.', 'error');
+    }
+  }
+
+  function bindActions() {
+    const list = document.getElementById('cpuCardList');
+    if (!list) return;
+
+    list.addEventListener('click', async event => {
+      const btn = event.target.closest('button[data-action]');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      const key = btn.dataset.orderKey;
+      if (!action || !key) return;
+
+      if (btn.disabled) return;
+
+      if (action === 'send') await sendOrder(key, btn);
+      if (action === 'confirm') await confirmOrder(key, btn);
+      if (action === 'assign') await assignManager(key, btn);
+    });
+  }
+
+  async function sendOrder(orderKey, btn) {
+    setLoading(btn, true);
+    try {
+      const response = await fetch(`/api/cpu/order/${encodeURIComponent(orderKey)}/send`, {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(withCsrfBody({}))
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        notify('Нет прав', 'У вас нет прав на отправку этого заказа.', 'error');
+        return;
+      }
+      if (!response.ok) {
+        notify('Ошибка', payload?.message || 'Не удалось отправить заказ.', 'error');
+        return;
+      }
+
+      await copyPath(payload?.full_path || '');
+      notify('Готово', 'Путь скопирован, заказ переведен на проверку.', 'success');
+      await loadActive();
+      if (getView() === 'archive') await loadArchive();
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function confirmOrder(orderKey, btn) {
+    setLoading(btn, true);
+    try {
+      const response = await fetch(`/api/cpu/order/${encodeURIComponent(orderKey)}/confirm`, {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(withCsrfBody({}))
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        notify('Нет прав', 'У вас нет прав на подтверждение этого заказа.', 'error');
+        return;
+      }
+      if (!response.ok) {
+        notify('Ошибка', payload?.message || 'Не удалось подтвердить заказ.', 'error');
+        return;
+      }
+
+      notify('Готово', 'Заказ подтвержден.', 'success');
+      await loadActive();
+      if (getView() === 'archive') await loadArchive();
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function assignManager(orderKey, btn) {
+    const managers = APP_CONFIG.managers || [];
+    if (!managers.length) {
+      notify('Ошибка', 'Список менеджеров пуст.', 'error');
+      return;
+    }
+    const current = btn.dataset.manager || '';
+    const candidate = window.prompt('Назначить менеджера:', current) || '';
+    const managerName = candidate.trim();
+    if (!managerName) return;
+
+    setLoading(btn, true);
+    try {
+      const response = await fetch(`/api/cpu/order/${encodeURIComponent(orderKey)}/assign-manager`, {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(withCsrfBody({ manager_name: managerName }))
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        notify('Нет прав', 'У вас нет прав на назначение менеджера.', 'error');
+        return;
+      }
+      if (!response.ok) {
+        notify('Ошибка', payload?.message || 'Не удалось назначить менеджера.', 'error');
+        return;
+      }
+
+      notify('Готово', 'Менеджер обновлен.', 'success');
+      await loadActive();
+      if (getView() === 'archive') await loadArchive();
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function copyPath(value) {
+    if (!value) return;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+
+  function setLoading(btn, loading) {
+    btn.disabled = !!loading;
+    btn.dataset.loading = loading ? '1' : '0';
+  }
+
+  function renderActive() {
+    const root = document.getElementById('cpuCardList');
+    if (!root) return;
+
+    if (!activeOrders.length) {
+      root.innerHTML = '<p class="hint">Активных CPU заказов нет.</p>';
+      return;
+    }
+
+    root.innerHTML = activeOrders.map(order => cardHtml(order, false)).join('');
+  }
+
+  function renderArchive() {
+    const root = document.getElementById('cpuCardList');
+    if (!root) return;
+
+    if (!archiveOrders.length) {
+      root.innerHTML = '<p class="hint">Архив пуст по текущим фильтрам.</p>';
+      return;
+    }
+
+    root.innerHTML = archiveOrders.map(order => cardHtml(order, true)).join('');
+  }
+
+  function cardHtml(order, archived) {
+    const statusValue = order?.status_cpu || '';
+    const isReview = statusValue === 'review';
+    const isConfirmed = statusValue === 'confirmed';
+
+    const currentUser = (APP_CONFIG.currentUser || '').trim().toLowerCase();
+    const currentRole = (APP_CONFIG.currentRole || '').trim().toLowerCase();
+    const managerName = (order?.manager_name || 'Неизвестно').trim();
+    const sameManager = currentUser && managerName.toLowerCase() === currentUser;
+
+    const canSend = order?.can_send !== undefined
+      ? !!order.can_send
+      : (currentRole === 'admin' || currentRole === 'technologist' || (currentRole === 'manager' && sameManager));
+    const canConfirm = order?.can_confirm !== undefined
+      ? !!order.can_confirm
+      : (currentRole === 'admin' || currentRole === 'technologist' || (currentRole === 'manager' && sameManager));
+    const canAssign = order?.can_assign !== undefined
+      ? !!order.can_assign
+      : (currentRole === 'admin' || currentRole === 'technologist');
+
+    const statusLabel = isConfirmed ? 'подтвержденный ✓' : (isReview ? 'на проверке' : 'готов');
+    const statusClass = isConfirmed ? 'status-pill status-pill--neutral' : 'status-pill status-pill--success';
+    const pdfLabel = order?.pdf_filename || order?.pdf_type_found || 'PDF найден';
+
+    return `
+      <article class="folder-card cpu-card">
+        <div class="folder-top">
+          <div>
+            <span class="folder-name">${escapeHtml(order?.folder_name || order?.order_key || '')}</span>
+            <span class="manager-label">👤 ${escapeHtml(managerName)}</span>
+          </div>
+          <span class="${statusClass}">${statusLabel}</span>
+        </div>
+
+        <div class="path-container cpu-card__meta">
+          <span class="path-text">PDF: ${escapeHtml(pdfLabel)}</span>
+          ${order?.sent_at ? `<span class="table-secondary">Отправлен: ${escapeHtml(formatShortDate(order.sent_at))}</span>` : ''}
+          ${order?.confirmed_at ? `<span class="table-secondary">Подтвержден: ${escapeHtml(formatShortDate(order.confirmed_at))}</span>` : ''}
+        </div>
+
+        ${archived ? '' : `
+          <div class="button-group cpu-card__actions">
+            <button type="button" class="btn btn--primary" data-action="send" data-order-key="${escapeHtml(order?.order_key || '')}" ${canSend ? '' : 'disabled title="нет прав"'}>Отправить</button>
+            <button type="button" class="btn btn--ghost" data-action="confirm" data-order-key="${escapeHtml(order?.order_key || '')}" ${canConfirm ? '' : 'disabled title="нет прав"'}>Подтвердил</button>
+            <button type="button" class="btn btn--ghost" data-action="assign" data-manager="${escapeHtml(managerName)}" data-order-key="${escapeHtml(order?.order_key || '')}" ${canAssign ? '' : 'disabled title="нет прав"'}>Назначить менеджера</button>
+          </div>
+        `}
+      </article>
+    `;
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  }
+
+  function formatShortDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value || '—';
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+  }
+
+  function notify(title, desc, type = 'info') {
+    const stack = document.getElementById('toastStack');
+    if (!stack) {
+      alert(desc || title);
+      return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `
+      <div class="toast__title">${escapeHtml(title || 'Сообщение')}</div>
+      <div class="toast__desc">${escapeHtml(desc || '')}</div>
+      <button class="toast__close" aria-label="Закрыть">✕</button>
+    `;
+    toast.querySelector('.toast__close')?.addEventListener('click', () => toast.remove());
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+    setTimeout(() => toast.remove(), 4200);
+  }
+
+  return { init };
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+  CpuPage.init();
+});
