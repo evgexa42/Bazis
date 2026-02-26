@@ -15,6 +15,8 @@ class CpuOrder(Base):
     folder_name = Column(String, nullable=False)
     full_path = Column(Text, nullable=False)
     year_month_path = Column(String, nullable=True)
+    year = Column(String, nullable=True)
+    month_folder = Column(String, nullable=True)
 
     pdf_visible = Column(Boolean, nullable=False, default=False)
     pdf_type_found = Column(String, nullable=True)
@@ -78,7 +80,14 @@ def list_cpu_archive_orders(query: str = "", status: str = "", manager: str = ""
                 )
             )
 
-        return db_query.order_by(CpuOrder.updated_at.desc(), CpuOrder.created_at.desc()).all()
+        return (
+            db_query.order_by(
+                CpuOrder.year.desc(),
+                CpuOrder.month_folder.desc(),
+                CpuOrder.updated_at.desc(),
+                CpuOrder.created_at.desc(),
+            ).all()
+        )
 
 
 def upsert_cpu_order(
@@ -91,6 +100,8 @@ def upsert_cpu_order(
     pdf_type_found: str,
     pdf_filename: str,
     manager_name: str,
+    year: int | None = None,
+    month_folder: str = "",
     status_cpu: str = "ready",
     missing_path: bool = False,
 ) -> CpuOrder:
@@ -104,6 +115,8 @@ def upsert_cpu_order(
         record.folder_name = folder_name
         record.full_path = full_path
         record.year_month_path = year_month_path
+        record.year = str(year) if year else None
+        record.month_folder = month_folder or None
         record.pdf_visible = bool(pdf_visible)
         record.pdf_type_found = pdf_type_found or None
         record.pdf_filename = pdf_filename or None

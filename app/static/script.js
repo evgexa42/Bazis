@@ -2001,6 +2001,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const CpuPage = (() => {
   let activeOrders = [];
   let archiveOrders = [];
+  let archiveGroups = [];
   let query = '';
   let manager = '';
   let status = '';
@@ -2069,6 +2070,7 @@ const CpuPage = (() => {
         return;
       }
       archiveOrders = Array.isArray(payload?.orders) ? payload.orders : [];
+      archiveGroups = Array.isArray(payload?.groups) ? payload.groups : [];
       renderArchive();
     } catch (error) {
       notify('Ошибка', 'Сетевой сбой при загрузке архива CPU.', 'error');
@@ -2222,12 +2224,48 @@ const CpuPage = (() => {
     const root = document.getElementById('cpuCardList');
     if (!root) return;
 
-    if (!archiveOrders.length) {
+    const groups = normalizeArchiveGroups();
+    if (!groups.length) {
       root.innerHTML = '<p class="hint">Архив пуст по текущим фильтрам.</p>';
       return;
     }
 
-    root.innerHTML = archiveOrders.map(order => cardHtml(order, true)).join('');
+    root.innerHTML = groups.map(group => archiveGroupHtml(group)).join('');
+  }
+
+  function normalizeArchiveGroups() {
+    if (archiveGroups.length) return archiveGroups;
+    if (!archiveOrders.length) return [];
+
+    const fallback = new Map();
+    for (const item of archiveOrders) {
+      const year = Number.isFinite(item?.year) ? item.year : 0;
+      const monthFolder = item?.month_folder || 'Без месяца';
+      const key = `${year}__${monthFolder}`;
+      if (!fallback.has(key)) fallback.set(key, { year, month_folder: monthFolder, items: [] });
+      fallback.get(key).items.push(item);
+    }
+    return Array.from(fallback.values()).sort((a, b) => {
+      if ((b.year || 0) !== (a.year || 0)) return (b.year || 0) - (a.year || 0);
+      return String(b.month_folder || '').localeCompare(String(a.month_folder || ''), 'ru');
+    });
+  }
+
+  function archiveGroupHtml(group) {
+    const label = [group?.month_folder || 'Без месяца', group?.year || ''].filter(Boolean).join(' · ');
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const isCurrent = Number(group?.year) === currentYear && String(group?.month_folder || '').startsWith(`${currentMonth}.`);
+    const openAttr = isCurrent ? ' open' : '';
+    const items = Array.isArray(group?.items) ? group.items : [];
+
+    return `
+      <details class="card"${openAttr}>
+        <summary><strong>${escapeHtml(label)}</strong> (${items.length})</summary>
+        <div class="cpu-archive-group-items">${items.map(order => cardHtml(order, true)).join('')}</div>
+      </details>
+    `;
   }
 
   function cardHtml(order, archived) {
