@@ -60,6 +60,8 @@ def _serialize(row) -> dict:
         "folder_name": row.folder_name,
         "full_path": row.full_path,
         "year_month_path": row.year_month_path or "",
+        "year": int(row.year) if str(row.year or "").isdigit() else None,
+        "month_folder": row.month_folder or "",
         "pdf_visible": bool(row.pdf_visible),
         "pdf_type_found": row.pdf_type_found or "",
         "pdf_filename": row.pdf_filename or "",
@@ -92,7 +94,21 @@ def cpu_archive():
     sync_cpu_orders()
     rows = list_cpu_archive_orders(query=query, status=status, manager=manager)
     visible = [_serialize(row) for row in rows if _can_view_order(_serialize(row))]
-    return jsonify({"status": "ok", "orders": visible})
+
+    grouped: dict[tuple[int, str], list[dict]] = {}
+    for order in visible:
+        year = order.get("year")
+        month_folder = order.get("month_folder") or ""
+        key = (year or 0, month_folder)
+        grouped.setdefault(key, []).append(order)
+
+    groups = [
+        {"year": year, "month_folder": month_folder, "items": items}
+        for (year, month_folder), items in grouped.items()
+    ]
+    groups.sort(key=lambda item: (item.get("year") or 0, item.get("month_folder") or ""), reverse=True)
+
+    return jsonify({"status": "ok", "orders": visible, "groups": groups})
 
 
 @cpu_bp.route("/api/cpu/order/<order_key>/send", methods=["POST"])

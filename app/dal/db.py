@@ -223,6 +223,29 @@ def _ensure_role_permissions_columns() -> None:
         raise
 
 
+def _ensure_cpu_orders_columns() -> None:
+    """Гарантирует наличие колонок группировки архива CPU."""
+
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("cpu_orders")}
+    required_columns = {
+        "year": "TEXT",
+        "month_folder": "TEXT",
+    }
+    missing = [name for name in required_columns if name not in columns]
+    if not missing:
+        return
+
+    logging.getLogger("bazis").info(
+        "[db] Добавляем отсутствующие колонки в cpu_orders: %s", ", ".join(missing)
+    )
+    with engine.begin() as conn:
+        for column_name in missing:
+            conn.exec_driver_sql(
+                f"ALTER TABLE cpu_orders ADD COLUMN {column_name} {required_columns[column_name]}"
+            )
+
+
 def init_db() -> None:
     os.makedirs(BASE_DIR, exist_ok=True)
     # Регистрируем все модели, зависящие от Base, перед созданием таблиц
@@ -234,6 +257,7 @@ def init_db() -> None:
 
     Base.metadata.create_all(engine)
     _ensure_role_permissions_columns()
+    _ensure_cpu_orders_columns()
     _create_default_admin()
     _ensure_default_role_permissions()
 
