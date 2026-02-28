@@ -47,6 +47,15 @@ _observer: Observer | None = None
 PDF_RECHECK_SECONDS = 60
 
 
+def _dt_to_ts(value: datetime | None) -> float | None:
+    """Безопасно приводит datetime из БД (aware/naive) к unix-ts."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc).timestamp()
+    return value.timestamp()
+
+
 def _month_folder(year: int, month: int) -> str:
     return f"{month:02d}. {_MONTHS_RO[month]} {year}"
 
@@ -167,7 +176,9 @@ def _find_matching_pdf(folder_path: str, folder_name: str) -> tuple[bool, str, d
 
 def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
     now = datetime.now(timezone.utc)
+    now_ts = now.timestamp()
     folder_mtime = datetime.fromtimestamp(os.path.getmtime(folder_path), tz=timezone.utc)
+    folder_mtime_ts = folder_mtime.timestamp()
 
     existing = None
     norm = normalize_path(folder_path)
@@ -180,9 +191,13 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
     if existing and existing.folder_last_mtime_seen and existing.last_pdf_check_ts:
         # В SMB/UNC mtime папки может не меняться при добавлении файла вглубь,
         # поэтому для непройденных папок добавляем периодическую перепроверку.
-        should_check_pdf = folder_mtime > existing.folder_last_mtime_seen
+        existing_folder_mtime_ts = _dt_to_ts(existing.folder_last_mtime_seen)
+        should_check_pdf = (
+            existing_folder_mtime_ts is None or folder_mtime_ts > existing_folder_mtime_ts
+        )
         if not should_check_pdf:
-            last_check_age = (now - existing.last_pdf_check_ts).total_seconds()
+            last_check_ts = _dt_to_ts(existing.last_pdf_check_ts)
+            last_check_age = (now_ts - last_check_ts) if last_check_ts is not None else PDF_RECHECK_SECONDS
             if not existing.pdf_found and last_check_age >= PDF_RECHECK_SECONDS:
                 should_check_pdf = True
 
@@ -239,7 +254,11 @@ def scan_once() -> None:
                     if not entry.is_dir():
                         continue
                     seen.add(normalize_path(entry.path))
-                    _scan_folder(year, month_folder, entry.path)
+                    try:
+                        _scan_folder(year, month_folder, entry.path)
+                    except Exception as exc:
+                        # Не прерываем весь проход из-за одной проблемной папки.
+                        logger.warning("[desene_cpu] Ошибка обработки папки %s", entry.path, exc_info=exc)
         except OSError as exc:
             logger.warning("[desene_cpu] Ошибка чтения %s", month_path, exc_info=exc)
 

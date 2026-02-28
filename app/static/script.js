@@ -2143,7 +2143,9 @@ const DeseneCpuPage = (() => {
         }
         const path = data.folder_path || btn.dataset.cpuPath || '';
         if (path) {
-          await navigator.clipboard.writeText(path).catch(() => {});
+          await copyTextPayload(path, btn);
+        } else {
+          alert('Путь к папке не найден для копирования');
         }
         // Мгновенное обновление статуса в UI без перезагрузки.
         patchItem(id, { status: 'IN_REVIEW' });
