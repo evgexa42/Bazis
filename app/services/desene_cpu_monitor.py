@@ -98,6 +98,43 @@ def _extract_manager(folder_name: str) -> str:
     return get_manager_from_name(folder_name)
 
 
+def _month_path_candidates(root: str, year: int, month_folder: str) -> list[str]:
+    """Строит кандидаты пути месяца с поддержкой root=...\DESENE CPU и root=...\DESENE CPU\<year>."""
+
+    root_clean = (root or "").strip()
+    if not root_clean:
+        return []
+
+    candidates = [
+        os.path.join(root_clean, str(year), month_folder),
+        os.path.join(root_clean, month_folder),
+    ]
+
+    base_name = os.path.basename(os.path.normpath(root_clean))
+    if base_name.isdigit() and len(base_name) == 4:
+        # Если root указывает на конкретный год, расширяем до родительского каталога.
+        parent = os.path.dirname(os.path.normpath(root_clean))
+        candidates.append(os.path.join(parent, str(year), month_folder))
+
+    # Дедупликация с сохранением порядка для предсказуемых логов.
+    unique: list[str] = []
+    seen = set()
+    for item in candidates:
+        norm = os.path.normcase(os.path.normpath(item))
+        if norm in seen:
+            continue
+        seen.add(norm)
+        unique.append(item)
+    return unique
+
+
+def _resolve_month_path(root: str, year: int, month_folder: str) -> str:
+    for candidate in _month_path_candidates(root, year, month_folder):
+        if os.path.isdir(candidate):
+            return candidate
+    return ""
+
+
 def _walk_pdf_candidates(folder_path: str, max_depth: int = 2):
     stack = [(folder_path, 0)]
     while stack:
@@ -180,9 +217,14 @@ def scan_once() -> None:
     seen: set[str] = set()
 
     for year, month_folder in targets:
-        month_path = os.path.join(root, str(year), month_folder)
-        if not os.path.isdir(month_path):
-            logger.warning("[desene_cpu] Папка месяца недоступна: %s", month_path)
+        month_path = _resolve_month_path(root, year, month_folder)
+        if not month_path:
+            logger.warning(
+                "[desene_cpu] Папка месяца недоступна: root=%s, year=%s, month=%s",
+                root,
+                year,
+                month_folder,
+            )
             continue
         try:
             with os.scandir(month_path) as it:
