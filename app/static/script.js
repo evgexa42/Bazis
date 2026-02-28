@@ -2001,6 +2001,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const DeseneCpuPage = (() => {
   let tab = 'active';
   let search = '';
+  let currentItems = [];
 
   function init() {
     if (document.body?.dataset?.page !== 'desene-cpu') return;
@@ -2013,6 +2014,12 @@ const DeseneCpuPage = (() => {
       });
     }
     load();
+    // Лёгкий polling только для этой страницы: чтобы новые PDF появлялись без ручного refresh.
+    window.setInterval(() => {
+      if (document.body?.dataset?.page === 'desene-cpu') {
+        load();
+      }
+    }, 10000);
   }
 
   function bindTabs() {
@@ -2034,11 +2041,19 @@ const DeseneCpuPage = (() => {
     return map[status] || [status || '—', 'status-pill status-pill--neutral'];
   }
 
+  function statusRowClass(status) {
+    if (status === 'NEW') return 'new';
+    if (status === 'IN_REVIEW') return 'done';
+    if (status === 'CONFIRMED') return 'confirmed';
+    return '';
+  }
+
   async function load() {
     const params = new URLSearchParams({ tab, q: search });
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
-    render(Array.isArray(data.orders) ? data.orders : []);
+    currentItems = Array.isArray(data.orders) ? data.orders : [];
+    render(currentItems);
   }
 
   function canEditManager() {
@@ -2052,14 +2067,17 @@ const DeseneCpuPage = (() => {
 
     let currentMonth = null;
     for (const item of items) {
-      if (tab === "archive" && item.month_folder !== currentMonth) {
+      if (tab === 'archive' && item.month_folder !== currentMonth) {
         currentMonth = item.month_folder;
-        const group = document.createElement("tr");
-        group.innerHTML = `<td colspan="5" class="table-primary">${escapeHtml(currentMonth || "—")}</td>`;
+        const group = document.createElement('tr');
+        group.innerHTML = `<td colspan="5" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
         tbody.appendChild(group);
       }
       const [label, cls] = statusBadge(item.status);
       const tr = document.createElement('tr');
+      const rowCls = statusRowClass(item.status);
+      if (rowCls) tr.classList.add(rowCls);
+      tr.dataset.cpuOrderId = `${item.id}`;
       tr.innerHTML = `
         <td>${escapeHtml(item.order_folder_name || '')}</td>
         <td>${renderManager(item)}</td>
@@ -2074,9 +2092,24 @@ const DeseneCpuPage = (() => {
   }
 
   function renderManager(item) {
-    if (!canEditManager()) return escapeHtml(item.manager_name || 'Неизвестно');
-    const options = (APP_CONFIG.managers || []).map(m => `<option value="${escapeAttr(m)}" ${m === item.manager_name ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
-    return `<select class="select" data-cpu-manager="${item.id}">${options}</select>`;
+    const manager = escapeHtml(item.manager_name || 'Неизвестно');
+    if (!canEditManager()) return manager;
+
+    const options = (APP_CONFIG.managers || [])
+      .map(m => `<option value="${escapeAttr(m)}" ${m === item.manager_name ? 'selected' : ''}>${escapeHtml(m)}</option>`)
+      .join('');
+
+    return `
+      <div class="cpu-manager-cell" data-cpu-manager-cell="${item.id}">
+        <span class="cpu-manager-value" data-cpu-manager-value="${item.id}">${manager}</span>
+        <button type="button" class="btn btn--ghost btn--small" data-cpu-manager-edit="${item.id}" title="Изменить менеджера">✏️</button>
+        <div class="cpu-manager-editor is-hidden" data-cpu-manager-editor="${item.id}">
+          <select class="select" data-cpu-manager-select="${item.id}">${options}</select>
+          <button type="button" class="btn btn--primary btn--small" data-cpu-manager-save="${item.id}">OK</button>
+          <button type="button" class="btn btn--ghost btn--small" data-cpu-manager-cancel="${item.id}">✖</button>
+        </div>
+      </div>
+    `;
   }
 
   function renderActions(item) {
@@ -2090,10 +2123,14 @@ const DeseneCpuPage = (() => {
     `;
   }
 
+  function patchItem(id, patch) {
+    currentItems = currentItems.map(item => (Number(item.id) === Number(id) ? { ...item, ...patch } : item));
+  }
+
   function bindRowActions() {
     document.querySelectorAll('[data-cpu-send]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = btn.dataset.cpuSend;
+        const id = Number(btn.dataset.cpuSend || 0);
         const resp = await fetch(`/api/desene_cpu/orders/${id}/send`, {
           method: 'POST',
           headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
@@ -2108,13 +2145,15 @@ const DeseneCpuPage = (() => {
         if (path) {
           await navigator.clipboard.writeText(path).catch(() => {});
         }
-        load();
+        // Мгновенное обновление статуса в UI без перезагрузки.
+        patchItem(id, { status: 'IN_REVIEW' });
+        render(currentItems);
       });
     });
 
     document.querySelectorAll('[data-cpu-confirm]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = btn.dataset.cpuConfirm;
+        const id = Number(btn.dataset.cpuConfirm || 0);
         const resp = await fetch(`/api/desene_cpu/orders/${id}/confirm`, {
           method: 'POST',
           headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
@@ -2125,13 +2164,38 @@ const DeseneCpuPage = (() => {
           alert(data.message || 'Ошибка');
           return;
         }
-        load();
+        if (tab === 'active') {
+          currentItems = currentItems.filter(item => Number(item.id) !== id);
+        } else {
+          patchItem(id, { status: 'CONFIRMED' });
+        }
+        render(currentItems);
       });
     });
 
-    document.querySelectorAll('[data-cpu-manager]').forEach(select => {
-      select.addEventListener('change', async () => {
-        const id = select.dataset.cpuManager;
+    document.querySelectorAll('[data-cpu-manager-edit]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.cpuManagerEdit;
+        const editor = document.querySelector(`[data-cpu-manager-editor="${id}"]`);
+        if (!editor) return;
+        editor.classList.remove('is-hidden');
+      });
+    });
+
+    document.querySelectorAll('[data-cpu-manager-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.cpuManagerCancel;
+        const editor = document.querySelector(`[data-cpu-manager-editor="${id}"]`);
+        if (!editor) return;
+        editor.classList.add('is-hidden');
+      });
+    });
+
+    document.querySelectorAll('[data-cpu-manager-save]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.dataset.cpuManagerSave || 0);
+        const select = document.querySelector(`[data-cpu-manager-select="${id}"]`);
+        if (!select) return;
         const manager_name = select.value;
         const resp = await fetch(`/api/desene_cpu/orders/${id}/set_manager`, {
           method: 'POST',
@@ -2141,8 +2205,10 @@ const DeseneCpuPage = (() => {
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
           alert(data.message || 'Ошибка смены менеджера');
-          load();
+          return;
         }
+        patchItem(id, { manager_name });
+        render(currentItems);
       });
     });
   }

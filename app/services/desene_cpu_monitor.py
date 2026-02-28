@@ -44,6 +44,7 @@ _lock = threading.Lock()
 _stop_event = threading.Event()
 _dirty_event = threading.Event()
 _observer: Observer | None = None
+PDF_RECHECK_SECONDS = 60
 
 
 def _month_folder(year: int, month: int) -> str:
@@ -177,7 +178,13 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
 
     should_check_pdf = True
     if existing and existing.folder_last_mtime_seen and existing.last_pdf_check_ts:
+        # В SMB/UNC mtime папки может не меняться при добавлении файла вглубь,
+        # поэтому для непройденных папок добавляем периодическую перепроверку.
         should_check_pdf = folder_mtime > existing.folder_last_mtime_seen
+        if not should_check_pdf:
+            last_check_age = (now - existing.last_pdf_check_ts).total_seconds()
+            if not existing.pdf_found and last_check_age >= PDF_RECHECK_SECONDS:
+                should_check_pdf = True
 
     pdf_found = bool(existing.pdf_found) if existing else False
     pdf_path = existing.pdf_path if existing else ""
