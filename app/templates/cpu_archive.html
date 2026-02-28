@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}DESENE CPU Archive{% endblock %}
+{% block content %}
+<section class="card">
+  <h1 class="section-title">DESENE CPU Archive</h1>
+  <form method="get" class="controls-grid">
+    <input type="search" class="input" name="q" value="{{ query }}" placeholder="Поиск по номеру/клиенту/менеджеру/статусу">
+    <button type="submit" class="btn btn--ghost">Поиск</button>
+  </form>
+  {% for year, months in archive_grouped.items()|sort(reverse=True) %}
+    <h2 class="section-subtitle">{{ year }}</h2>
+    {% for month, items in months.items() %}
+      <h3>{{ month }}</h3>
+      <div class="table-scroll table-scroll--compact">
+      <table class="data-table data-table--compact">
+        <thead><tr><th>Заказ</th><th>Менеджер</th><th>Статус</th><th>Последнее действие</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ item.folder_name }}</td>
+            <td>{{ item.owner_manager or 'Не назначен' }}</td>
+            <td><span class="status-pill {% if item.status == 'на проверке' %}status-pill--success{% else %}status-pill--neutral{% endif %}">{{ item.status }}</span></td>
+            <td>{{ item.last_action_ts or item.updated_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% endfor %}
+  {% endfor %}
+</section>
+{% endblock %}

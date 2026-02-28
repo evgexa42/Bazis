@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}DESENE CPU Monitor{% endblock %}
+{% block body_attrs %}data-page="cpu-monitor" data-managers='{{ managers|tojson }}'{% endblock %}
+{% block content %}
+<section class="card">
+  <h1 class="section-title">DESENE CPU Monitor — Активные</h1>
+  <div class="table-scroll">
+    <table class="data-table" id="cpuActiveTable">
+      <thead><tr><th>Заказ</th><th>Менеджер</th><th>Статус</th><th>PDF</th><th>Действия</th></tr></thead>
+      <tbody>
+      {% for item in cpu_data.active %}
+      <tr data-order-key="{{ item.order_key }}">
+        <td>{{ item.folder_name }}</td>
+        <td>{{ item.owner_manager or 'Не назначен' }}</td>
+        <td>
+          <span class="status-pill {% if item.status == 'новый' %}status-pill--warning{% elif item.status == 'на проверке' %}status-pill--success{% else %}status-pill--neutral{% endif %}">{{ item.status }}</span>
+        </td>
+        <td>{{ item.pdf_name or ('PDF исчез' if not item.has_pdf else '') }}</td>
+        <td>
+          <button type="button" class="btn btn--ghost btn--compact" data-cpu-send>Отправить</button>
+          <button type="button" class="btn btn--secondary btn--compact" data-cpu-confirm>Подтвердил</button>
+          <button type="button" class="btn btn--ghost btn--compact" data-cpu-manager>Изменить менеджера</button>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

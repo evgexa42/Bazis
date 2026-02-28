@@ -42,6 +42,7 @@ from app.services.snapshot import (
 )
 from app.services.order_times import normalize_order_key
 from app.services.audit import log_order_event
+from app.services import cpu_monitor
 from app.services.telegram import (
     folder_has_ready_marker,
     technologist_from_folder,
@@ -425,6 +426,79 @@ def generate_facades():
             or os.path.dirname(os.path.abspath(app_config.FACADES_FILE)),
         }
     )
+
+
+@orders_bp.route("/cpu")
+def cpu_monitor_page():
+    payload = cpu_monitor.scan_cpu_orders(force=True)
+    return render_template("cpu_monitor.html", cpu_data=payload, managers=app_config.MANAGER_NAMES)
+
+
+@orders_bp.route("/cpu/archive")
+def cpu_archive_page():
+    payload = cpu_monitor.scan_cpu_orders(force=True)
+    query = (request.args.get("q") or "").strip().lower()
+    archive = payload.get("archive") or []
+    if query:
+        archive = [
+            item
+            for item in archive
+            if query in (item.get("folder_name") or "").lower()
+            or query in (item.get("owner_manager") or "").lower()
+            or query in (item.get("status") or "").lower()
+            or query in (item.get("order_key") or "").lower()
+        ]
+    grouped = {}
+    for item in archive:
+        y = str(item.get("year") or "—")
+        m = item.get("month_label") or "—"
+        grouped.setdefault(y, {})
+        grouped[y].setdefault(m, [])
+        grouped[y][m].append(item)
+    return render_template("cpu_archive.html", archive_grouped=grouped, query=query)
+
+
+@orders_bp.route("/api/cpu/data")
+def cpu_data():
+    payload = cpu_monitor.scan_cpu_orders(force=False)
+    return jsonify({"status": "ok", **payload})
+
+
+@orders_bp.route("/api/cpu/<order_key>/send", methods=["POST"])
+def cpu_send(order_key: str):
+    ok, message = validate_csrf_token()
+    if not ok:
+        return csrf_error_response(message)
+    success, error, item = cpu_monitor.send_to_customer(order_key, session.get("role") or "", session.get("user") or "")
+    if not success:
+        return jsonify({"status": "error", "message": error}), 403
+    return jsonify({"status": "ok", "order": item, "copy_path": (item or {}).get("path") or ""})
+
+
+@orders_bp.route("/api/cpu/<order_key>/confirm", methods=["POST"])
+def cpu_confirm(order_key: str):
+    ok, message = validate_csrf_token()
+    if not ok:
+        return csrf_error_response(message)
+    success, error, item = cpu_monitor.confirm_order(order_key, session.get("role") or "", session.get("user") or "")
+    if not success:
+        return jsonify({"status": "error", "message": error}), 403
+    return jsonify({"status": "ok", "order": item})
+
+
+@orders_bp.route("/api/cpu/<order_key>/manager", methods=["POST"])
+def cpu_assign_manager(order_key: str):
+    ok, message = validate_csrf_token()
+    if not ok:
+        return csrf_error_response(message)
+    payload = request.get_json(silent=True) or {}
+    manager_name = str(payload.get("manager") or "").strip()
+    if not manager_name:
+        return jsonify({"status": "error", "message": "Менеджер не задан"}), 400
+    item = cpu_monitor.assign_manager(order_key, manager_name, session.get("user") or "")
+    if not item:
+        return jsonify({"status": "error", "message": "Заказ не найден"}), 404
+    return jsonify({"status": "ok", "order": item})
 
 
 @orders_bp.route("/ping", methods=["GET"])

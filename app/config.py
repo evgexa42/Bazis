@@ -45,6 +45,12 @@ DEFAULT_CONFIG = {
     "orders_auto_confirm": {
         "path_not_given_folder": "",
     },
+    "desene_cpu": {
+        "scan_mode": "recent",
+        "scan_months": 3,
+        "selected_months": [],
+        "manager_tags": {},
+    },
 }
 
 logger = logging.getLogger("bazis")
@@ -318,6 +324,13 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged["orders_auto_confirm"]["path_not_given_folder"] = str(
         merged["orders_auto_confirm"].get("path_not_given_folder") or ""
     ).strip()
+
+    merged.setdefault("desene_cpu", {})
+    merged["desene_cpu"]["scan_mode"] = str(merged["desene_cpu"].get("scan_mode") or "recent").strip().lower()
+    merged["desene_cpu"]["scan_months"] = max(1, min(12, _parse_int(merged["desene_cpu"].get("scan_months"), 3)))
+    selected = merged["desene_cpu"].get("selected_months")
+    merged["desene_cpu"]["selected_months"] = selected if isinstance(selected, list) else []
+    merged["desene_cpu"]["manager_tags"] = _parse_str_dict(merged["desene_cpu"].get("manager_tags"))
     return merged
 
 

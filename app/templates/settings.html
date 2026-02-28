@@ -93,6 +93,48 @@ data-managers='{{ config_managers | tojson }}'
           <input type="text" class="input" id="facades_dir" name="facades_dir" placeholder="\\\\SERVER\\facades" value="{{ config.get('paths', {}).get('facades_dir', '') }}">
         </div>
 
+
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="desene_cpu_root">DESENE CPU root</label>
+          <input type="text" class="input" id="desene_cpu_root" name="desene_cpu_root" placeholder="\\SERVER\homag\DESENE CPU" value="{{ config.get('paths', {}).get('desene_cpu_root', '') }}">
+        </div>
+
+        <div class="settings-field">
+          <label class="field-label" for="desene_cpu_scan_mode">DESENE CPU: режим сканирования месяцев</label>
+          {% set cpu_cfg = config.get('desene_cpu', {}) %}
+          <select class="select" id="desene_cpu_scan_mode" name="desene_cpu_scan_mode">
+            <option value="current" {% if cpu_cfg.get('scan_mode') == 'current' %}selected{% endif %}>Текущий месяц</option>
+            <option value="recent" {% if cpu_cfg.get('scan_mode', 'recent') == 'recent' %}selected{% endif %}>Последние N месяцев</option>
+            <option value="manual" {% if cpu_cfg.get('scan_mode') == 'manual' %}selected{% endif %}>Выбор вручную</option>
+          </select>
+        </div>
+
+        <div class="settings-field">
+          <label class="field-label" for="desene_cpu_scan_months">N месяцев (для режима "последние")</label>
+          <input type="number" class="input" id="desene_cpu_scan_months" name="desene_cpu_scan_months" min="1" max="12" value="{{ cpu_cfg.get('scan_months', 3) }}">
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label">DESENE CPU: месяцы вручную</label>
+          {% set selected_cpu_months = cpu_cfg.get('selected_months', []) %}
+          <div class="checkbox-list checkbox-list--columns">
+            {% for ym in cpu_month_choices %}
+            <label class="checkbox-row">
+              <input type="checkbox" name="desene_cpu_selected_months" value="{{ ym }}" {% if ym in selected_cpu_months %}checked{% endif %}>
+              <span>{{ ym }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="desene_cpu_manager_tags">DESENE CPU: теги менеджеров (tag=manager)</label>
+          <textarea id="desene_cpu_manager_tags" name="desene_cpu_manager_tags" class="input input--mono" placeholder="J=Кристина
+$=Игорь">{% for tag, manager in config.get('desene_cpu', {}).get('manager_tags', {}).items() %}{{ tag }}={{ manager }}
+{% endfor %}</textarea>
+        </div>
+
         <div class="settings-field settings-field--wide">
           <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
           <textarea id="search_folders" name="search_folders" class="input input--mono" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>

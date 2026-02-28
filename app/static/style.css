@@ -2345,3 +2345,12 @@ code {
 .role-card--creation .role-card__footer .btn:active{
   transform: translateY(1px);
 }
+
+.checkbox-list {
+  display: grid;
+  gap: 8px;
+}
+
+.checkbox-list--columns {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
