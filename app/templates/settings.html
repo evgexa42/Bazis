@@ -94,6 +94,31 @@ data-managers='{{ config_managers | tojson }}'
         </div>
 
         <div class="settings-field settings-field--wide">
+          <label class="field-label" for="desene_cpu_root">DESENE CPU ROOT</label>
+          <input type="text" class="input" id="desene_cpu_root" name="desene_cpu_root" placeholder="\\SERVER\homag\DESENE CPU" value="{{ config.get('paths', {}).get('desene_cpu_root', '') }}">
+        </div>
+
+        {% set cpu_scan = config.get('paths', {}).get('desene_cpu_scan', {}) %}
+        <div class="settings-field">
+          <label class="field-label" for="desene_cpu_scan_mode">DESENE CPU scan mode</label>
+          <select id="desene_cpu_scan_mode" name="desene_cpu_scan_mode" class="select">
+            <option value="current" {% if cpu_scan.get('scan_mode') == 'current' %}selected{% endif %}>current</option>
+            <option value="last_n" {% if cpu_scan.get('scan_mode', 'last_n') == 'last_n' %}selected{% endif %}>last_n</option>
+            <option value="manual" {% if cpu_scan.get('scan_mode') == 'manual' %}selected{% endif %}>manual</option>
+          </select>
+        </div>
+
+        <div class="settings-field">
+          <label class="field-label" for="desene_cpu_months_back">DESENE CPU N месяцев</label>
+          <input type="number" class="input" id="desene_cpu_months_back" name="desene_cpu_months_back" min="1" max="24" value="{{ cpu_scan.get('months_back', 2) }}">
+        </div>
+
+        <div class="settings-field settings-field--wide">
+          <label class="field-label" for="desene_cpu_manual_months">DESENE CPU manual_months (по одному в строке)</label>
+          <textarea id="desene_cpu_manual_months" name="desene_cpu_manual_months" class="input" placeholder="02. Februarie 2026">{{ "\n".join(cpu_scan.get('manual_months', [])) }}</textarea>
+        </div>
+
+        <div class="settings-field settings-field--wide">
           <label class="field-label" for="search_folders">Папки для поиска (Название=Путь)</label>
           <textarea id="search_folders" name="search_folders" class="input input--mono" placeholder="Название=\\\\SERVER\\path">{{ search_text }}</textarea>
           <p class="hint">Используйте по одному пути в строке: <code>Название=\\\\server\\share</code>.</p>
