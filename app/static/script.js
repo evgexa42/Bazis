@@ -1891,6 +1891,65 @@ window.setStatusFilter = OrdersPage.setStatusFilter;
 window.setManagerFilter = OrdersPage.setManagerFilter;
 window.sortBy = OrdersPage.sortBy;
 
+
+const CpuPage = (() => {
+  function init() {
+    const table = document.getElementById('cpuActiveTable');
+    if (!table) return;
+    table.addEventListener('click', onClick);
+  }
+
+  async function onClick(event) {
+    const row = event.target.closest('tr[data-order-key]');
+    if (!row) return;
+    const orderKey = row.dataset.orderKey;
+
+    if (event.target.matches('[data-cpu-send]')) {
+      await sendAction(orderKey, 'send');
+    }
+    if (event.target.matches('[data-cpu-confirm]')) {
+      await sendAction(orderKey, 'confirm');
+    }
+    if (event.target.matches('[data-cpu-manager]')) {
+      const manager = prompt('Введите менеджера');
+      if (!manager) return;
+      await postJson(`/api/cpu/${encodeURIComponent(orderKey)}/manager`, { manager });
+      window.location.reload();
+    }
+  }
+
+  async function sendAction(orderKey, action) {
+    const res = await postJson(`/api/cpu/${encodeURIComponent(orderKey)}/${action}`, {});
+    if (!res || res.status !== 'ok') {
+      alert(res?.message || 'Ошибка действия');
+      return;
+    }
+    if (action === 'send') {
+      const value = res.copy_path || '';
+      if (value && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch (err) {
+          console.warn('Clipboard недоступен', err);
+        }
+      }
+    }
+    window.location.reload();
+  }
+
+  async function postJson(url, body) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(withCsrfBody(body || {}))
+    });
+    return response.json().catch(() => ({}));
+  }
+
+  return { init };
+})();
+
+
 document.addEventListener('DOMContentLoaded', () => {
   OrdersPage.init();
   ClientsPage.init();
@@ -1900,6 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
   SettingsPage.init();
   UsersTable.init();
   UIEffects.init();
+  CpuPage.init();
 });
 
 const ClientsTable = (() => {

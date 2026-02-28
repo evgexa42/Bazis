@@ -147,6 +147,10 @@ def settings_page():
             plus_rename = request.form.get("orders_plus_rename") == "on"
             anulat_rename = request.form.get("orders_anulat_rename") == "on"
             not_given_folder = request.form.get("not_given_folder_path", "").strip()
+            cpu_scan_mode = request.form.get("desene_cpu_scan_mode", "recent").strip().lower()
+            cpu_scan_months_raw = request.form.get("desene_cpu_scan_months", "3").strip()
+            cpu_selected_months = request.form.getlist("desene_cpu_selected_months")
+            cpu_manager_tags_raw = request.form.get("desene_cpu_manager_tags", "").strip()
 
             telegram_token = request.form.get("telegram_token", "").strip()
             telegram_chat_raw = request.form.get("telegram_chat_id", "").strip()
@@ -213,6 +217,15 @@ def settings_page():
 
             auto_confirm_cfg = updated.setdefault("orders_auto_confirm", {})
             auto_confirm_cfg["path_not_given_folder"] = not_given_folder
+
+            desene_cpu_cfg = updated.setdefault("desene_cpu", {})
+            desene_cpu_cfg["scan_mode"] = cpu_scan_mode if cpu_scan_mode in {"current", "recent", "manual"} else "recent"
+            try:
+                desene_cpu_cfg["scan_months"] = max(1, min(12, int(cpu_scan_months_raw or "3")))
+            except (TypeError, ValueError):
+                desene_cpu_cfg["scan_months"] = 3
+            desene_cpu_cfg["selected_months"] = [item for item in cpu_selected_months if item]
+            desene_cpu_cfg["manager_tags"] = parse_mapping(cpu_manager_tags_raw)
 
         if not errors:
             save_config(updated)
@@ -307,6 +320,15 @@ def settings_page():
         f"{title}={path}" for title, path in (search_source or {}).items()
     )
 
+    now = time.localtime()
+    cpu_month_choices = []
+    for offset in range(0, 12):
+        total = now.tm_year * 12 + (now.tm_mon - 1) - offset
+        year = total // 12
+        month = total % 12 + 1
+        label = f"{year}-{month:02d}"
+        cpu_month_choices.append(label)
+
     users = get_all_users()
     available_roles = sorted(get_allowed_roles())
     audit_events = fetch_events(limit=120)
@@ -330,6 +352,7 @@ def settings_page():
         protected_roles=set(DEFAULT_ROLE_PERMISSIONS.keys()),
         role_usage={user["role"] for user in users},
         audit_events=audit_events,
+        cpu_month_choices=cpu_month_choices,
     )
 
 
