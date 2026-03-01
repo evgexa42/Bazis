@@ -146,6 +146,7 @@ def settings_page():
             pg_enabled = request.form.get("orders_sync_enabled") == "on"
             plus_rename = request.form.get("orders_plus_rename") == "on"
             anulat_rename = request.form.get("orders_anulat_rename") == "on"
+            cpu_monitoring_enabled = request.form.get("cpu_monitoring_enabled") == "on"
             not_given_folder = request.form.get("not_given_folder_path", "").strip()
 
             telegram_token = request.form.get("telegram_token", "").strip()
@@ -207,6 +208,9 @@ def settings_page():
             orders_sync_cfg["enabled"] = pg_enabled
             orders_sync_cfg["approved_plus_rename"] = plus_rename
             orders_sync_cfg["anulat_rename_tech_marker"] = anulat_rename
+
+            features_cfg = updated.setdefault("features", {})
+            features_cfg["cpu_monitoring_enabled"] = cpu_monitoring_enabled
 
             if not not_given_folder:
                 errors.append("Путь к папке «НЕ ДАЛИ В РАБОТУ» не может быть пустым.")

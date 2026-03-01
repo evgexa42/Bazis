@@ -31,7 +31,7 @@ DEFAULT_CONFIG = {
     "managers": [],
     "technologists": {},
     "search": {"months": 6},
-    "features": {"order_confirmation": False},
+    "features": {"order_confirmation": False, "cpu_monitoring_enabled": False},
     "retention": {"logs_days": 30, "journal_days": 90},
     "orders_times": {"ttl_days": 30},
     "orders_sync": {
@@ -275,6 +275,10 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged.setdefault("features", {})
     merged["features"]["order_confirmation"] = _parse_bool(
         merged["features"].get("order_confirmation"), DEFAULT_CONFIG["features"]["order_confirmation"]
+    )
+    merged["features"]["cpu_monitoring_enabled"] = _parse_bool(
+        merged["features"].get("cpu_monitoring_enabled"),
+        DEFAULT_CONFIG["features"]["cpu_monitoring_enabled"],
     )
 
     merged.setdefault("retention", {})
