@@ -2127,6 +2127,36 @@ const DeseneCpuPage = (() => {
     currentItems = currentItems.map(item => (Number(item.id) === Number(id) ? { ...item, ...patch } : item));
   }
 
+  async function copyCpuFolderPath(text, trigger) {
+    if (!text) return false;
+
+    const fallbackCopy = () => {
+      const area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    };
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        fallbackCopy();
+      }
+    } catch (err) {
+      // Clipboard API может быть ограничен политиками браузера/контекста.
+      fallbackCopy();
+    }
+
+    if (trigger) {
+      trigger.classList.add('flash-highlight');
+      setTimeout(() => trigger.classList.remove('flash-highlight'), 900);
+    }
+    return true;
+  }
+
   function bindRowActions() {
     document.querySelectorAll('[data-cpu-send]').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -2143,7 +2173,10 @@ const DeseneCpuPage = (() => {
         }
         const path = data.folder_path || btn.dataset.cpuPath || '';
         if (path) {
-          await copyTextPayload(path, btn);
+          const copied = await copyCpuFolderPath(path, btn);
+          if (!copied) {
+            alert('Не удалось скопировать путь к папке');
+          }
         } else {
           alert('Путь к папке не найден для копирования');
         }
