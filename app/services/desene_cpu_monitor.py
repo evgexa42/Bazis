@@ -18,6 +18,7 @@ from app.dal.desene_cpu import (
     DeseneCpuOrder,
     log_action,
     normalize_path,
+    rebind_order_path_by_code,
     upsert_order,
 )
 
@@ -182,10 +183,25 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
 
     existing = None
     norm = normalize_path(folder_path)
+    folder_name = os.path.basename(folder_path)
+    month_key = f"{year}-{month_folder}"
+    order_code = _extract_order_code(folder_name)
+
+    # Сценарий rename: сохраняем статус/историю, меняем только path/name.
+    rebound = rebind_order_path_by_code(
+        month_key=month_key,
+        order_code=order_code,
+        new_folder_path=folder_path,
+        new_folder_name=folder_name,
+    )
     with SessionLocal.begin() as session:
         existing = session.execute(
             select(DeseneCpuOrder).where(DeseneCpuOrder.normalized_path == norm)
         ).scalar_one_or_none()
+        if existing is None and rebound is not None:
+            existing = session.execute(
+                select(DeseneCpuOrder).where(DeseneCpuOrder.normalized_path == norm)
+            ).scalar_one_or_none()
 
     should_check_pdf = True
     if existing and existing.folder_last_mtime_seen and existing.last_pdf_check_ts:
@@ -211,10 +227,10 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
     payload = {
         "year": year,
         "month_folder": month_folder,
-        "month_key": f"{year}-{month_folder}",
-        "order_folder_name": os.path.basename(folder_path),
-        "order_code": _extract_order_code(os.path.basename(folder_path)),
-        "manager_name": (existing.manager_name if existing and existing.manager_name else _extract_manager(os.path.basename(folder_path))) or "Неизвестно",
+        "month_key": month_key,
+        "order_folder_name": folder_name,
+        "order_code": order_code,
+        "manager_name": (existing.manager_name if existing and existing.manager_name else _extract_manager(folder_name)) or "Неизвестно",
         "status": existing.status if existing and existing.status else CPU_STATUS_NEW,
         "folder_path": folder_path,
         "pdf_found": bool(pdf_found),

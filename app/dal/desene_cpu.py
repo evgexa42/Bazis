@@ -90,6 +90,49 @@ def log_action(order_id: int, action_type: str, actor_user: str, meta_json: str 
         )
 
 
+def rebind_order_path_by_code(
+    *,
+    month_key: str,
+    order_code: str,
+    new_folder_path: str,
+    new_folder_name: str,
+) -> Optional[DeseneCpuOrder]:
+    """Перепривязывает запись при rename/move папки, сохраняя статус и историю."""
+
+    norm_new = normalize_path(new_folder_path)
+    if not month_key or not order_code or not norm_new:
+        return None
+
+    with SessionLocal.begin() as session:
+        # Если новая папка уже есть в БД — переиспользовать её, ничего не делаем.
+        existing_new = session.execute(
+            select(DeseneCpuOrder).where(DeseneCpuOrder.normalized_path == norm_new)
+        ).scalar_one_or_none()
+        if existing_new:
+            return existing_new
+
+        candidates = session.execute(
+            select(DeseneCpuOrder)
+            .where(DeseneCpuOrder.month_key == month_key)
+            .where(DeseneCpuOrder.order_code == order_code)
+            .where(DeseneCpuOrder.normalized_path != norm_new)
+            .order_by(DeseneCpuOrder.updated_at.desc(), DeseneCpuOrder.id.desc())
+        ).scalars().all()
+
+        for row in candidates:
+            old_path = (row.folder_path or "").strip()
+            # Восстанавливаем связь только если старая папка реально исчезла.
+            if old_path and os.path.exists(old_path):
+                continue
+            row.normalized_path = norm_new
+            row.folder_path = new_folder_path
+            row.order_folder_name = new_folder_name
+            session.flush()
+            return row
+
+    return None
+
+
 def upsert_order(payload: Dict[str, Any]) -> DeseneCpuOrder:
     norm_path = normalize_path(payload.get("folder_path") or payload.get("normalized_path") or "")
     if not norm_path:
