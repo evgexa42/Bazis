@@ -24,6 +24,7 @@ DEFAULT_CONFIG = {
         "facades_dir": "",
         "prisadka_root": "",
         "desene_cpu_root": "",
+        "desene_cpu_scan": {"scan_mode": "last_n", "months_back": 2, "manual_months": []},
         "prisadka_client_root": "",
         "facades_list_dir": "",
         "search": {},
@@ -61,6 +62,9 @@ WATCHED_PATH = ""
 WATCHED_PATH_NORM = ""
 PRISADKA_ROOT = ""
 DESENE_CPU_ROOT = ""
+DESENE_CPU_SCAN_MODE = "last_n"
+DESENE_CPU_MONTHS_BACK = 2
+DESENE_CPU_MANUAL_MONTHS: list[str] = []
 PRISADKA_CLIENT_ROOT = ""
 FACADES_LIST_DIR = ""
 TELEGRAM_TOKEN = ""
@@ -223,6 +227,12 @@ def _parse_paths_config(value: dict) -> dict:
     facades_dir = str(value.get("facades_dir") or "").strip()
     prisadka_root = str(value.get("prisadka_root") or "").strip()
     desene_cpu_root = str(value.get("desene_cpu_root") or "").strip()
+    desene_cpu_scan = value.get("desene_cpu_scan") if isinstance(value.get("desene_cpu_scan"), dict) else {}
+    scan_mode = str(desene_cpu_scan.get("scan_mode") or "last_n").strip().lower()
+    if scan_mode not in {"current", "last_n", "manual"}:
+        scan_mode = "last_n"
+    months_back = max(1, min(24, _parse_int(desene_cpu_scan.get("months_back"), 2)))
+    manual_months = _parse_str_list(desene_cpu_scan.get("manual_months"))
     prisadka_client_root = str(value.get("prisadka_client_root") or "").strip()
     facades_list_dir = str(value.get("facades_list_dir") or "").strip()
     search_folders = _parse_search_folders(value.get("search"))
@@ -232,6 +242,7 @@ def _parse_paths_config(value: dict) -> dict:
         "facades_dir": facades_dir,
         "prisadka_root": prisadka_root,
         "desene_cpu_root": desene_cpu_root,
+        "desene_cpu_scan": {"scan_mode": scan_mode, "months_back": months_back, "manual_months": manual_months},
         "prisadka_client_root": prisadka_client_root,
         "facades_list_dir": facades_list_dir,
         "search": search_folders,
@@ -347,7 +358,8 @@ def apply_config(config):
 
     global CONFIG
     global FOLDER_PATH, FACADES_DIR, FACADES_FILE, WATCHED_PATH, WATCHED_PATH_NORM
-    global PRISADKA_ROOT, DESENE_CPU_ROOT, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
+    global PRISADKA_ROOT, DESENE_CPU_ROOT, DESENE_CPU_SCAN_MODE, DESENE_CPU_MONTHS_BACK
+    global DESENE_CPU_MANUAL_MONTHS, PRISADKA_CLIENT_ROOT, FACADES_LIST_DIR
     global TELEGRAM_TOKEN, CHAT_ID, TELEGRAM_CHAT_IDS, SERVER_HOST, SERVER_PORT, DEBUG_MODE
     global SEARCH_FOLDERS, MANAGER_NAMES, TECHNOLOGIST_MARKERS, SEARCH_MONTHS
     global ORDER_CONFIRMATION_ENABLED, CONFIG_WARNINGS, LOG_RETENTION_DAYS, JOURNAL_RETENTION_DAYS
@@ -380,6 +392,12 @@ def apply_config(config):
     FACADES_DIR = paths.get("facades_dir") or ""
     PRISADKA_ROOT = paths.get("prisadka_root") or ""
     DESENE_CPU_ROOT = paths.get("desene_cpu_root") or ""
+    desene_cpu_scan = paths.get("desene_cpu_scan") or {}
+    DESENE_CPU_SCAN_MODE = str(desene_cpu_scan.get("scan_mode") or "last_n").strip().lower()
+    if DESENE_CPU_SCAN_MODE not in {"current", "last_n", "manual"}:
+        DESENE_CPU_SCAN_MODE = "last_n"
+    DESENE_CPU_MONTHS_BACK = max(1, _parse_int(desene_cpu_scan.get("months_back"), 2))
+    DESENE_CPU_MANUAL_MONTHS[:] = _parse_str_list(desene_cpu_scan.get("manual_months"))
     PRISADKA_CLIENT_ROOT = paths.get("prisadka_client_root") or ""
     FACADES_LIST_DIR = paths.get("facades_list_dir") or FACADES_DIR
     FACADES_FILE = (
@@ -499,6 +517,9 @@ __all__ = [
     "SEARCH_MONTHS",
     "PRISADKA_ROOT",
     "DESENE_CPU_ROOT",
+    "DESENE_CPU_SCAN_MODE",
+    "DESENE_CPU_MONTHS_BACK",
+    "DESENE_CPU_MANUAL_MONTHS",
     "PRISADKA_CLIENT_ROOT",
     "ORDER_CONFIRMATION_ENABLED",
     "ORDERS_PG_URL",

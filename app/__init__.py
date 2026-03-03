@@ -167,12 +167,14 @@ def register_blueprints(flask_app: Flask):
     from app.routes.clients import clients_bp
     from app.routes.orders import orders_bp
     from app.routes.settings import settings_bp
+    from app.routes.desene_cpu import desene_cpu_bp
 
     flask_app.register_blueprint(setup_bp)
     flask_app.register_blueprint(auth_bp)
     flask_app.register_blueprint(orders_bp)
     flask_app.register_blueprint(clients_bp)
     flask_app.register_blueprint(settings_bp)
+    flask_app.register_blueprint(desene_cpu_bp)
 
 
 def _attach_logger(flask_app: Flask) -> None:
@@ -209,6 +211,7 @@ def start_background_services():
     from app.services import orders_sync
     from app.services import snapshot as snapshot_service
     from app.services import telegram as telegram_service
+    from app.services import desene_cpu_monitor
 
     telegram_service.init_bot(app_config.TELEGRAM_TOKEN)
     telegram_service.load_messages_storage()
@@ -218,6 +221,7 @@ def start_background_services():
     snapshot_service.refresh_orders_snapshot(force=True)
     monitor_service.initialize_known_state()
     monitor_service.start_observer_once()
+    desene_cpu_monitor.start_once()
     orders_sync.start_sync_worker()
     orders_auto_confirm.start_auto_confirm_worker()
 
