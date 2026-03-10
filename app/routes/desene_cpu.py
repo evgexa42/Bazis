@@ -48,6 +48,7 @@ def api_orders():
     q = (request.args.get("q") or "").strip().lower()
     month = (request.args.get("month") or "").strip()
     status_filter = (request.args.get("status") or "all").strip().upper()
+    manager_filter = (request.args.get("manager") or "").strip()
 
     with SessionLocal.begin() as session_db:
         stmt = select(DeseneCpuOrder).where(DeseneCpuOrder.pdf_found == 1)
@@ -116,6 +117,8 @@ def api_orders():
         if month and (item.get("month_key") or "") != month:
             continue
         if status_filter != "ALL" and (item.get("status") or "") != status_filter:
+            continue
+        if manager_filter and manager_filter != "Все" and (item.get("manager_name") or "") != manager_filter:
             continue
         filtered.append(item)
 

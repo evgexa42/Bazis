@@ -2003,6 +2003,7 @@ const DeseneCpuPage = (() => {
   let search = '';
   let status = 'all';
   let month = '';
+  let manager = 'Все';
   let monthInitialized = false;
   let currentItems = [];
 
@@ -2018,6 +2019,7 @@ const DeseneCpuPage = (() => {
     }
     bindStatusFilters();
     bindMonthFilter();
+    bindManagerFilter();
     load();
     // Лёгкий polling только для этой страницы: чтобы новые PDF появлялись без ручного refresh.
     window.setInterval(() => {
@@ -2044,6 +2046,20 @@ const DeseneCpuPage = (() => {
     if (!monthSelect) return;
     monthSelect.addEventListener('change', () => {
       month = monthSelect.value || '';
+      load();
+    });
+  }
+
+  function bindManagerFilter() {
+    const managerSelect = document.getElementById('cpuManagerFilter');
+    if (!managerSelect) return;
+    const managers = Array.isArray(APP_CONFIG.managers) ? APP_CONFIG.managers : [];
+    managerSelect.innerHTML = ['<option value="Все">Все</option>']
+      .concat(managers.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`))
+      .join('');
+    managerSelect.value = manager;
+    managerSelect.addEventListener('change', () => {
+      manager = managerSelect.value || 'Все';
       load();
     });
   }
@@ -2077,6 +2093,7 @@ const DeseneCpuPage = (() => {
   async function load() {
     const params = new URLSearchParams({ tab, q: search, status });
     if (month) params.set('month', month);
+    if (manager && manager !== 'Все') params.set('manager', manager);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
     hydrateMonthSelect(data);
@@ -2104,17 +2121,11 @@ const DeseneCpuPage = (() => {
     if (!el) return;
     const rows = Array.isArray(items) ? items : [];
     const total = rows.length;
-    const newCount = rows.filter(item => item.status === 'NEW').length;
-    const reviewCount = rows.filter(item => item.status === 'IN_REVIEW').length;
-    const confirmedCount = rows.filter(item => item.status === 'CONFIRMED').length;
     el.innerHTML = `
       <article class="stat-card">
         <span class="stat-label">Всего заказов</span>
         <span class="stat-value stat-value--compact">${total}</span>
       </article>
-      <article class="stat-card"><span class="stat-label">Новые</span><span class="stat-value stat-value--compact">${newCount}</span></article>
-      <article class="stat-card"><span class="stat-label">На проверке</span><span class="stat-value stat-value--compact">${reviewCount}</span></article>
-      <article class="stat-card"><span class="stat-label">Подтверждённые</span><span class="stat-value stat-value--compact">${confirmedCount}</span></article>
     `;
   }
 
@@ -2132,7 +2143,7 @@ const DeseneCpuPage = (() => {
       if (tab === 'archive' && item.month_folder !== currentMonth) {
         currentMonth = item.month_folder;
         const group = document.createElement('tr');
-        group.innerHTML = `<td colspan="8" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
+        group.innerHTML = `<td colspan="5" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
         tbody.appendChild(group);
       }
       const [label, cls] = statusBadge(item.status);
@@ -2141,13 +2152,13 @@ const DeseneCpuPage = (() => {
       if (rowCls) tr.classList.add(rowCls);
       tr.dataset.cpuOrderId = `${item.id}`;
       tr.innerHTML = `
-        <td>${escapeHtml(item.order_folder_name || '')}</td>
+        <td>
+          <div>${escapeHtml(item.order_folder_name || '')}</div>
+          ${renderCpuTimeline(item)}
+        </td>
         <td>${renderManager(item)}</td>
         <td><span class="${cls}">${label}</span></td>
         <td>${escapeHtml(item.month_folder || '')}</td>
-        <td>${formatDateTime(item.created_at)}</td>
-        <td>${formatDateTime(item.reviewed_at)}</td>
-        <td>${formatDateTime(item.confirmed_at)}</td>
         <td>${renderActions(item)}</td>
       `;
       tbody.appendChild(tr);
@@ -2332,6 +2343,17 @@ const DeseneCpuPage = (() => {
     stack.appendChild(toast);
     requestAnimationFrame(() => toast.classList.add('is-visible'));
     setTimeout(() => toast.remove(), 1300);
+  }
+
+  function renderCpuTimeline(item) {
+    // Блок "Обработан" появляется только после первого статусного перехода.
+    const createdText = formatDateTime(item?.created_at);
+    const processedRaw = item?.reviewed_at || item?.confirmed_at || '';
+    const processedText = formatDateTime(processedRaw);
+    if (!processedRaw) {
+      return `<div class="order-times">Создан: ${createdText}</div>`;
+    }
+    return `<div class="order-times">Создан: ${createdText} • Обработан: ${processedText}</div>`;
   }
 
   function formatDateTime(value) {

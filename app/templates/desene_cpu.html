@@ -30,6 +30,10 @@ data-managers='{{ config_managers | tojson }}'
       <label class="field-label" for="cpuMonthFilter">Месяц</label>
       <select id="cpuMonthFilter" class="select input--compact"></select>
     </div>
+    <div>
+      <label class="field-label" for="cpuManagerFilter">Менеджер</label>
+      <select id="cpuManagerFilter" class="select input--compact"></select>
+    </div>
     <div class="filter-search">
       <label class="field-label" for="cpuSearch">Поиск</label>
       <input type="search" id="cpuSearch" class="input input--compact search-grow" placeholder="Заказ или месяц">
@@ -46,9 +50,6 @@ data-managers='{{ config_managers | tojson }}'
         <th>Менеджер</th>
         <th>Статус</th>
         <th>Месяц</th>
-        <th>Создан</th>
-        <th>На проверку</th>
-        <th>Подтверждён</th>
         <th>Действия</th>
       </tr>
       </thead>
