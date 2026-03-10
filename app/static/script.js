@@ -1999,12 +1999,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const DeseneCpuPage = (() => {
+  function getCurrentMonthKey() {
+    const now = new Date();
+    const monthNum = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${monthNum}`;
+  }
+
   let tab = 'active';
   let search = '';
   let status = 'all';
-  let month = '';
+  // По умолчанию всегда шлём текущий месяц, чтобы избежать начальной "вспышки" всех месяцев.
+  let month = getCurrentMonthKey();
   let manager = 'Все';
-  let monthInitialized = false;
   let currentItems = [];
 
   function init() {
@@ -2106,9 +2112,9 @@ const DeseneCpuPage = (() => {
     const monthSelect = document.getElementById('cpuMonthFilter');
     if (!monthSelect) return;
     const months = Array.isArray(data?.months) ? data.months : [];
-    if (!monthInitialized) {
+    const monthKeys = new Set(months.map(item => item?.key).filter(Boolean));
+    if (month && !monthKeys.has(month)) {
       month = data?.default_month || '';
-      monthInitialized = true;
     }
     const options = [`<option value="">Все месяцы</option>`]
       .concat(months.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));

@@ -122,7 +122,8 @@ def api_orders():
             continue
         filtered.append(item)
 
-    filtered.sort(key=lambda x: (x.get("created_at") or "", x.get("id") or 0), reverse=True)
+    # Сортируем по самой свежей дате (created_at, fallback updated_at), затем по id.
+    filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
     return jsonify({"status": "ok", "orders": filtered, "months": months, "default_month": default_month})
 
 
