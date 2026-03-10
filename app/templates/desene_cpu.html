@@ -14,11 +14,22 @@ data-managers='{{ config_managers | tojson }}'
 </header>
 
 <section class="card controls-card">
+  <div id="cpuStats" class="stats-grid"></div>
   <div class="tabs">
     <button type="button" class="tab-btn is-active" data-cpu-tab="active">Актуальные</button>
     <button type="button" class="tab-btn" data-cpu-tab="archive">Архив</button>
   </div>
   <div class="controls-grid">
+    <div class="button-group" id="cpuStatusFilters" aria-label="Фильтр статусов">
+      <button type="button" class="btn btn--ghost is-active" data-cpu-filter="all">Все</button>
+      <button type="button" class="btn btn--ghost" data-cpu-filter="NEW">Новые</button>
+      <button type="button" class="btn btn--ghost" data-cpu-filter="IN_REVIEW">На проверке</button>
+      <button type="button" class="btn btn--ghost" data-cpu-filter="CONFIRMED">Подтверждённые</button>
+    </div>
+    <div>
+      <label class="field-label" for="cpuMonthFilter">Месяц</label>
+      <select id="cpuMonthFilter" class="select input--compact"></select>
+    </div>
     <div class="filter-search">
       <label class="field-label" for="cpuSearch">Поиск</label>
       <input type="search" id="cpuSearch" class="input input--compact search-grow" placeholder="Заказ или месяц">
@@ -35,6 +46,9 @@ data-managers='{{ config_managers | tojson }}'
         <th>Менеджер</th>
         <th>Статус</th>
         <th>Месяц</th>
+        <th>Создан</th>
+        <th>На проверку</th>
+        <th>Подтверждён</th>
         <th>Действия</th>
       </tr>
       </thead>

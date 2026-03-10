@@ -19,6 +19,7 @@ PERMISSION_FIELDS: Iterable[str] = (
     "can_access_metrics",
     "can_access_clients",
     "can_access_search",
+    "can_access_desene_cpu",
     "can_manage_users",
     "can_edit_paths",
     "can_export_db",
@@ -45,6 +46,7 @@ def _enforce_admin_baseline(role: str, perms: Dict[str, int]) -> Dict[str, int]:
 
     ensured = dict(perms)
     ensured["can_access_settings"] = 1
+    ensured["can_access_desene_cpu"] = 1
     ensured["can_manage_users"] = 1
     ensured["can_export_db"] = 1
     ensured["can_import_db"] = 1

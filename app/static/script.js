@@ -2001,6 +2001,9 @@ document.addEventListener('DOMContentLoaded', () => {
 const DeseneCpuPage = (() => {
   let tab = 'active';
   let search = '';
+  let status = 'all';
+  let month = '';
+  let monthInitialized = false;
   let currentItems = [];
 
   function init() {
@@ -2013,6 +2016,8 @@ const DeseneCpuPage = (() => {
         load();
       });
     }
+    bindStatusFilters();
+    bindMonthFilter();
     load();
     // Лёгкий polling только для этой страницы: чтобы новые PDF появлялись без ручного refresh.
     window.setInterval(() => {
@@ -2020,6 +2025,27 @@ const DeseneCpuPage = (() => {
         load();
       }
     }, 10000);
+  }
+
+  function bindStatusFilters() {
+    document.querySelectorAll('[data-cpu-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        status = (btn.dataset.cpuFilter || 'all').toLowerCase();
+        document.querySelectorAll('[data-cpu-filter]').forEach(node => {
+          node.classList.toggle('is-active', node === btn);
+        });
+        load();
+      });
+    });
+  }
+
+  function bindMonthFilter() {
+    const monthSelect = document.getElementById('cpuMonthFilter');
+    if (!monthSelect) return;
+    monthSelect.addEventListener('change', () => {
+      month = monthSelect.value || '';
+      load();
+    });
   }
 
   function bindTabs() {
@@ -2049,11 +2075,47 @@ const DeseneCpuPage = (() => {
   }
 
   async function load() {
-    const params = new URLSearchParams({ tab, q: search });
+    const params = new URLSearchParams({ tab, q: search, status });
+    if (month) params.set('month', month);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
+    hydrateMonthSelect(data);
+    renderStats(data.orders || []);
     currentItems = Array.isArray(data.orders) ? data.orders : [];
     render(currentItems);
+  }
+
+  function hydrateMonthSelect(data) {
+    const monthSelect = document.getElementById('cpuMonthFilter');
+    if (!monthSelect) return;
+    const months = Array.isArray(data?.months) ? data.months : [];
+    if (!monthInitialized) {
+      month = data?.default_month || '';
+      monthInitialized = true;
+    }
+    const options = [`<option value="">Все месяцы</option>`]
+      .concat(months.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
+    monthSelect.innerHTML = options.join('');
+    monthSelect.value = month;
+  }
+
+  function renderStats(items) {
+    const el = document.getElementById('cpuStats');
+    if (!el) return;
+    const rows = Array.isArray(items) ? items : [];
+    const total = rows.length;
+    const newCount = rows.filter(item => item.status === 'NEW').length;
+    const reviewCount = rows.filter(item => item.status === 'IN_REVIEW').length;
+    const confirmedCount = rows.filter(item => item.status === 'CONFIRMED').length;
+    el.innerHTML = `
+      <article class="stat-card">
+        <span class="stat-label">Всего заказов</span>
+        <span class="stat-value stat-value--compact">${total}</span>
+      </article>
+      <article class="stat-card"><span class="stat-label">Новые</span><span class="stat-value stat-value--compact">${newCount}</span></article>
+      <article class="stat-card"><span class="stat-label">На проверке</span><span class="stat-value stat-value--compact">${reviewCount}</span></article>
+      <article class="stat-card"><span class="stat-label">Подтверждённые</span><span class="stat-value stat-value--compact">${confirmedCount}</span></article>
+    `;
   }
 
   function canEditManager() {
@@ -2070,7 +2132,7 @@ const DeseneCpuPage = (() => {
       if (tab === 'archive' && item.month_folder !== currentMonth) {
         currentMonth = item.month_folder;
         const group = document.createElement('tr');
-        group.innerHTML = `<td colspan="5" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
+        group.innerHTML = `<td colspan="8" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
         tbody.appendChild(group);
       }
       const [label, cls] = statusBadge(item.status);
@@ -2083,6 +2145,9 @@ const DeseneCpuPage = (() => {
         <td>${renderManager(item)}</td>
         <td><span class="${cls}">${label}</span></td>
         <td>${escapeHtml(item.month_folder || '')}</td>
+        <td>${formatDateTime(item.created_at)}</td>
+        <td>${formatDateTime(item.reviewed_at)}</td>
+        <td>${formatDateTime(item.confirmed_at)}</td>
         <td>${renderActions(item)}</td>
       `;
       tbody.appendChild(tr);
@@ -2176,6 +2241,8 @@ const DeseneCpuPage = (() => {
           const copied = await copyCpuFolderPath(path, btn);
           if (!copied) {
             alert('Не удалось скопировать путь к папке');
+          } else {
+            showCpuToast('Скопировано');
           }
         } else {
           alert('Путь к папке не найден для копирования');
@@ -2254,6 +2321,30 @@ const DeseneCpuPage = (() => {
 
   function escapeAttr(v) {
     return escapeHtml(v);
+  }
+
+  function showCpuToast(message) {
+    const stack = document.getElementById('toastStack');
+    if (!stack) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast toast--success';
+    toast.innerHTML = `<div class="toast__title">${escapeHtml(message || 'Готово')}</div>`;
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+    setTimeout(() => toast.remove(), 1300);
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '—';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '—';
+    return dt.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   return { init };
