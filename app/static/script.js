@@ -2026,6 +2026,7 @@ const DeseneCpuPage = (() => {
     bindStatusFilters();
     bindMonthFilter();
     bindManagerFilter();
+    renderLoadingState();
     load();
     // Лёгкий polling только для этой страницы: чтобы новые PDF появлялись без ручного refresh.
     window.setInterval(() => {
@@ -2050,6 +2051,13 @@ const DeseneCpuPage = (() => {
   function bindMonthFilter() {
     const monthSelect = document.getElementById('cpuMonthFilter');
     if (!monthSelect) return;
+    // Заполняем select сразу, чтобы не было пустого UI до первого ответа API.
+    const monthLabel = formatMonthLabel(month);
+    monthSelect.innerHTML = `
+      <option value="">Все месяцы</option>
+      <option value="${escapeAttr(month)}">${escapeHtml(monthLabel)}</option>
+    `;
+    monthSelect.value = month;
     monthSelect.addEventListener('change', () => {
       month = monthSelect.value || '';
       load();
@@ -2135,6 +2143,19 @@ const DeseneCpuPage = (() => {
     `;
   }
 
+  function renderLoadingState() {
+    const tbody = document.querySelector('#cpuTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" class="table-primary">Загрузка заказов за ${escapeHtml(formatMonthLabel(month))}…</td></tr>`;
+  }
+
+  function formatMonthLabel(monthKey) {
+    const raw = `${monthKey || ''}`.trim();
+    if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return 'текущий месяц';
+    const [year, monthNum] = raw.split('-');
+    return `${monthNum}.${year}`;
+  }
+
   function canEditManager() {
     return APP_CONFIG.currentRole === 'admin' || APP_CONFIG.currentRole === 'technologist';
   }
@@ -2143,6 +2164,11 @@ const DeseneCpuPage = (() => {
     const tbody = document.querySelector('#cpuTable tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
+
+    if (!Array.isArray(items) || !items.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="table-primary">Нет заказов за ${escapeHtml(formatMonthLabel(month))}.</td></tr>`;
+      return;
+    }
 
     let currentMonth = null;
     for (const item of items) {
