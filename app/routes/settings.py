@@ -133,6 +133,16 @@ def settings_page():
             facades_dir = request.form.get("facades_dir", "").strip()
             prisadka_root = request.form.get("prisadka_root", "").strip()
             desene_cpu_root = request.form.get("desene_cpu_root", "").strip()
+            desene_cpu_scan_mode = (request.form.get("desene_cpu_scan_mode", "last_n") or "last_n").strip().lower()
+            if desene_cpu_scan_mode not in {"current", "last_n", "manual"}:
+                desene_cpu_scan_mode = "last_n"
+            desene_cpu_months_back_raw = request.form.get("desene_cpu_months_back", "2").strip()
+            try:
+                desene_cpu_months_back = max(1, min(24, int(desene_cpu_months_back_raw or 2)))
+            except (TypeError, ValueError):
+                desene_cpu_months_back = 2
+                errors.append("DESENE CPU: количество месяцев должно быть числом.")
+            desene_cpu_manual_months = [item.strip() for item in (request.form.get("desene_cpu_manual_months", "") or "").splitlines() if item.strip()]
             prisadka_client_root = request.form.get("prisadka_client_root", "").strip()
             facades_list_dir = request.form.get("facades_list_dir", "").strip()
             search_raw = request.form.get("search_folders", "")
@@ -167,6 +177,11 @@ def settings_page():
                 paths_cfg["prisadka_root"] = prisadka_root
             if desene_cpu_root:
                 paths_cfg["desene_cpu_root"] = desene_cpu_root
+            paths_cfg["desene_cpu_scan"] = {
+                "scan_mode": desene_cpu_scan_mode,
+                "months_back": desene_cpu_months_back,
+                "manual_months": desene_cpu_manual_months,
+            }
             if prisadka_client_root:
                 paths_cfg["prisadka_client_root"] = prisadka_client_root
             if facades_list_dir:

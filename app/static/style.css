@@ -2345,3 +2345,20 @@ code {
 .role-card--creation .role-card__footer .btn:active{
   transform: translateY(1px);
 }
+
+/* DESENE CPU manager inline editor */
+.cpu-manager-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cpu-manager-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cpu-manager-editor.is-hidden {
+  display: none;
+}

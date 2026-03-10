@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Мониторинг Desene CPU{% endblock %}
+
+{% block body_attrs %}
+data-page="desene-cpu"
+data-managers='{{ config_managers | tojson }}'
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>🧠 Мониторинг Desene CPU</h1>
+  <p class="page-description">Актуальные и архивные CPU-заказы на основе найденных PDF.</p>
+</header>
+
+<section class="card controls-card">
+  <div class="tabs">
+    <button type="button" class="tab-btn is-active" data-cpu-tab="active">Актуальные</button>
+    <button type="button" class="tab-btn" data-cpu-tab="archive">Архив</button>
+  </div>
+  <div class="controls-grid">
+    <div class="filter-search">
+      <label class="field-label" for="cpuSearch">Поиск</label>
+      <input type="search" id="cpuSearch" class="input input--compact search-grow" placeholder="Заказ или месяц">
+    </div>
+  </div>
+</section>
+
+<section class="card table-card">
+  <div class="table-scroll">
+    <table class="data-table" id="cpuTable">
+      <thead>
+      <tr>
+        <th>Заказ</th>
+        <th>Менеджер</th>
+        <th>Статус</th>
+        <th>Месяц</th>
+        <th>Действия</th>
+      </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
