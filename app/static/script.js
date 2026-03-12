@@ -2123,28 +2123,45 @@ const DeseneCpuPage = (() => {
     const months = Array.isArray(data?.months) ? data.months : [];
     const currentMonth = getCurrentMonthKey();
 
-    // Для текущего месяца используем исходный label из API (если есть), чтобы сохранить формат вида "03. Martie 2026".
-    const currentMonthFromApi = months.find(item => `${item?.key || ''}`.trim() === currentMonth);
+    const normalizeMonthKey = value => {
+      const raw = `${value || ''}`.trim();
+      const match = raw.match(/^(\d{4})-(\d{1,2})$/);
+      if (!match) return raw;
+      return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}`;
+    };
 
-    // Текущий месяц всегда в начале списка, даже если по нему пока нет записей.
-    const preparedMonths = [];
+    // Не создаём искусственные месяцы: используем только те, что пришли из API/сетевых папок.
+    const currentNorm = normalizeMonthKey(currentMonth);
     const seen = new Set();
-    preparedMonths.push({
-      key: currentMonth,
-      label: (currentMonthFromApi?.label || '').trim() || formatMonthLabel(currentMonth)
-    });
-    seen.add(currentMonth);
+    const preparedMonths = [];
+    const restMonths = [];
 
     for (const item of months) {
-      const key = `${item?.key || ''}`.trim();
-      if (!key || seen.has(key)) continue;
-      preparedMonths.push(item);
-      seen.add(key);
+      const rawKey = `${item?.key || ''}`.trim();
+      const normKey = normalizeMonthKey(rawKey);
+      if (!normKey || seen.has(normKey)) continue;
+      seen.add(normKey);
+
+      const normalizedItem = {
+        key: normKey,
+        label: `${item?.label || ''}`.trim() || formatMonthLabel(normKey)
+      };
+      if (normKey === currentNorm) {
+        preparedMonths.push(normalizedItem);
+      } else {
+        restMonths.push(normalizedItem);
+      }
     }
 
-    if (month && !seen.has(month)) {
-      // Сохраняем выбранный месяц в селекте, чтобы фильтр не "прыгал".
-      preparedMonths.push({ key: month, label: formatMonthLabel(month) });
+    preparedMonths.push(...restMonths);
+
+    const monthNorm = normalizeMonthKey(month);
+    if (monthNorm && seen.has(monthNorm)) {
+      month = monthNorm;
+    } else if (data?.default_month) {
+      month = normalizeMonthKey(data.default_month);
+    } else {
+      month = '';
     }
 
     const options = [`<option value="">Все месяцы</option>`]
