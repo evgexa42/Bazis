@@ -2012,7 +2012,6 @@ const DeseneCpuPage = (() => {
   let month = getCurrentMonthKey();
   let manager = 'Все';
   let currentItems = [];
-  let isMonthHydrating = false;
 
   function init() {
     if (document.body?.dataset?.page !== 'desene-cpu') return;
@@ -2069,8 +2068,9 @@ const DeseneCpuPage = (() => {
     const managerSelect = document.getElementById('cpuManagerFilter');
     if (!managerSelect) return;
     const managers = Array.isArray(APP_CONFIG.managers) ? APP_CONFIG.managers : [];
+    const uniqueManagers = Array.from(new Set(managers.concat(['Неизвестно'])));
     managerSelect.innerHTML = ['<option value="Все">Все</option>']
-      .concat(managers.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`))
+      .concat(uniqueManagers.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`))
       .join('');
     managerSelect.value = manager;
     managerSelect.addEventListener('change', () => {
@@ -2111,17 +2111,7 @@ const DeseneCpuPage = (() => {
     if (manager && manager !== 'Все') params.set('manager', manager);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
-    const monthChanged = hydrateMonthSelect(data);
-    if (monthChanged && !isMonthHydrating) {
-      // Месяц автоматически скорректирован, перезапрашиваем данные один раз.
-      isMonthHydrating = true;
-      try {
-        await load();
-      } finally {
-        isMonthHydrating = false;
-      }
-      return;
-    }
+    hydrateMonthSelect(data);
     renderStats(data.orders || [], data.manager_stats || []);
     currentItems = Array.isArray(data.orders) ? data.orders : [];
     render(currentItems);
@@ -2129,18 +2119,32 @@ const DeseneCpuPage = (() => {
 
   function hydrateMonthSelect(data) {
     const monthSelect = document.getElementById('cpuMonthFilter');
-    if (!monthSelect) return false;
+    if (!monthSelect) return;
     const months = Array.isArray(data?.months) ? data.months : [];
-    const monthKeys = new Set(months.map(item => item?.key).filter(Boolean));
-    const prevMonth = month;
-    if (month && !monthKeys.has(month)) {
-      month = data?.default_month || '';
+    const currentMonth = getCurrentMonthKey();
+
+    // Текущий месяц всегда в начале списка, даже если по нему пока нет записей.
+    const preparedMonths = [];
+    const seen = new Set();
+    preparedMonths.push({ key: currentMonth, label: formatMonthLabel(currentMonth) });
+    seen.add(currentMonth);
+
+    for (const item of months) {
+      const key = `${item?.key || ''}`.trim();
+      if (!key || seen.has(key)) continue;
+      preparedMonths.push(item);
+      seen.add(key);
     }
+
+    if (month && !seen.has(month)) {
+      // Сохраняем выбранный месяц в селекте, чтобы фильтр не "прыгал".
+      preparedMonths.push({ key: month, label: formatMonthLabel(month) });
+    }
+
     const options = [`<option value="">Все месяцы</option>`]
-      .concat(months.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
+      .concat(preparedMonths.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
     monthSelect.innerHTML = options.join('');
     monthSelect.value = month;
-    return prevMonth !== month;
   }
 
   function renderStats(items, managerStats) {
@@ -2149,35 +2153,27 @@ const DeseneCpuPage = (() => {
     const rows = Array.isArray(items) ? items : [];
     const total = rows.length;
     const statsRows = Array.isArray(managerStats) ? managerStats : [];
-    const statsTable = statsRows.length
-      ? `
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Менеджер</th>
-                <th>Заказов</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${statsRows.map(item => `
-                <tr>
-                  <td>${escapeHtml(item.manager_name || 'Неизвестно')}</td>
-                  <td>${Number(item.count || 0)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `
+
+    const managerItems = statsRows.length
+      ? statsRows.map(item => `
+          <div class="cpu-manager-stat">
+            <span class="cpu-manager-stat__name">${escapeHtml(item.manager_name || 'Неизвестно')}</span>
+            <span class="cpu-manager-stat__count">${Number(item.count || 0)}</span>
+          </div>
+        `).join('')
       : '<p class="table-primary">Нет данных по менеджерам для выбранного периода.</p>';
 
     el.innerHTML = `
-      <article class="stat-card">
-        <span class="stat-label">Всего заказов</span>
-        <span class="stat-value stat-value--compact">${total}</span>
-      </article>
-      ${statsTable}
+      <div class="cpu-stats-grid">
+        <article class="stat-card cpu-stat-card">
+          <span class="stat-label">Всего заказов</span>
+          <span class="stat-value stat-value--compact">${total}</span>
+        </article>
+        <article class="stat-card cpu-stat-card">
+          <span class="stat-label">Менеджеры</span>
+          <div class="cpu-manager-stats-grid">${managerItems}</div>
+        </article>
+      </div>
     `;
   }
 
@@ -2241,7 +2237,8 @@ const DeseneCpuPage = (() => {
     const manager = escapeHtml(item.manager_name || 'Неизвестно');
     if (!canEditManager()) return manager;
 
-    const options = (APP_CONFIG.managers || [])
+    const managerOptions = Array.from(new Set([...(APP_CONFIG.managers || []), 'Неизвестно']));
+    const options = managerOptions
       .map(m => `<option value="${escapeAttr(m)}" ${m === item.manager_name ? 'selected' : ''}>${escapeHtml(m)}</option>`)
       .join('');
 

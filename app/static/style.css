@@ -2346,6 +2346,46 @@ code {
   transform: translateY(1px);
 }
 
+
+/* DESENE CPU stats widgets */
+.cpu-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.cpu-stat-card {
+  padding: 16px 18px;
+  gap: 10px;
+}
+
+.cpu-manager-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.cpu-manager-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.05);
+  padding: 8px 12px;
+}
+
+.cpu-manager-stat__name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cpu-manager-stat__count {
+  font-weight: 700;
+  color: var(--primary);
+}
+
 /* DESENE CPU manager inline editor */
 .cpu-manager-cell {
   display: inline-flex;

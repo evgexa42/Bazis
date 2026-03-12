@@ -144,14 +144,22 @@ def api_orders():
             continue
         filtered.append(item)
 
-    manager_stats_map: dict[str, int] = {}
+    # Держим стабильный набор менеджеров в статистике: конфиг + "Неизвестно".
+    manager_stats_map: dict[str, int] = {
+        name: 0 for name in [*app_config.MANAGER_NAMES, "Неизвестно"] if (name or "").strip()
+    }
     for item in stats_filtered:
         manager_name = (item.get("manager_name") or "Неизвестно").strip() or "Неизвестно"
         manager_stats_map[manager_name] = manager_stats_map.get(manager_name, 0) + 1
-    manager_stats = [
-        {"manager_name": name, "count": count}
-        for name, count in sorted(manager_stats_map.items(), key=lambda pair: (-pair[1], pair[0].lower()))
-    ]
+
+    configured_names = [name for name in [*app_config.MANAGER_NAMES, "Неизвестно"] if (name or "").strip()]
+    manager_stats = [{"manager_name": name, "count": manager_stats_map.get(name, 0)} for name in configured_names]
+
+    extra_names = sorted(
+        [name for name in manager_stats_map.keys() if name not in configured_names],
+        key=lambda value: value.lower(),
+    )
+    manager_stats.extend({"manager_name": name, "count": manager_stats_map[name]} for name in extra_names)
 
     # Сортируем по самой свежей дате (created_at, fallback updated_at), затем по id.
     filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
