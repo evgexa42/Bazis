@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from flask import Blueprint, g, jsonify, render_template, request, session
 from sqlalchemy import select
@@ -33,13 +34,21 @@ def _can_access_order(order: DeseneCpuOrder) -> bool:
 
 @desene_cpu_bp.route("/desene_cpu")
 def desene_cpu_page():
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return render_template("error.html", error="Нет доступа к разделу Desene CPU."), 403
     return render_template("desene_cpu.html")
 
 
 @desene_cpu_bp.route("/api/desene_cpu/orders")
 def api_orders():
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "Нет прав"}), 403
+
     tab = (request.args.get("tab") or "active").strip().lower()
     q = (request.args.get("q") or "").strip().lower()
+    month = (request.args.get("month") or "").strip()
+    status_filter = (request.args.get("status") or "all").strip().upper()
+    manager_filter = (request.args.get("manager") or "").strip()
 
     with SessionLocal.begin() as session_db:
         stmt = select(DeseneCpuOrder).where(DeseneCpuOrder.pdf_found == 1)
@@ -61,19 +70,67 @@ def api_orders():
             "status": row.status,
             "folder_path": row.folder_path,
             "month_folder": row.month_folder,
+            "month_key": row.month_key,
             "year": row.year,
             "updated_at": row.updated_at.isoformat() if row.updated_at else "",
+            "created_at": row.created_at.isoformat() if row.created_at else "",
+            "reviewed_at": "",
+            "confirmed_at": "",
         }
         if q and q not in (row.order_folder_name or "").lower() and q not in (row.month_folder or "").lower():
             continue
         prepared.append(item)
 
-    prepared.sort(key=lambda x: (x.get("year") or 0, x.get("month_folder") or "", x.get("order_folder_name") or ""), reverse=True)
-    return jsonify({"status": "ok", "orders": prepared})
+    with SessionLocal.begin() as session_db:
+        action_rows = session_db.execute(
+            select(DeseneCpuAction).where(DeseneCpuAction.order_id.in_([item["id"] for item in prepared]))
+        ).scalars().all() if prepared else []
+
+    action_map = {}
+    for action in action_rows:
+        state = action_map.setdefault(action.order_id, {"reviewed_at": "", "confirmed_at": ""})
+        if action.action_type == "SEND_TO_REVIEW" and action.ts:
+            ts = action.ts.isoformat()
+            if not state["reviewed_at"] or ts < state["reviewed_at"]:
+                state["reviewed_at"] = ts
+        if action.action_type == "CONFIRM" and action.ts:
+            ts = action.ts.isoformat()
+            if not state["confirmed_at"] or ts < state["confirmed_at"]:
+                state["confirmed_at"] = ts
+
+    month_map = {}
+    for item in prepared:
+        key = item.get("month_key") or ""
+        folder = item.get("month_folder") or ""
+        if not key or not folder:
+            continue
+        month_map[key] = folder
+    months = [{"key": key, "label": month_map[key]} for key in sorted(month_map.keys(), reverse=True)]
+    current_month_key = datetime.now().strftime("%Y-%m")
+    default_month = current_month_key if current_month_key in month_map else (months[0]["key"] if months else "")
+
+    filtered = []
+    for item in prepared:
+        action_state = action_map.get(item["id"], {})
+        item["reviewed_at"] = action_state.get("reviewed_at") or ""
+        item["confirmed_at"] = action_state.get("confirmed_at") or ""
+        if month and (item.get("month_key") or "") != month:
+            continue
+        if status_filter != "ALL" and (item.get("status") or "") != status_filter:
+            continue
+        if manager_filter and manager_filter != "Все" and (item.get("manager_name") or "") != manager_filter:
+            continue
+        filtered.append(item)
+
+    # Сортируем по самой свежей дате (created_at, fallback updated_at), затем по id.
+    filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
+    return jsonify({"status": "ok", "orders": filtered, "months": months, "default_month": default_month})
 
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/send", methods=["POST"])
 def api_send(order_id: int):
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "Нет прав"}), 403
     user = session.get("user") or ""
     with SessionLocal.begin() as session_db:
         row = session_db.get(DeseneCpuOrder, order_id)
@@ -95,6 +152,8 @@ def api_send(order_id: int):
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/confirm", methods=["POST"])
 def api_confirm(order_id: int):
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "Нет прав"}), 403
     user = session.get("user") or ""
     with SessionLocal.begin() as session_db:
         row = session_db.get(DeseneCpuOrder, order_id)
@@ -111,6 +170,8 @@ def api_confirm(order_id: int):
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/set_manager", methods=["POST"])
 def api_set_manager(order_id: int):
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "Нет прав"}), 403
     payload = request.get_json(silent=True) or {}
     manager_name = (payload.get("manager_name") or "").strip()
     if not manager_name:
@@ -135,6 +196,8 @@ def api_set_manager(order_id: int):
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/actions")
 def api_actions(order_id: int):
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "Нет прав"}), 403
     with SessionLocal.begin() as session_db:
         row = session_db.get(DeseneCpuOrder, order_id)
         if not row:

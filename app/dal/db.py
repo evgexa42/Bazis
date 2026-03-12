@@ -44,6 +44,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_access_metrics": 1,
         "can_access_clients": 1,
         "can_access_search": 1,
+        "can_access_desene_cpu": 1,
         "can_manage_users": 1,
         "can_edit_paths": 1,
         "can_export_db": 1,
@@ -61,6 +62,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_access_metrics": 1,
         "can_access_clients": 1,
         "can_access_search": 1,
+        "can_access_desene_cpu": 1,
         "can_manage_users": 0,
         "can_edit_paths": 0,
         "can_export_db": 0,
@@ -78,6 +80,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_access_metrics": 0,
         "can_access_clients": 1,
         "can_access_search": 1,
+        "can_access_desene_cpu": 1,
         "can_manage_users": 0,
         "can_edit_paths": 0,
         "can_export_db": 0,
@@ -114,6 +117,7 @@ class RolePermission(Base):
     can_access_metrics = Column(Integer, nullable=False, default=0)
     can_access_clients = Column(Integer, nullable=False, default=0)
     can_access_search = Column(Integer, nullable=False, default=0)
+    can_access_desene_cpu = Column(Integer, nullable=False, default=0)
 
     can_manage_users = Column(Integer, nullable=False, default=0)
     can_edit_paths = Column(Integer, nullable=False, default=0)
@@ -182,6 +186,7 @@ def _ensure_role_permissions_columns() -> None:
     inspector = inspect(engine)
     columns = {col["name"] for col in inspector.get_columns("role_permissions")}
     new_columns = {
+        "can_access_desene_cpu": 0,
         "can_export_db": 0,
         "can_import_db": 0,
         "can_confirm_orders": 0,

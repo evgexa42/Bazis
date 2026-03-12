@@ -1999,8 +1999,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const DeseneCpuPage = (() => {
+  function getCurrentMonthKey() {
+    const now = new Date();
+    const monthNum = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${monthNum}`;
+  }
+
   let tab = 'active';
   let search = '';
+  let status = 'all';
+  // По умолчанию всегда шлём текущий месяц, чтобы избежать начальной "вспышки" всех месяцев.
+  let month = getCurrentMonthKey();
+  let manager = 'Все';
   let currentItems = [];
 
   function init() {
@@ -2013,6 +2023,10 @@ const DeseneCpuPage = (() => {
         load();
       });
     }
+    bindStatusFilters();
+    bindMonthFilter();
+    bindManagerFilter();
+    renderLoadingState();
     load();
     // Лёгкий polling только для этой страницы: чтобы новые PDF появлялись без ручного refresh.
     window.setInterval(() => {
@@ -2020,6 +2034,48 @@ const DeseneCpuPage = (() => {
         load();
       }
     }, 10000);
+  }
+
+  function bindStatusFilters() {
+    document.querySelectorAll('[data-cpu-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        status = (btn.dataset.cpuFilter || 'all').toLowerCase();
+        document.querySelectorAll('[data-cpu-filter]').forEach(node => {
+          node.classList.toggle('is-active', node === btn);
+        });
+        load();
+      });
+    });
+  }
+
+  function bindMonthFilter() {
+    const monthSelect = document.getElementById('cpuMonthFilter');
+    if (!monthSelect) return;
+    // Заполняем select сразу, чтобы не было пустого UI до первого ответа API.
+    const monthLabel = formatMonthLabel(month);
+    monthSelect.innerHTML = `
+      <option value="">Все месяцы</option>
+      <option value="${escapeAttr(month)}">${escapeHtml(monthLabel)}</option>
+    `;
+    monthSelect.value = month;
+    monthSelect.addEventListener('change', () => {
+      month = monthSelect.value || '';
+      load();
+    });
+  }
+
+  function bindManagerFilter() {
+    const managerSelect = document.getElementById('cpuManagerFilter');
+    if (!managerSelect) return;
+    const managers = Array.isArray(APP_CONFIG.managers) ? APP_CONFIG.managers : [];
+    managerSelect.innerHTML = ['<option value="Все">Все</option>']
+      .concat(managers.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`))
+      .join('');
+    managerSelect.value = manager;
+    managerSelect.addEventListener('change', () => {
+      manager = managerSelect.value || 'Все';
+      load();
+    });
   }
 
   function bindTabs() {
@@ -2049,11 +2105,55 @@ const DeseneCpuPage = (() => {
   }
 
   async function load() {
-    const params = new URLSearchParams({ tab, q: search });
+    const params = new URLSearchParams({ tab, q: search, status });
+    if (month) params.set('month', month);
+    if (manager && manager !== 'Все') params.set('manager', manager);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
+    hydrateMonthSelect(data);
+    renderStats(data.orders || []);
     currentItems = Array.isArray(data.orders) ? data.orders : [];
     render(currentItems);
+  }
+
+  function hydrateMonthSelect(data) {
+    const monthSelect = document.getElementById('cpuMonthFilter');
+    if (!monthSelect) return;
+    const months = Array.isArray(data?.months) ? data.months : [];
+    const monthKeys = new Set(months.map(item => item?.key).filter(Boolean));
+    if (month && !monthKeys.has(month)) {
+      month = data?.default_month || '';
+    }
+    const options = [`<option value="">Все месяцы</option>`]
+      .concat(months.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
+    monthSelect.innerHTML = options.join('');
+    monthSelect.value = month;
+  }
+
+  function renderStats(items) {
+    const el = document.getElementById('cpuStats');
+    if (!el) return;
+    const rows = Array.isArray(items) ? items : [];
+    const total = rows.length;
+    el.innerHTML = `
+      <article class="stat-card">
+        <span class="stat-label">Всего заказов</span>
+        <span class="stat-value stat-value--compact">${total}</span>
+      </article>
+    `;
+  }
+
+  function renderLoadingState() {
+    const tbody = document.querySelector('#cpuTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" class="table-primary">Загрузка заказов за ${escapeHtml(formatMonthLabel(month))}…</td></tr>`;
+  }
+
+  function formatMonthLabel(monthKey) {
+    const raw = `${monthKey || ''}`.trim();
+    if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return 'текущий месяц';
+    const [year, monthNum] = raw.split('-');
+    return `${monthNum}.${year}`;
   }
 
   function canEditManager() {
@@ -2064,6 +2164,11 @@ const DeseneCpuPage = (() => {
     const tbody = document.querySelector('#cpuTable tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
+
+    if (!Array.isArray(items) || !items.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="table-primary">Нет заказов за ${escapeHtml(formatMonthLabel(month))}.</td></tr>`;
+      return;
+    }
 
     let currentMonth = null;
     for (const item of items) {
@@ -2079,7 +2184,10 @@ const DeseneCpuPage = (() => {
       if (rowCls) tr.classList.add(rowCls);
       tr.dataset.cpuOrderId = `${item.id}`;
       tr.innerHTML = `
-        <td>${escapeHtml(item.order_folder_name || '')}</td>
+        <td>
+          <div>${escapeHtml(item.order_folder_name || '')}</div>
+          ${renderCpuTimeline(item)}
+        </td>
         <td>${renderManager(item)}</td>
         <td><span class="${cls}">${label}</span></td>
         <td>${escapeHtml(item.month_folder || '')}</td>
@@ -2176,6 +2284,8 @@ const DeseneCpuPage = (() => {
           const copied = await copyCpuFolderPath(path, btn);
           if (!copied) {
             alert('Не удалось скопировать путь к папке');
+          } else {
+            showCpuToast('Скопировано');
           }
         } else {
           alert('Путь к папке не найден для копирования');
@@ -2254,6 +2364,41 @@ const DeseneCpuPage = (() => {
 
   function escapeAttr(v) {
     return escapeHtml(v);
+  }
+
+  function showCpuToast(message) {
+    const stack = document.getElementById('toastStack');
+    if (!stack) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast toast--success';
+    toast.innerHTML = `<div class="toast__title">${escapeHtml(message || 'Готово')}</div>`;
+    stack.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+    setTimeout(() => toast.remove(), 1300);
+  }
+
+  function renderCpuTimeline(item) {
+    // Блок "Обработан" появляется только после первого статусного перехода.
+    const createdText = formatDateTime(item?.created_at);
+    const processedRaw = item?.reviewed_at || item?.confirmed_at || '';
+    const processedText = formatDateTime(processedRaw);
+    if (!processedRaw) {
+      return `<div class="order-times">Создан: ${createdText}</div>`;
+    }
+    return `<div class="order-times">Создан: ${createdText} • Обработан: ${processedText}</div>`;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '—';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '—';
+    return dt.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   return { init };

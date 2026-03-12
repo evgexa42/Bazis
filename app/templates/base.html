@@ -18,6 +18,7 @@
   data-can-access-settings="{{ 1 if role_perms.get('can_access_settings') else 0 }}"
   data-can-access-clients="{{ 1 if role_perms.get('can_access_clients') else 0 }}"
   data-can-access-search="{{ 1 if role_perms.get('can_access_search') else 0 }}"
+  data-can-access-desene-cpu="{{ 1 if role_perms.get('can_access_desene_cpu') else 0 }}"
   data-can-edit-paths="{{ 1 if role_perms.get('can_edit_paths') else 0 }}"
   data-can-toggle-order-options="{{ 1 if role_perms.get('can_toggle_order_options') else 0 }}"
   data-can-edit-order-manager="{{ 1 if role_perms.get('can_edit_order_manager') else 0 }}"
@@ -27,7 +28,9 @@
   <div class="page {% block page_class %}page--wide{% endblock %}">
     <nav class="top-menu">
       <a href="/">📦 Мониторинг</a>
+      {% if role_perms.can_access_desene_cpu %}
       <a href="/desene_cpu">🧠 Desene CPU</a>
+      {% endif %}
       {% if role_perms.can_access_clients %}
       <a href="/clients">👥 Клиенты</a>
       {% endif %}
