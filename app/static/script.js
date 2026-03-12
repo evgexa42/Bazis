@@ -2005,6 +2005,13 @@ const DeseneCpuPage = (() => {
     return `${now.getFullYear()}-${monthNum}`;
   }
 
+  function normalizeMonthKey(value) {
+    const raw = `${value || ''}`.trim();
+    const match = raw.match(/^(\d{4})-(\d{1,2})$/);
+    if (!match) return raw;
+    return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}`;
+  }
+
   let tab = 'active';
   let search = '';
   let status = 'all';
@@ -2012,6 +2019,7 @@ const DeseneCpuPage = (() => {
   let month = getCurrentMonthKey();
   let manager = 'Все';
   let currentItems = [];
+  let isAutoMonthReloading = false;
 
   function init() {
     if (document.body?.dataset?.page !== 'desene-cpu') return;
@@ -2106,12 +2114,25 @@ const DeseneCpuPage = (() => {
   }
 
   async function load() {
+    const requestedMonth = normalizeMonthKey(month);
     const params = new URLSearchParams({ tab, q: search, status });
     if (month) params.set('month', month);
     if (manager && manager !== 'Все') params.set('manager', manager);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
     hydrateMonthSelect(data);
+
+    if (!isAutoMonthReloading && requestedMonth !== normalizeMonthKey(month)) {
+      // После автокоррекции месяца делаем один догружающий запрос для корректного списка заказов.
+      isAutoMonthReloading = true;
+      try {
+        await load();
+      } finally {
+        isAutoMonthReloading = false;
+      }
+      return;
+    }
+
     renderStats(data.orders || [], data.manager_stats || []);
     currentItems = Array.isArray(data.orders) ? data.orders : [];
     render(currentItems);
@@ -2122,13 +2143,6 @@ const DeseneCpuPage = (() => {
     if (!monthSelect) return;
     const months = Array.isArray(data?.months) ? data.months : [];
     const currentMonth = getCurrentMonthKey();
-
-    const normalizeMonthKey = value => {
-      const raw = `${value || ''}`.trim();
-      const match = raw.match(/^(\d{4})-(\d{1,2})$/);
-      if (!match) return raw;
-      return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}`;
-    };
 
     // Не создаём искусственные месяцы: используем только те, что пришли из API/сетевых папок.
     const currentNorm = normalizeMonthKey(currentMonth);
