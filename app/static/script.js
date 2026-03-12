@@ -2193,7 +2193,23 @@ const DeseneCpuPage = (() => {
     const raw = `${monthKey || ''}`.trim();
     if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return 'текущий месяц';
     const [year, monthNum] = raw.split('-');
-    return `${monthNum}.${year}`;
+    const monthNamesRo = {
+      '01': 'Ianuarie',
+      '02': 'Februarie',
+      '03': 'Martie',
+      '04': 'Aprilie',
+      '05': 'Mai',
+      '06': 'Iunie',
+      '07': 'Iulie',
+      '08': 'August',
+      '09': 'Septembrie',
+      '10': 'Octombrie',
+      '11': 'Noiembrie',
+      '12': 'Decembrie'
+    };
+    // Формат фиксированный: MM. <RomanianMonth> YYYY. Меняется только год/номер месяца.
+    const monthName = monthNamesRo[monthNum] || monthNum;
+    return `${monthNum}. ${monthName} ${year}`;
   }
 
   function canEditManager() {
