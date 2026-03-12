@@ -2012,6 +2012,7 @@ const DeseneCpuPage = (() => {
   let month = getCurrentMonthKey();
   let manager = 'Все';
   let currentItems = [];
+  let isMonthHydrating = false;
 
   function init() {
     if (document.body?.dataset?.page !== 'desene-cpu') return;
@@ -2110,17 +2111,28 @@ const DeseneCpuPage = (() => {
     if (manager && manager !== 'Все') params.set('manager', manager);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
-    hydrateMonthSelect(data);
-    renderStats(data.orders || []);
+    const monthChanged = hydrateMonthSelect(data);
+    if (monthChanged && !isMonthHydrating) {
+      // Месяц автоматически скорректирован, перезапрашиваем данные один раз.
+      isMonthHydrating = true;
+      try {
+        await load();
+      } finally {
+        isMonthHydrating = false;
+      }
+      return;
+    }
+    renderStats(data.orders || [], data.manager_stats || []);
     currentItems = Array.isArray(data.orders) ? data.orders : [];
     render(currentItems);
   }
 
   function hydrateMonthSelect(data) {
     const monthSelect = document.getElementById('cpuMonthFilter');
-    if (!monthSelect) return;
+    if (!monthSelect) return false;
     const months = Array.isArray(data?.months) ? data.months : [];
     const monthKeys = new Set(months.map(item => item?.key).filter(Boolean));
+    const prevMonth = month;
     if (month && !monthKeys.has(month)) {
       month = data?.default_month || '';
     }
@@ -2128,18 +2140,44 @@ const DeseneCpuPage = (() => {
       .concat(months.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
     monthSelect.innerHTML = options.join('');
     monthSelect.value = month;
+    return prevMonth !== month;
   }
 
-  function renderStats(items) {
+  function renderStats(items, managerStats) {
     const el = document.getElementById('cpuStats');
     if (!el) return;
     const rows = Array.isArray(items) ? items : [];
     const total = rows.length;
+    const statsRows = Array.isArray(managerStats) ? managerStats : [];
+    const statsTable = statsRows.length
+      ? `
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Менеджер</th>
+                <th>Заказов</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${statsRows.map(item => `
+                <tr>
+                  <td>${escapeHtml(item.manager_name || 'Неизвестно')}</td>
+                  <td>${Number(item.count || 0)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `
+      : '<p class="table-primary">Нет данных по менеджерам для выбранного периода.</p>';
+
     el.innerHTML = `
       <article class="stat-card">
         <span class="stat-label">Всего заказов</span>
         <span class="stat-value stat-value--compact">${total}</span>
       </article>
+      ${statsTable}
     `;
   }
 
@@ -2221,8 +2259,8 @@ const DeseneCpuPage = (() => {
   }
 
   function renderActions(item) {
-    const sendDisabled = tab === 'archive' ? 'disabled' : '';
-    const confirmDisabled = tab === 'archive' ? 'disabled' : '';
+    const sendDisabled = tab === 'archive' || !item?.can_transition ? 'disabled' : '';
+    const confirmDisabled = tab === 'archive' || !item?.can_transition ? 'disabled' : '';
     return `
       <div class="button-group">
         <button type="button" class="btn btn--ghost btn--small" data-cpu-send="${item.id}" data-cpu-path="${escapeAttr(item.folder_path || '')}" ${sendDisabled}>Отправить</button>

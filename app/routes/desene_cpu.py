@@ -7,6 +7,7 @@ from flask import Blueprint, g, jsonify, render_template, request, session
 from sqlalchemy import select
 
 import app.config as app_config
+from app import get_manager_from_name
 from app.dal.db import SessionLocal
 from app.dal.desene_cpu import (
     CPU_ARCHIVE_STATUSES,
@@ -22,12 +23,24 @@ from app.dal.desene_cpu import (
 desene_cpu_bp = Blueprint("desene_cpu", __name__)
 
 
-def _can_access_order(order: DeseneCpuOrder) -> bool:
+def _can_view_order(order: DeseneCpuOrder) -> bool:
     role = session.get("role") or ""
     user = session.get("user") or ""
     if role in {"admin", "technologist"}:
         return True
     if role == "manager":
+        # Менеджеры могут смотреть общий список и переключаться между менеджерами.
+        return True
+    return False
+
+
+def _can_mutate_order(order: DeseneCpuOrder) -> bool:
+    role = session.get("role") or ""
+    user = session.get("user") or ""
+    if role in {"admin", "technologist"}:
+        return True
+    if role == "manager":
+        # Изменять статус менеджер может только у собственных заказов.
         return (order.manager_name or "") == user
     return False
 
@@ -59,9 +72,15 @@ def api_orders():
 
         rows = session_db.execute(stmt).scalars().all()
 
+        for row in rows:
+            # Подтягиваем актуального менеджера из справочника клиентов.
+            mapped_manager = get_manager_from_name(row.order_folder_name or "")
+            if mapped_manager and mapped_manager != "Неизвестно" and (row.manager_name or "") != mapped_manager:
+                row.manager_name = mapped_manager
+
     prepared = []
     for row in rows:
-        if not _can_access_order(row):
+        if not _can_view_order(row):
             continue
         item = {
             "id": row.id,
@@ -76,6 +95,7 @@ def api_orders():
             "created_at": row.created_at.isoformat() if row.created_at else "",
             "reviewed_at": "",
             "confirmed_at": "",
+            "can_transition": _can_mutate_order(row),
         }
         if q and q not in (row.order_folder_name or "").lower() and q not in (row.month_folder or "").lower():
             continue
@@ -110,6 +130,7 @@ def api_orders():
     default_month = current_month_key if current_month_key in month_map else (months[0]["key"] if months else "")
 
     filtered = []
+    stats_filtered = []
     for item in prepared:
         action_state = action_map.get(item["id"], {})
         item["reviewed_at"] = action_state.get("reviewed_at") or ""
@@ -118,13 +139,29 @@ def api_orders():
             continue
         if status_filter != "ALL" and (item.get("status") or "") != status_filter:
             continue
+        stats_filtered.append(item)
         if manager_filter and manager_filter != "Все" and (item.get("manager_name") or "") != manager_filter:
             continue
         filtered.append(item)
 
+    manager_stats_map: dict[str, int] = {}
+    for item in stats_filtered:
+        manager_name = (item.get("manager_name") or "Неизвестно").strip() or "Неизвестно"
+        manager_stats_map[manager_name] = manager_stats_map.get(manager_name, 0) + 1
+    manager_stats = [
+        {"manager_name": name, "count": count}
+        for name, count in sorted(manager_stats_map.items(), key=lambda pair: (-pair[1], pair[0].lower()))
+    ]
+
     # Сортируем по самой свежей дате (created_at, fallback updated_at), затем по id.
     filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
-    return jsonify({"status": "ok", "orders": filtered, "months": months, "default_month": default_month})
+    return jsonify({
+        "status": "ok",
+        "orders": filtered,
+        "months": months,
+        "default_month": default_month,
+        "manager_stats": manager_stats,
+    })
 
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/send", methods=["POST"])
@@ -136,7 +173,7 @@ def api_send(order_id: int):
         row = session_db.get(DeseneCpuOrder, order_id)
         if not row:
             return jsonify({"status": "error", "message": "Заказ не найден"}), 404
-        if not _can_access_order(row):
+        if not _can_mutate_order(row):
             return jsonify({"status": "error", "message": "Нет прав"}), 403
 
         if row.status == CPU_STATUS_NEW:
@@ -159,7 +196,7 @@ def api_confirm(order_id: int):
         row = session_db.get(DeseneCpuOrder, order_id)
         if not row:
             return jsonify({"status": "error", "message": "Заказ не найден"}), 404
-        if not _can_access_order(row):
+        if not _can_mutate_order(row):
             return jsonify({"status": "error", "message": "Нет прав"}), 403
         old = row.status
         row.status = CPU_STATUS_CONFIRMED
@@ -202,7 +239,7 @@ def api_actions(order_id: int):
         row = session_db.get(DeseneCpuOrder, order_id)
         if not row:
             return jsonify({"status": "error", "message": "Заказ не найден"}), 404
-        if not _can_access_order(row):
+        if not _can_view_order(row):
             return jsonify({"status": "error", "message": "Нет прав"}), 403
 
         actions = session_db.execute(
