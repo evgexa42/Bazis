@@ -2123,10 +2123,16 @@ const DeseneCpuPage = (() => {
     const months = Array.isArray(data?.months) ? data.months : [];
     const currentMonth = getCurrentMonthKey();
 
+    // Для текущего месяца используем исходный label из API (если есть), чтобы сохранить формат вида "03. Martie 2026".
+    const currentMonthFromApi = months.find(item => `${item?.key || ''}`.trim() === currentMonth);
+
     // Текущий месяц всегда в начале списка, даже если по нему пока нет записей.
     const preparedMonths = [];
     const seen = new Set();
-    preparedMonths.push({ key: currentMonth, label: formatMonthLabel(currentMonth) });
+    preparedMonths.push({
+      key: currentMonth,
+      label: (currentMonthFromApi?.label || '').trim() || formatMonthLabel(currentMonth)
+    });
     seen.add(currentMonth);
 
     for (const item of months) {
