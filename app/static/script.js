@@ -2290,6 +2290,18 @@ const DeseneCpuPage = (() => {
     return APP_CONFIG.currentRole === 'admin' || APP_CONFIG.currentRole === 'technologist';
   }
 
+  function parseCpuOrderMeta(folderName) {
+    const raw = `${folderName || ''}`.trim();
+    const match = raw.match(/^(\d+-\d+)\s*(.*)$/);
+    if (!match) {
+      return { orderNo: raw || '—', client: '—' };
+    }
+    return {
+      orderNo: match[1] || '—',
+      client: (match[2] || '').trim() || '—'
+    };
+  }
+
   function render(items) {
     const tbody = document.querySelector('#cpuTable tbody');
     if (!tbody) return;
@@ -2430,6 +2442,13 @@ const DeseneCpuPage = (() => {
     document.querySelectorAll('[data-cpu-confirm]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.cpuConfirm || 0);
+        const item = currentItems.find(row => Number(row.id) === id) || {};
+        const meta = parseCpuOrderMeta(item.order_folder_name || '');
+        const approved = await ConfirmDialog.confirm(
+          `Точно ли хотите подтвердить заказ ${meta.orderNo} (${meta.client})?`
+        );
+        if (!approved) return;
+
         const resp = await fetch(`/api/desene_cpu/orders/${id}/confirm`, {
           method: 'POST',
           headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
