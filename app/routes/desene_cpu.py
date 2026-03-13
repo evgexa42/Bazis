@@ -205,11 +205,18 @@ def api_pending_new_count():
             .where(DeseneCpuOrder.pdf_found == 1)
             .where(DeseneCpuOrder.status == CPU_STATUS_NEW)
             .where(DeseneCpuOrder.month_key == month_key)
-            .where(DeseneCpuOrder.manager_name == user)
         )
         rows = session_db.execute(stmt).scalars().all()
 
-    return jsonify({"status": "ok", "count": len(rows)})
+    count = 0
+    for row in rows:
+        # Считаем менеджера так же, как в общем списке CPU: через актуальную привязку клиента.
+        mapped_manager = get_manager_from_name(row.order_folder_name or "")
+        effective_manager = mapped_manager if mapped_manager and mapped_manager != "Неизвестно" else (row.manager_name or "")
+        if effective_manager == user:
+            count += 1
+
+    return jsonify({"status": "ok", "count": count})
 
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/send", methods=["POST"])

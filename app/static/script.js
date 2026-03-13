@@ -2057,7 +2057,10 @@ const DeseneCpuPage = (() => {
   let status = 'all';
   // По умолчанию всегда шлём текущий месяц, чтобы избежать начальной "вспышки" всех месяцев.
   let month = getCurrentMonthKey();
-  let manager = 'Все';
+  // Для менеджера по умолчанию открываем только его заказы.
+  let manager = APP_CONFIG.currentRole === 'manager' && APP_CONFIG.currentUser
+    ? APP_CONFIG.currentUser
+    : 'Все';
   let currentItems = [];
   let isAutoMonthReloading = false;
 
