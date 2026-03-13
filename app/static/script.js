@@ -2005,6 +2005,13 @@ const DeseneCpuPage = (() => {
     return `${now.getFullYear()}-${monthNum}`;
   }
 
+  function normalizeMonthKey(value) {
+    const raw = `${value || ''}`.trim();
+    const match = raw.match(/^(\d{4})-(\d{1,2})$/);
+    if (!match) return raw;
+    return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}`;
+  }
+
   let tab = 'active';
   let search = '';
   let status = 'all';
@@ -2012,6 +2019,7 @@ const DeseneCpuPage = (() => {
   let month = getCurrentMonthKey();
   let manager = 'Все';
   let currentItems = [];
+  let isAutoMonthReloading = false;
 
   function init() {
     if (document.body?.dataset?.page !== 'desene-cpu') return;
@@ -2068,8 +2076,9 @@ const DeseneCpuPage = (() => {
     const managerSelect = document.getElementById('cpuManagerFilter');
     if (!managerSelect) return;
     const managers = Array.isArray(APP_CONFIG.managers) ? APP_CONFIG.managers : [];
+    const uniqueManagers = Array.from(new Set(managers.concat(['Неизвестно'])));
     managerSelect.innerHTML = ['<option value="Все">Все</option>']
-      .concat(managers.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`))
+      .concat(uniqueManagers.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`))
       .join('');
     managerSelect.value = manager;
     managerSelect.addEventListener('change', () => {
@@ -2105,13 +2114,26 @@ const DeseneCpuPage = (() => {
   }
 
   async function load() {
+    const requestedMonth = normalizeMonthKey(month);
     const params = new URLSearchParams({ tab, q: search, status });
     if (month) params.set('month', month);
     if (manager && manager !== 'Все') params.set('manager', manager);
     const resp = await fetch(`/api/desene_cpu/orders?${params.toString()}`);
     const data = await resp.json().catch(() => ({ orders: [] }));
     hydrateMonthSelect(data);
-    renderStats(data.orders || []);
+
+    if (!isAutoMonthReloading && requestedMonth !== normalizeMonthKey(month)) {
+      // После автокоррекции месяца делаем один догружающий запрос для корректного списка заказов.
+      isAutoMonthReloading = true;
+      try {
+        await load();
+      } finally {
+        isAutoMonthReloading = false;
+      }
+      return;
+    }
+
+    renderStats(data.orders || [], data.manager_stats || []);
     currentItems = Array.isArray(data.orders) ? data.orders : [];
     render(currentItems);
   }
@@ -2120,26 +2142,75 @@ const DeseneCpuPage = (() => {
     const monthSelect = document.getElementById('cpuMonthFilter');
     if (!monthSelect) return;
     const months = Array.isArray(data?.months) ? data.months : [];
-    const monthKeys = new Set(months.map(item => item?.key).filter(Boolean));
-    if (month && !monthKeys.has(month)) {
-      month = data?.default_month || '';
+    const currentMonth = getCurrentMonthKey();
+
+    // Не создаём искусственные месяцы: используем только те, что пришли из API/сетевых папок.
+    const currentNorm = normalizeMonthKey(currentMonth);
+    const seen = new Set();
+    const preparedMonths = [];
+    const restMonths = [];
+
+    for (const item of months) {
+      const rawKey = `${item?.key || ''}`.trim();
+      const normKey = normalizeMonthKey(rawKey);
+      if (!normKey || seen.has(normKey)) continue;
+      seen.add(normKey);
+
+      const normalizedItem = {
+        key: normKey,
+        label: `${item?.label || ''}`.trim() || formatMonthLabel(normKey)
+      };
+      if (normKey === currentNorm) {
+        preparedMonths.push(normalizedItem);
+      } else {
+        restMonths.push(normalizedItem);
+      }
     }
+
+    preparedMonths.push(...restMonths);
+
+    const monthNorm = normalizeMonthKey(month);
+    if (monthNorm && seen.has(monthNorm)) {
+      month = monthNorm;
+    } else if (data?.default_month) {
+      month = normalizeMonthKey(data.default_month);
+    } else {
+      month = '';
+    }
+
     const options = [`<option value="">Все месяцы</option>`]
-      .concat(months.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
+      .concat(preparedMonths.map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`));
     monthSelect.innerHTML = options.join('');
     monthSelect.value = month;
   }
 
-  function renderStats(items) {
+  function renderStats(items, managerStats) {
     const el = document.getElementById('cpuStats');
     if (!el) return;
     const rows = Array.isArray(items) ? items : [];
     const total = rows.length;
+    const statsRows = Array.isArray(managerStats) ? managerStats : [];
+
+    const managerItems = statsRows.length
+      ? statsRows.map(item => `
+          <div class="cpu-manager-stat">
+            <span class="cpu-manager-stat__name">${escapeHtml(item.manager_name || 'Неизвестно')}</span>
+            <span class="cpu-manager-stat__count">${Number(item.count || 0)}</span>
+          </div>
+        `).join('')
+      : '<p class="table-primary">Нет данных по менеджерам для выбранного периода.</p>';
+
     el.innerHTML = `
-      <article class="stat-card">
-        <span class="stat-label">Всего заказов</span>
-        <span class="stat-value stat-value--compact">${total}</span>
-      </article>
+      <div class="cpu-stats-grid">
+        <article class="stat-card cpu-stat-card">
+          <span class="stat-label">Всего заказов</span>
+          <span class="stat-value stat-value--compact">${total}</span>
+        </article>
+        <article class="stat-card cpu-stat-card">
+          <span class="stat-label">Менеджеры</span>
+          <div class="cpu-manager-stats-grid">${managerItems}</div>
+        </article>
+      </div>
     `;
   }
 
@@ -2153,7 +2224,23 @@ const DeseneCpuPage = (() => {
     const raw = `${monthKey || ''}`.trim();
     if (!raw || !/^\d{4}-\d{2}$/.test(raw)) return 'текущий месяц';
     const [year, monthNum] = raw.split('-');
-    return `${monthNum}.${year}`;
+    const monthNamesRo = {
+      '01': 'Ianuarie',
+      '02': 'Februarie',
+      '03': 'Martie',
+      '04': 'Aprilie',
+      '05': 'Mai',
+      '06': 'Iunie',
+      '07': 'Iulie',
+      '08': 'August',
+      '09': 'Septembrie',
+      '10': 'Octombrie',
+      '11': 'Noiembrie',
+      '12': 'Decembrie'
+    };
+    // Формат фиксированный: MM. <RomanianMonth> YYYY. Меняется только год/номер месяца.
+    const monthName = monthNamesRo[monthNum] || monthNum;
+    return `${monthNum}. ${monthName} ${year}`;
   }
 
   function canEditManager() {
@@ -2203,7 +2290,8 @@ const DeseneCpuPage = (() => {
     const manager = escapeHtml(item.manager_name || 'Неизвестно');
     if (!canEditManager()) return manager;
 
-    const options = (APP_CONFIG.managers || [])
+    const managerOptions = Array.from(new Set([...(APP_CONFIG.managers || []), 'Неизвестно']));
+    const options = managerOptions
       .map(m => `<option value="${escapeAttr(m)}" ${m === item.manager_name ? 'selected' : ''}>${escapeHtml(m)}</option>`)
       .join('');
 
@@ -2221,8 +2309,8 @@ const DeseneCpuPage = (() => {
   }
 
   function renderActions(item) {
-    const sendDisabled = tab === 'archive' ? 'disabled' : '';
-    const confirmDisabled = tab === 'archive' ? 'disabled' : '';
+    const sendDisabled = tab === 'archive' || !item?.can_transition ? 'disabled' : '';
+    const confirmDisabled = tab === 'archive' || !item?.can_transition ? 'disabled' : '';
     return `
       <div class="button-group">
         <button type="button" class="btn btn--ghost btn--small" data-cpu-send="${item.id}" data-cpu-path="${escapeAttr(item.folder_path || '')}" ${sendDisabled}>Отправить</button>
