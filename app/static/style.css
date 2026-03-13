@@ -87,6 +87,56 @@ body {
   transform: translateY(-1px);
 }
 
+
+.cpu-bell-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 16px 28px -20px rgba(37, 99, 235, 0.9);
+  transition: transform var(--dur-fast) var(--easing), box-shadow var(--dur-fast) var(--easing);
+}
+
+.cpu-bell-widget:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 32px -20px rgba(37, 99, 235, 0.95);
+}
+
+.cpu-bell-widget__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cpu-bell-widget__count {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #dc2626;
+  color: #fff;
+}
+
+.cpu-bell-widget__count.is-zero {
+  background: #94a3b8;
+}
+
 .page-header {
   margin-bottom: 28px;
 }

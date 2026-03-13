@@ -20,6 +20,11 @@ data-managers='{{ config_managers | tojson }}'
     </p>
   </header>
 
+  <a href="/desene_cpu" id="cpuBellWidget" class="cpu-bell-widget" title="Открыть Desene CPU" aria-label="Открыть Desene CPU">
+    <span class="cpu-bell-widget__icon" aria-hidden="true">🔔</span>
+    <span class="cpu-bell-widget__count" id="cpuBellCount">0</span>
+  </a>
+
   <section id="stats" class="card stats-card"></section>
 
   <section class="card controls-card">

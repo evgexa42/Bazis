@@ -31,6 +31,7 @@ const APP_CONFIG = (() => {
     canAccessSettings: body?.dataset?.canAccessSettings === '1',
     canAccessClients: body?.dataset?.canAccessClients === '1',
     canAccessSearch: body?.dataset?.canAccessSearch === '1',
+    canAccessDeseneCpu: body?.dataset?.canAccessDeseneCpu === '1',
     canEditPaths: body?.dataset?.canEditPaths === '1',
     canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
     canEditOrderManager: body?.dataset?.canEditOrderManager === '1',
@@ -106,6 +107,45 @@ const ConfirmDialog = (() => {
   }
 
   return { confirm };
+})();
+
+
+const CpuBellWidget = (() => {
+  let pollTimer = null;
+
+  function init() {
+    const widget = document.getElementById('cpuBellWidget');
+    const countNode = document.getElementById('cpuBellCount');
+    if (!widget || !countNode) return;
+
+    // Плашка только для менеджеров с доступом в CPU.
+    if (APP_CONFIG.currentRole !== 'manager' || !APP_CONFIG.permissions.canAccessDeseneCpu) {
+      widget.classList.add('is-hidden');
+      return;
+    }
+
+    refreshCount();
+    pollTimer = window.setInterval(refreshCount, 15000);
+  }
+
+  async function refreshCount() {
+    const countNode = document.getElementById('cpuBellCount');
+    if (!countNode) return;
+
+    try {
+      const response = await fetch('/api/desene_cpu/pending_new_count');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      const count = Number(payload?.count || 0);
+      countNode.textContent = String(count);
+      countNode.classList.toggle('is-zero', count <= 0);
+    } catch (error) {
+      // Сохраняем текущее значение, если временно недоступен API.
+      console.warn('Не удалось обновить счётчик Desene CPU', error);
+    }
+  }
+
+  return { init };
 })();
 
 const OrdersPage = (() => {
@@ -2494,4 +2534,7 @@ const DeseneCpuPage = (() => {
 
 document.addEventListener('DOMContentLoaded', () => {
   DeseneCpuPage.init();
+});
+document.addEventListener('DOMContentLoaded', () => {
+  CpuBellWidget.init();
 });

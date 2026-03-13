@@ -62,6 +62,9 @@ def api_orders():
     month = (request.args.get("month") or "").strip()
     status_filter = (request.args.get("status") or "all").strip().upper()
     manager_filter = (request.args.get("manager") or "").strip()
+    current_role = (session.get("role") or "").strip().lower()
+    current_user = (session.get("user") or "").strip()
+    current_month_key = datetime.now().strftime("%Y-%m")
 
     with SessionLocal.begin() as session_db:
         stmt = select(DeseneCpuOrder).where(DeseneCpuOrder.pdf_found == 1)
@@ -126,7 +129,6 @@ def api_orders():
             continue
         month_map[key] = folder
     months = [{"key": key, "label": month_map[key]} for key in sorted(month_map.keys(), reverse=True)]
-    current_month_key = datetime.now().strftime("%Y-%m")
     default_month = current_month_key if current_month_key in month_map else (months[0]["key"] if months else "")
 
     filtered = []
@@ -161,8 +163,20 @@ def api_orders():
     )
     manager_stats.extend({"manager_name": name, "count": manager_stats_map[name]} for name in extra_names)
 
-    # Сортируем по самой свежей дате (created_at, fallback updated_at), затем по id.
-    filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
+    # Для менеджера показываем его заказы текущего месяца первыми, сохраняя общий список доступным.
+    if current_role == "manager" and current_user:
+        def manager_priority(item: dict) -> int:
+            is_own = (item.get("manager_name") or "") == current_user
+            is_current_month = (item.get("month_key") or "") == current_month_key
+            return 0 if is_own and is_current_month else 1
+
+        # Стабильная сортировка: сначала общая свежесть, затем приоритет менеджера.
+        filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
+        filtered.sort(key=manager_priority)
+    else:
+        # Базовая сортировка для технологов и остальных ролей.
+        filtered.sort(key=lambda x: (x.get("created_at") or x.get("updated_at") or "", x.get("id") or 0), reverse=True)
+
     return jsonify({
         "status": "ok",
         "orders": filtered,
@@ -170,6 +184,32 @@ def api_orders():
         "default_month": default_month,
         "manager_stats": manager_stats,
     })
+
+
+@desene_cpu_bp.route("/api/desene_cpu/pending_new_count")
+def api_pending_new_count():
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "Нет прав"}), 403
+
+    role = (session.get("role") or "").strip().lower()
+    user = (session.get("user") or "").strip()
+    month_key = datetime.now().strftime("%Y-%m")
+
+    # Для менеджеров считаем только их новые заказы текущего месяца.
+    if role != "manager" or not user:
+        return jsonify({"status": "ok", "count": 0})
+
+    with SessionLocal.begin() as session_db:
+        stmt = (
+            select(DeseneCpuOrder)
+            .where(DeseneCpuOrder.pdf_found == 1)
+            .where(DeseneCpuOrder.status == CPU_STATUS_NEW)
+            .where(DeseneCpuOrder.month_key == month_key)
+            .where(DeseneCpuOrder.manager_name == user)
+        )
+        rows = session_db.execute(stmt).scalars().all()
+
+    return jsonify({"status": "ok", "count": len(rows)})
 
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/send", methods=["POST"])
