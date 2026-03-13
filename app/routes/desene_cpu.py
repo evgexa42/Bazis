@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 from datetime import datetime
 
 from flask import Blueprint, g, jsonify, render_template, request, session
@@ -17,10 +19,62 @@ from app.dal.desene_cpu import (
     DeseneCpuAction,
     DeseneCpuOrder,
     log_action,
+    normalize_path,
 )
 
 
 desene_cpu_bp = Blueprint("desene_cpu", __name__)
+
+
+_NOT_DO_MARKER_RE = re.compile(r"\[\s*не\s*делать\s*\]", re.IGNORECASE)
+
+
+def _build_confirmed_folder_name(folder_name: str) -> str:
+    """Строит имя папки после подтверждения в Desene CPU."""
+    name = (folder_name or "").rstrip()
+    if not name:
+        return ""
+
+    if app_config.DESENE_CPU_REPLACE_NOT_DO_MARKER:
+        # Поддерживаем оба маркера по требованию: [$] и [НЕ ДЕЛАТЬ] (любой регистр).
+        name = _NOT_DO_MARKER_RE.sub("[A]", name)
+        name = name.replace("[$]", "[A]")
+
+    if not name.endswith(" +"):
+        name = f"{name} +"
+    return name
+
+
+def _rename_order_folder_on_confirm(row: DeseneCpuOrder, actor_user: str) -> None:
+    """Переименовывает физическую папку и синхронизирует путь в БД."""
+    if not app_config.DESENE_CPU_RENAME_ON_CONFIRM:
+        return
+
+    folder_path = (row.folder_path or "").strip()
+    folder_name = (row.order_folder_name or "").strip()
+    if not folder_path or not folder_name:
+        return
+
+    target_name = _build_confirmed_folder_name(folder_name)
+    if not target_name or target_name == folder_name:
+        return
+
+    parent_dir = os.path.dirname(folder_path)
+    target_path = os.path.join(parent_dir, target_name)
+    if os.path.exists(target_path):
+        raise FileExistsError(f"Целевая папка уже существует: {target_path}")
+
+    os.rename(folder_path, target_path)
+    row.folder_path = target_path
+    row.order_folder_name = target_name
+    row.normalized_path = normalize_path(target_path)
+
+    log_action(
+        row.id,
+        "RENAME_ON_CONFIRM",
+        actor_user,
+        json.dumps({"from": folder_name, "to": target_name}, ensure_ascii=False),
+    )
 
 
 def _can_view_order(order: DeseneCpuOrder) -> bool:
@@ -254,6 +308,13 @@ def api_confirm(order_id: int):
         old = row.status
         row.status = CPU_STATUS_CONFIRMED
         log_action(row.id, "CONFIRM", user, json.dumps({"from": old, "to": CPU_STATUS_CONFIRMED}, ensure_ascii=False))
+
+        try:
+            _rename_order_folder_on_confirm(row, user)
+        except FileExistsError as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 409
+        except OSError as exc:
+            return jsonify({"status": "error", "message": f"Не удалось переименовать папку: {exc}"}), 500
 
     return jsonify({"status": "ok", "new_status": CPU_STATUS_CONFIRMED})
 

@@ -46,6 +46,10 @@ DEFAULT_CONFIG = {
     "orders_auto_confirm": {
         "path_not_given_folder": "",
     },
+    "desene_cpu_confirm": {
+        "rename_on_confirm": True,
+        "replace_not_do_marker": True,
+    },
 }
 
 logger = logging.getLogger("bazis")
@@ -88,6 +92,8 @@ ORDERS_SYNC_ENABLED = DEFAULT_CONFIG["orders_sync"]["enabled"]
 ORDERS_APPROVED_PLUS_RENAME = DEFAULT_CONFIG["orders_sync"]["approved_plus_rename"]
 ORDERS_ANULAT_RENAME_TECH_MARKER = DEFAULT_CONFIG["orders_sync"]["anulat_rename_tech_marker"]
 ORDERS_AUTO_CONFIRM_PATH = ""
+DESENE_CPU_RENAME_ON_CONFIRM = DEFAULT_CONFIG["desene_cpu_confirm"]["rename_on_confirm"]
+DESENE_CPU_REPLACE_NOT_DO_MARKER = DEFAULT_CONFIG["desene_cpu_confirm"]["replace_not_do_marker"]
 
 
 def deep_merge(base, extra):
@@ -329,6 +335,16 @@ def _ensure_complete_config(raw_config: dict) -> dict:
     merged["orders_auto_confirm"]["path_not_given_folder"] = str(
         merged["orders_auto_confirm"].get("path_not_given_folder") or ""
     ).strip()
+
+    merged.setdefault("desene_cpu_confirm", {})
+    merged["desene_cpu_confirm"]["rename_on_confirm"] = _parse_bool(
+        merged["desene_cpu_confirm"].get("rename_on_confirm"),
+        DEFAULT_CONFIG["desene_cpu_confirm"]["rename_on_confirm"],
+    )
+    merged["desene_cpu_confirm"]["replace_not_do_marker"] = _parse_bool(
+        merged["desene_cpu_confirm"].get("replace_not_do_marker"),
+        DEFAULT_CONFIG["desene_cpu_confirm"]["replace_not_do_marker"],
+    )
     return merged
 
 
@@ -366,6 +382,7 @@ def apply_config(config):
     global ORDERS_PG_URL, ORDERS_PG_POLL_SECONDS, ORDERS_PG_TAIL_DAYS, ORDERS_SYNC_ENABLED
     global ORDERS_APPROVED_PLUS_RENAME, ORDERS_ANULAT_RENAME_TECH_MARKER
     global ORDERS_AUTO_CONFIRM_PATH
+    global DESENE_CPU_RENAME_ON_CONFIRM, DESENE_CPU_REPLACE_NOT_DO_MARKER
     global ORDER_TIMES_TTL_DAYS
 
     normalized = _ensure_complete_config(config)
@@ -444,6 +461,16 @@ def apply_config(config):
 
     orders_auto_confirm_cfg = normalized.get("orders_auto_confirm", {})
     ORDERS_AUTO_CONFIRM_PATH = orders_auto_confirm_cfg.get("path_not_given_folder", "")
+
+    desene_cpu_confirm_cfg = normalized.get("desene_cpu_confirm", {})
+    DESENE_CPU_RENAME_ON_CONFIRM = _parse_bool(
+        desene_cpu_confirm_cfg.get("rename_on_confirm"),
+        DEFAULT_CONFIG["desene_cpu_confirm"]["rename_on_confirm"],
+    )
+    DESENE_CPU_REPLACE_NOT_DO_MARKER = _parse_bool(
+        desene_cpu_confirm_cfg.get("replace_not_do_marker"),
+        DEFAULT_CONFIG["desene_cpu_confirm"]["replace_not_do_marker"],
+    )
     MANAGER_NAMES[:] = normalized.get("managers", [])
     TECHNOLOGIST_MARKERS.clear()
     TECHNOLOGIST_MARKERS.update(normalized.get("technologists", {}))
