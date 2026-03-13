@@ -193,9 +193,7 @@ def api_pending_new_count():
 
     role = (session.get("role") or "").strip().lower()
     user = (session.get("user") or "").strip()
-    month_key = datetime.now().strftime("%Y-%m")
-
-    # Для менеджеров считаем только их новые заказы текущего месяца.
+    # Для менеджеров считаем только их новые заказы в активном списке (NEW).
     if role != "manager" or not user:
         return jsonify({"status": "ok", "count": 0})
 
@@ -204,16 +202,16 @@ def api_pending_new_count():
             select(DeseneCpuOrder)
             .where(DeseneCpuOrder.pdf_found == 1)
             .where(DeseneCpuOrder.status == CPU_STATUS_NEW)
-            .where(DeseneCpuOrder.month_key == month_key)
         )
         rows = session_db.execute(stmt).scalars().all()
 
+    user_norm = user.strip().casefold()
     count = 0
     for row in rows:
         # Считаем менеджера так же, как в общем списке CPU: через актуальную привязку клиента.
         mapped_manager = get_manager_from_name(row.order_folder_name or "")
         effective_manager = mapped_manager if mapped_manager and mapped_manager != "Неизвестно" else (row.manager_name or "")
-        if effective_manager == user:
+        if (effective_manager or "").strip().casefold() == user_norm:
             count += 1
 
     return jsonify({"status": "ok", "count": count})
