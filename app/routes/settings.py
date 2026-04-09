@@ -156,6 +156,8 @@ def settings_page():
             pg_enabled = request.form.get("orders_sync_enabled") == "on"
             plus_rename = request.form.get("orders_plus_rename") == "on"
             anulat_rename = request.form.get("orders_anulat_rename") == "on"
+            desene_cpu_rename_on_confirm = request.form.get("desene_cpu_rename_on_confirm") == "on"
+            desene_cpu_replace_not_do_marker = request.form.get("desene_cpu_replace_not_do_marker") == "on"
             not_given_folder = request.form.get("not_given_folder_path", "").strip()
 
             telegram_token = request.form.get("telegram_token", "").strip()
@@ -229,6 +231,10 @@ def settings_page():
             auto_confirm_cfg = updated.setdefault("orders_auto_confirm", {})
             auto_confirm_cfg["path_not_given_folder"] = not_given_folder
 
+            desene_cpu_confirm_cfg = updated.setdefault("desene_cpu_confirm", {})
+            desene_cpu_confirm_cfg["rename_on_confirm"] = desene_cpu_rename_on_confirm
+            desene_cpu_confirm_cfg["replace_not_do_marker"] = desene_cpu_replace_not_do_marker
+
         if not errors:
             save_config(updated)
             CONFIG.clear()
@@ -257,6 +263,9 @@ def settings_page():
             auto_confirm_changed = (
                 old_config.get("orders_auto_confirm", {}) != updated.get("orders_auto_confirm", {})
             )
+            desene_cpu_confirm_changed = (
+                old_config.get("desene_cpu_confirm", {}) != updated.get("desene_cpu_confirm", {})
+            )
             telegram_changed = old_config.get("telegram", {}) != updated.get("telegram", {})
 
             monitor_restart_required = paths_changed
@@ -276,6 +285,8 @@ def settings_page():
                 light_changes.append("параметры Orders (PostgreSQL)")
             if auto_confirm_changed:
                 light_changes.append("параметры автоподтверждения")
+            if desene_cpu_confirm_changed:
+                light_changes.append("параметры подтверждения Desene CPU")
             if telegram_changed:
                 light_changes.append("настройки Telegram")
             if paths_changed:

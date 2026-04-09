@@ -14,6 +14,7 @@ import app.config as app_config
 from app import get_manager_from_name, logger
 from app.dal.db import SessionLocal
 from app.dal.desene_cpu import (
+    CPU_STATUS_CONFIRMED,
     CPU_STATUS_NEW,
     DeseneCpuOrder,
     log_action,
@@ -161,6 +162,10 @@ def _walk_pdf_candidates(folder_path: str, max_depth: int = 2):
             continue
 
 
+def _has_plus_suffix(folder_name: str) -> bool:
+    """Проверяет служебный суффикс подтверждения в имени папки."""
+    return bool(folder_name and folder_name.rstrip().endswith(" +"))
+
 def _find_matching_pdf(folder_path: str, folder_name: str) -> tuple[bool, str, datetime | None]:
     folder_pdf = f"{folder_name}.pdf".lower()
     order_code = _extract_order_code(folder_name).lower()
@@ -224,6 +229,16 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
     if should_check_pdf:
         pdf_found, pdf_path, pdf_mtime = _find_matching_pdf(folder_path, os.path.basename(folder_path))
 
+    next_status = existing.status if existing and existing.status else CPU_STATUS_NEW
+    status_reset_by_plus = bool(
+        existing
+        and existing.status == CPU_STATUS_CONFIRMED
+        and not _has_plus_suffix(folder_name)
+    )
+    if status_reset_by_plus:
+        # Если вручную убрали служебный "+", считаем подтверждение снятым.
+        next_status = CPU_STATUS_NEW
+
     payload = {
         "year": year,
         "month_folder": month_folder,
@@ -231,7 +246,7 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
         "order_folder_name": folder_name,
         "order_code": order_code,
         "manager_name": (existing.manager_name if existing and existing.manager_name else _extract_manager(folder_name)) or "Неизвестно",
-        "status": existing.status if existing and existing.status else CPU_STATUS_NEW,
+        "status": next_status,
         "folder_path": folder_path,
         "pdf_found": bool(pdf_found),
         "pdf_path": pdf_path,
@@ -241,6 +256,8 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
         "last_pdf_check_ts": now if should_check_pdf else (existing.last_pdf_check_ts if existing else now),
     }
     row = upsert_order(payload)
+    if status_reset_by_plus:
+        log_action(row.id, "STATUS_RESET_BY_PLUS_REMOVAL", "system")
     if pdf_found and (not existing or not existing.pdf_found):
         log_action(row.id, "PDF_DETECTED", "system")
 

@@ -179,6 +179,14 @@ data-managers='{{ config_managers | tojson }}'
             <input type="checkbox" name="orders_anulat_rename" {% if config.get('orders_sync', {}).get('anulat_rename_tech_marker', False) %}checked{% endif %}>
             <span>Переименовывать [$] в [ANULAT] при аннуляции</span>
           </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="desene_cpu_rename_on_confirm" {% if config.get('desene_cpu_confirm', {}).get('rename_on_confirm', True) %}checked{% endif %}>
+            <span>Desene CPU: добавлять «+» при подтверждении</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="desene_cpu_replace_not_do_marker" {% if config.get('desene_cpu_confirm', {}).get('replace_not_do_marker', True) %}checked{% endif %}>
+            <span>Desene CPU: заменять [НЕ ДЕЛАТЬ] / [$] на [A] при подтверждении</span>
+          </label>
         </div>
       </div>
 
