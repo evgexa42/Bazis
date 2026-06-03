@@ -51,6 +51,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_import_db": 1,
         "can_toggle_order_options": 1,
         "can_confirm_orders": 1,
+        "can_bulk_confirm_desene_cpu": 1,
         "can_view_priced": 1,
         "can_mark_priced": 0,
         "can_view_priced_panel": 1,
@@ -69,6 +70,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_import_db": 0,
         "can_toggle_order_options": 1,
         "can_confirm_orders": 1,
+        "can_bulk_confirm_desene_cpu": 0,
         "can_view_priced": 1,
         "can_mark_priced": 0,
         "can_view_priced_panel": 1,
@@ -87,6 +89,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "can_import_db": 0,
         "can_toggle_order_options": 0,
         "can_confirm_orders": 1,
+        "can_bulk_confirm_desene_cpu": 0,
         "can_view_priced": 1,
         "can_mark_priced": 1,
         "can_view_priced_panel": 1,
@@ -125,6 +128,7 @@ class RolePermission(Base):
     can_import_db = Column(Integer, nullable=False, default=0)
     can_toggle_order_options = Column(Integer, nullable=False, default=0)
     can_confirm_orders = Column(Integer, nullable=False, default=0)
+    can_bulk_confirm_desene_cpu = Column(Integer, nullable=False, default=0)
     can_view_priced = Column(Integer, nullable=False, default=0)
     can_mark_priced = Column(Integer, nullable=False, default=0)
     can_view_priced_panel = Column(Integer, nullable=False, default=0)
@@ -165,6 +169,7 @@ def _ensure_default_role_permissions() -> None:
                 enforced["can_manage_users"] = 1
                 enforced["can_export_db"] = 1
                 enforced["can_import_db"] = 1
+                enforced["can_bulk_confirm_desene_cpu"] = 1
 
             if not record:
                 session.add(RolePermission(role=role, **enforced))
@@ -174,6 +179,7 @@ def _ensure_default_role_permissions() -> None:
                     record.can_manage_users = 1
                     record.can_export_db = 1
                     record.can_import_db = 1
+                    record.can_bulk_confirm_desene_cpu = 1
                 else:
                     for field, value in enforced.items():
                         if getattr(record, field) is None:
@@ -190,6 +196,7 @@ def _ensure_role_permissions_columns() -> None:
         "can_export_db": 0,
         "can_import_db": 0,
         "can_confirm_orders": 0,
+        "can_bulk_confirm_desene_cpu": 0,
         "can_view_priced": 0,
         "can_mark_priced": 0,
         "can_view_priced_panel": 0,

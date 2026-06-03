@@ -39,6 +39,12 @@ data-managers='{{ config_managers | tojson }}'
       <input type="search" id="cpuSearch" class="input input--compact search-grow" placeholder="Заказ или месяц">
     </div>
   </div>
+  {% if session.get('role') == 'admin' and role_perms.get('can_bulk_confirm_desene_cpu') %}
+  <div class="cpu-bulk-actions" data-cpu-bulk-actions>
+    <span class="text-muted" data-cpu-selected-count>Выбрано: 0</span>
+    <button type="button" class="btn btn--secondary btn--small" data-cpu-bulk-confirm disabled>Подтвердить выбранные</button>
+  </div>
+  {% endif %}
 </section>
 
 <section class="card table-card">
@@ -46,6 +52,9 @@ data-managers='{{ config_managers | tojson }}'
     <table class="data-table" id="cpuTable">
       <thead>
       <tr>
+        {% if session.get('role') == 'admin' and role_perms.get('can_bulk_confirm_desene_cpu') %}
+        <th class="cpu-select-col"><input type="checkbox" data-cpu-select-all aria-label="Выбрать все заказы"></th>
+        {% endif %}
         <th>Заказ</th>
         <th>Менеджер</th>
         <th>Статус</th>

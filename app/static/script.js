@@ -35,6 +35,7 @@ const APP_CONFIG = (() => {
     canEditPaths: body?.dataset?.canEditPaths === '1',
     canToggleOrderOptions: body?.dataset?.canToggleOrderOptions === '1',
     canEditOrderManager: body?.dataset?.canEditOrderManager === '1',
+    canBulkConfirmDeseneCpu: body?.dataset?.canBulkConfirmDeseneCpu === '1',
   };
 
   return { managers, currentUser, currentRole, permissions };
@@ -2062,6 +2063,7 @@ const DeseneCpuPage = (() => {
     ? APP_CONFIG.currentUser
     : 'Все';
   let currentItems = [];
+  let selectedIds = new Set();
   let isAutoMonthReloading = false;
 
   function init() {
@@ -2077,6 +2079,7 @@ const DeseneCpuPage = (() => {
     bindStatusFilters();
     bindMonthFilter();
     bindManagerFilter();
+    bindBulkControls();
     renderLoadingState();
     load();
     // Лёгкий polling только для этой страницы: чтобы новые PDF появлялись без ручного refresh.
@@ -2260,7 +2263,7 @@ const DeseneCpuPage = (() => {
   function renderLoadingState() {
     const tbody = document.querySelector('#cpuTable tbody');
     if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="5" class="table-primary">Загрузка заказов за ${escapeHtml(formatMonthLabel(month))}…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${tableColspan()}" class="table-primary">Загрузка заказов за ${escapeHtml(formatMonthLabel(month))}…</td></tr>`;
   }
 
   function formatMonthLabel(monthKey) {
@@ -2290,6 +2293,93 @@ const DeseneCpuPage = (() => {
     return APP_CONFIG.currentRole === 'admin' || APP_CONFIG.currentRole === 'technologist';
   }
 
+  function canBulkConfirm() {
+    return APP_CONFIG.currentRole === 'admin' && APP_CONFIG.permissions.canBulkConfirmDeseneCpu;
+  }
+
+  function tableColspan() {
+    return canBulkConfirm() ? 6 : 5;
+  }
+
+  function isBulkSelectable(item) {
+    return canBulkConfirm()
+      && tab !== 'archive'
+      && item?.can_transition
+      && item?.status !== 'CONFIRMED';
+  }
+
+  function getSelectedItems() {
+    return currentItems.filter(item => selectedIds.has(Number(item.id)) && isBulkSelectable(item));
+  }
+
+  function updateBulkControls() {
+    if (!canBulkConfirm()) return;
+    const selectedItems = getSelectedItems();
+    const countEl = document.querySelector('[data-cpu-selected-count]');
+    const confirmBtn = document.querySelector('[data-cpu-bulk-confirm]');
+    const selectAll = document.querySelector('[data-cpu-select-all]');
+    const selectableIds = currentItems.filter(isBulkSelectable).map(item => Number(item.id));
+
+    if (countEl) countEl.textContent = `Выбрано: ${selectedItems.length}`;
+    if (confirmBtn) confirmBtn.disabled = selectedItems.length === 0;
+    if (selectAll) {
+      selectAll.disabled = selectableIds.length === 0;
+      selectAll.checked = selectableIds.length > 0 && selectableIds.every(id => selectedIds.has(id));
+      selectAll.indeterminate = !selectAll.checked && selectableIds.some(id => selectedIds.has(id));
+    }
+  }
+
+  function bindBulkControls() {
+    if (!canBulkConfirm()) return;
+    const confirmBtn = document.querySelector('[data-cpu-bulk-confirm]');
+    const selectAll = document.querySelector('[data-cpu-select-all]');
+
+    selectAll?.addEventListener('change', () => {
+      const selectableIds = currentItems.filter(isBulkSelectable).map(item => Number(item.id));
+      if (selectAll.checked) {
+        selectableIds.forEach(id => selectedIds.add(id));
+      } else {
+        selectableIds.forEach(id => selectedIds.delete(id));
+      }
+      render(currentItems);
+    });
+
+    confirmBtn?.addEventListener('click', async () => {
+      const ids = getSelectedItems().map(item => Number(item.id));
+      if (!ids.length) return;
+
+      const approved = await ConfirmDialog.confirm(`Подтвердить выбранные заказы: ${ids.length}?`);
+      if (!approved) return;
+
+      confirmBtn.disabled = true;
+      const resp = await fetch('/api/desene_cpu/orders/bulk_confirm', {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(withCsrfBody({ ids }))
+      });
+      const data = await resp.json().catch(() => ({}));
+      const confirmedIds = Array.isArray(data.confirmed_ids)
+        ? data.confirmed_ids.map(value => Number(value))
+        : [];
+      confirmedIds.forEach(id => selectedIds.delete(id));
+
+      if (!resp.ok && !confirmedIds.length) {
+        alert(data.message || 'Ошибка массового подтверждения');
+        updateBulkControls();
+        return;
+      }
+
+      if (Array.isArray(data.errors) && data.errors.length) {
+        const details = data.errors.slice(0, 5).map(item => `#${item.id}: ${item.message}`).join('\n');
+        alert(`Подтверждено: ${confirmedIds.length}\nОшибки:\n${details}`);
+      } else {
+        showCpuToast(`Подтверждено: ${confirmedIds.length}`);
+      }
+
+      await load();
+    });
+  }
+
   function parseCpuOrderMeta(folderName) {
     const raw = `${folderName || ''}`.trim();
     const match = raw.match(/^(\d+-\d+)\s*(.*)$/);
@@ -2306,18 +2396,22 @@ const DeseneCpuPage = (() => {
     const tbody = document.querySelector('#cpuTable tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
+    const rows = Array.isArray(items) ? items : [];
+    const visibleIds = new Set(rows.map(item => Number(item.id)));
+    selectedIds = new Set([...selectedIds].filter(id => visibleIds.has(id)));
 
-    if (!Array.isArray(items) || !items.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="table-primary">Нет заказов за ${escapeHtml(formatMonthLabel(month))}.</td></tr>`;
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="${tableColspan()}" class="table-primary">Нет заказов за ${escapeHtml(formatMonthLabel(month))}.</td></tr>`;
+      updateBulkControls();
       return;
     }
 
     let currentMonth = null;
-    for (const item of items) {
+    for (const item of rows) {
       if (tab === 'archive' && item.month_folder !== currentMonth) {
         currentMonth = item.month_folder;
         const group = document.createElement('tr');
-        group.innerHTML = `<td colspan="5" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
+        group.innerHTML = `<td colspan="${tableColspan()}" class="table-primary">${escapeHtml(currentMonth || '—')}</td>`;
         tbody.appendChild(group);
       }
       const [label, cls] = statusBadge(item.status);
@@ -2325,7 +2419,12 @@ const DeseneCpuPage = (() => {
       const rowCls = statusRowClass(item.status);
       if (rowCls) tr.classList.add(rowCls);
       tr.dataset.cpuOrderId = `${item.id}`;
+      const selectable = isBulkSelectable(item);
+      const selectCell = canBulkConfirm()
+        ? `<td class="cpu-select-col"><input type="checkbox" data-cpu-select="${item.id}" ${selectedIds.has(Number(item.id)) ? 'checked' : ''} ${selectable ? '' : 'disabled'} aria-label="Выбрать заказ"></td>`
+        : '';
       tr.innerHTML = `
+        ${selectCell}
         <td>
           <div>${escapeHtml(item.order_folder_name || '')}</div>
           ${renderCpuTimeline(item)}
@@ -2339,6 +2438,7 @@ const DeseneCpuPage = (() => {
     }
 
     bindRowActions();
+    updateBulkControls();
   }
 
   function renderManager(item) {
@@ -2409,6 +2509,19 @@ const DeseneCpuPage = (() => {
   }
 
   function bindRowActions() {
+    document.querySelectorAll('[data-cpu-select]').forEach(input => {
+      input.addEventListener('change', () => {
+        const id = Number(input.dataset.cpuSelect || 0);
+        if (!id) return;
+        if (input.checked) {
+          selectedIds.add(id);
+        } else {
+          selectedIds.delete(id);
+        }
+        updateBulkControls();
+      });
+    });
+
     document.querySelectorAll('[data-cpu-send]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = Number(btn.dataset.cpuSend || 0);

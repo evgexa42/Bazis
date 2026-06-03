@@ -40,9 +40,29 @@ def _build_confirmed_folder_name(folder_name: str) -> str:
         name = _NOT_DO_MARKER_RE.sub("[A]", name)
         name = name.replace("[$]", "[A]")
 
-    if not name.endswith(" +"):
+    if "+" not in name and not name.endswith(" +"):
         name = f"{name} +"
     return name
+
+
+def _can_bulk_confirm_orders() -> bool:
+    role = (session.get("role") or "").strip().lower()
+    perms = getattr(g, "role_perms", {}) or {}
+    return role == "admin" and bool(perms.get("can_bulk_confirm_desene_cpu"))
+
+
+def _confirm_order_row(session_db, row: DeseneCpuOrder, actor_user: str) -> None:
+    old = row.status
+    _rename_order_folder_on_confirm(row, actor_user)
+    row.status = CPU_STATUS_CONFIRMED
+    session_db.add(
+        DeseneCpuAction(
+            order_id=row.id,
+            action_type="CONFIRM",
+            actor_user=actor_user or "system",
+            meta_json=json.dumps({"from": old, "to": CPU_STATUS_CONFIRMED}, ensure_ascii=False),
+        )
+    )
 
 
 def _rename_order_folder_on_confirm(row: DeseneCpuOrder, actor_user: str) -> None:
@@ -305,18 +325,72 @@ def api_confirm(order_id: int):
             return jsonify({"status": "error", "message": "Заказ не найден"}), 404
         if not _can_mutate_order(row):
             return jsonify({"status": "error", "message": "Нет прав"}), 403
-        old = row.status
-        row.status = CPU_STATUS_CONFIRMED
-        log_action(row.id, "CONFIRM", user, json.dumps({"from": old, "to": CPU_STATUS_CONFIRMED}, ensure_ascii=False))
-
         try:
-            _rename_order_folder_on_confirm(row, user)
+            _confirm_order_row(session_db, row, user)
         except FileExistsError as exc:
             return jsonify({"status": "error", "message": str(exc)}), 409
         except OSError as exc:
             return jsonify({"status": "error", "message": f"Не удалось переименовать папку: {exc}"}), 500
 
     return jsonify({"status": "ok", "new_status": CPU_STATUS_CONFIRMED})
+
+
+@desene_cpu_bp.route("/api/desene_cpu/orders/bulk_confirm", methods=["POST"])
+def api_bulk_confirm():
+    if not getattr(g, "role_perms", {}).get("can_access_desene_cpu"):
+        return jsonify({"status": "error", "message": "РќРµС‚ РїСЂР°РІ"}), 403
+    if not _can_bulk_confirm_orders():
+        return jsonify({"status": "error", "message": "РќРµС‚ РїСЂР°РІ РЅР° РјР°СЃСЃРѕРІРѕРµ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    raw_ids = payload.get("ids") if isinstance(payload, dict) else []
+    if not isinstance(raw_ids, list):
+        return jsonify({"status": "error", "message": "РќРµРІРµСЂРЅС‹Р№ СЃРїРёСЃРѕРє Р·Р°РєР°Р·РѕРІ"}), 400
+
+    order_ids: list[int] = []
+    seen_ids: set[int] = set()
+    for raw_id in raw_ids:
+        try:
+            parsed_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if parsed_id <= 0 or parsed_id in seen_ids:
+            continue
+        seen_ids.add(parsed_id)
+        order_ids.append(parsed_id)
+
+    if not order_ids:
+        return jsonify({"status": "error", "message": "Р’С‹Р±РµСЂРёС‚Рµ Р·Р°РєР°Р·С‹"}), 400
+
+    user = session.get("user") or ""
+    confirmed: list[int] = []
+    errors: list[dict] = []
+
+    for order_id in order_ids:
+        try:
+            with SessionLocal.begin() as session_db:
+                row = session_db.get(DeseneCpuOrder, order_id)
+                if not row:
+                    errors.append({"id": order_id, "message": "Р—Р°РєР°Р· РЅРµ РЅР°Р№РґРµРЅ"})
+                    continue
+                if not _can_mutate_order(row):
+                    errors.append({"id": order_id, "message": "РќРµС‚ РїСЂР°РІ"})
+                    continue
+                _confirm_order_row(session_db, row, user)
+                confirmed.append(order_id)
+        except FileExistsError as exc:
+            errors.append({"id": order_id, "message": str(exc)})
+        except OSError as exc:
+            errors.append({"id": order_id, "message": f"РќРµ СѓРґР°Р»РѕСЃСЊ РїРµСЂРµРёРјРµРЅРѕРІР°С‚СЊ РїР°РїРєСѓ: {exc}"})
+
+    status = "ok" if not errors else ("partial" if confirmed else "error")
+    http_status = 200 if confirmed else 409
+    return jsonify({
+        "status": status,
+        "confirmed_ids": confirmed,
+        "errors": errors,
+        "message": f"РџРѕРґС‚РІРµСЂР¶РґРµРЅРѕ: {len(confirmed)}",
+    }), http_status
 
 
 @desene_cpu_bp.route("/api/desene_cpu/orders/<int:order_id>/set_manager", methods=["POST"])

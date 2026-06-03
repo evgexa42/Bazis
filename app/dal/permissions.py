@@ -26,6 +26,7 @@ PERMISSION_FIELDS: Iterable[str] = (
     "can_import_db",
     "can_toggle_order_options",
     "can_confirm_orders",
+    "can_bulk_confirm_desene_cpu",
     "can_view_priced",
     "can_mark_priced",
     "can_view_priced_panel",
@@ -51,6 +52,7 @@ def _enforce_admin_baseline(role: str, perms: Dict[str, int]) -> Dict[str, int]:
     ensured["can_export_db"] = 1
     ensured["can_import_db"] = 1
     ensured["can_confirm_orders"] = 1
+    ensured["can_bulk_confirm_desene_cpu"] = 1
     ensured["can_view_priced"] = 1
     ensured["can_view_priced_panel"] = 1
     ensured["can_edit_order_manager"] = 1

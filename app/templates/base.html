@@ -22,6 +22,7 @@
   data-can-edit-paths="{{ 1 if role_perms.get('can_edit_paths') else 0 }}"
   data-can-toggle-order-options="{{ 1 if role_perms.get('can_toggle_order_options') else 0 }}"
   data-can-edit-order-manager="{{ 1 if role_perms.get('can_edit_order_manager') else 0 }}"
+  data-can-bulk-confirm-desene-cpu="{{ 1 if role_perms.get('can_bulk_confirm_desene_cpu') else 0 }}"
   data-csrf-token="{{ csrf_token() }}"
   {% block body_attrs %}{% endblock %}
 >

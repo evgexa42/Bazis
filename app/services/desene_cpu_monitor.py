@@ -162,9 +162,9 @@ def _walk_pdf_candidates(folder_path: str, max_depth: int = 2):
             continue
 
 
-def _has_plus_suffix(folder_name: str) -> bool:
+def _has_plus_marker(folder_name: str) -> bool:
     """Проверяет служебный суффикс подтверждения в имени папки."""
-    return bool(folder_name and folder_name.rstrip().endswith(" +"))
+    return "+" in (folder_name or "")
 
 def _find_matching_pdf(folder_path: str, folder_name: str) -> tuple[bool, str, datetime | None]:
     folder_pdf = f"{folder_name}.pdf".lower()
@@ -229,11 +229,15 @@ def _scan_folder(year: int, month_folder: str, folder_path: str) -> None:
     if should_check_pdf:
         pdf_found, pdf_path, pdf_mtime = _find_matching_pdf(folder_path, os.path.basename(folder_path))
 
+    has_plus_marker = _has_plus_marker(folder_name)
     next_status = existing.status if existing and existing.status else CPU_STATUS_NEW
+    if has_plus_marker:
+        next_status = CPU_STATUS_CONFIRMED
+
     status_reset_by_plus = bool(
         existing
         and existing.status == CPU_STATUS_CONFIRMED
-        and not _has_plus_suffix(folder_name)
+        and not has_plus_marker
     )
     if status_reset_by_plus:
         # Если вручную убрали служебный "+", считаем подтверждение снятым.
